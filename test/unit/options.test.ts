@@ -3,14 +3,16 @@ import { parseOptions } from "../../src/options.js"
 
 describe("parseOptions", () => {
   test("defaults: the pinned binary, verify, no scope", () => {
-    expect(parseOptions(undefined)).toEqual({ verifyBinary: true, allowUntestedHost: false })
-    expect(parseOptions(null)).toEqual({ verifyBinary: true, allowUntestedHost: false })
-    expect(parseOptions({})).toEqual({ verifyBinary: true, allowUntestedHost: false })
+    expect(parseOptions(undefined)).toEqual({ browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false })
+    expect(parseOptions(null)).toEqual({ browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false })
+    expect(parseOptions({})).toEqual({ browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false })
   })
 
   test("a path, and the two booleans", () => {
     expect(parseOptions({ path: " /opt/browse ", verifyBinary: false, allowUntestedHost: true })).toEqual({
       path: "/opt/browse",
+      browser: "real",
+      headless: false,
       verifyBinary: false,
       allowUntestedHost: true,
     })
@@ -18,6 +20,8 @@ describe("parseOptions", () => {
 
   test("a scope, normalised", () => {
     expect(parseOptions({ scope: { allowedOrigins: [" GitHub.com ", "*.example.com"] } })).toEqual({
+      browser: "real",
+      headless: false,
       verifyBinary: true,
       allowUntestedHost: false,
       scope: { session: "opencode", allowedOrigins: ["github.com", "*.example.com"], readOnly: false },

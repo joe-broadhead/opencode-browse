@@ -10,6 +10,7 @@ const live = {
     sessions: [],
     autoUpdate: null,
     updateAvailable: null,
+    relayError: null,
   },
 }
 
@@ -30,15 +31,43 @@ describe("renderDoctor", () => {
   })
 
   test("an unverified or untested binary is named", () => {
-    expect(renderDoctor({ binary: { ...binary, verified: false, source: "option" }, host, live, problems: [] })).toContain("not the packaged one")
+    expect(renderDoctor({ binary: { ...binary, verified: false, source: "option" }, host, live, problems: [] })).toContain("your own path option")
     expect(renderDoctor({ binary: { ...binary, tested: false, version: "0.0.13" }, host, live, problems: [] })).toContain("not the pinned 0.0.14")
+    // DR-19: the packaged binary with verifyBinary off is not called the user's own path.
+    expect(renderDoctor({ binary: { ...binary, verified: false }, host, live, problems: [] })).not.toContain("remove \"path\"")
+  })
+
+  test("managed mode shows the browser, its verification and the install command", () => {
+    const text = renderDoctor(
+      {
+        binary,
+        host,
+        live,
+        problems: [],
+        managed: {
+          mode: "managed",
+          state: "not_installed",
+          chromium: { path: null, version: null, source: null, verified: false },
+          chromiumPin: { version: "157.0.8103.38", supported: true, bytes: 196_562_867 },
+          extension: { version: "0.0.14", directory: null },
+          profile: "/p",
+          pid: null,
+          headless: false,
+          lastError: null,
+        },
+      },
+    )
+    expect(text).toContain("- Mode: managed browser · not_installed")
+    expect(text).toContain("pinned Chrome for Testing 157.0.8103.38")
+    expect(text).toContain("/browse-install-browser")
+    expect(text).toContain("Next step: Run /browse-install-browser")
   })
 
   test("a stopped relay, an unpaired extension and a scope are all shown", () => {
     const text = renderDoctor({
       binary,
       host,
-      live: { status: { ...live.status, relay: { running: false, version: null, stale: false }, extension: { connected: false, version: null, pairingState: "unpaired", protocolCompatible: null, nextStep: "Run browse pair." } } },
+      live: { status: { ...live.status, relay: { running: false, version: null, stale: false }, extension: { connected: false, version: null, pairingState: "unpaired", protocolCompatible: null, nextStep: "Run browse pair." }, relayError: null } },
       scope: { session: "opencode", readOnly: true, allowedOrigins: ["github.com", "*.example.com"] },
       scopeResult: { changed: true, action: "created session opencode" },
       problems: [],

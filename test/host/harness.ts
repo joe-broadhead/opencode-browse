@@ -11,6 +11,7 @@ import { Plugin } from "@opencode/plugin"
 import { createBrowsePlugin } from "../../src/plugin.js"
 import { SKILL_NAMES } from "../../src/skills.js"
 import { startFakeBinary, type FakeScenario } from "./fake-browse.js"
+import { MODEL_ID, startFakeModel } from "./fake-model.js"
 
 export type Rule = { action: string; resource: string; effect: "allow" | "ask" | "deny" }
 
@@ -29,6 +30,8 @@ globalThis.fetch = Object.assign(
   (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : input)
     if (url.hostname === "127.0.0.1" || url.hostname === "localhost") return realFetch(input, init)
+    // The managed test downloads Chrome for Testing from Google; only that test sets this, and only for that host.
+    if ((process.env.HOST_TEST_EGRESS ?? "").split(",").includes(url.hostname)) return realFetch(input, init)
     offLoopback.push(url.origin)
     return Promise.reject(new Error(`host test blocked a fetch to ${url.origin}`))
   },
@@ -50,6 +53,10 @@ export interface HostInput {
   readonly fake?: FakeScenario
   /** False for a scenario where the plugin is expected to register no server, such as a conflict. */
   readonly expectTools?: boolean
+  /** Start the scripted model API and point LM Studio's provider at it, for a Code Mode turn. */
+  readonly model?: boolean
+  /** Use the packaged browse binary (the real server) instead of the fake. For managed-mode tests. */
+  readonly packagedBinary?: boolean
 }
 
 let hosts = 0
@@ -59,12 +66,20 @@ export async function startHost(input: HostInput = {}) {
   const work = join(base, "work")
   mkdirSync(work, { recursive: true })
   const fake = startFakeBinary(input.fake)
+  const model = input.model ? await startFakeModel() : undefined
   const browse = createBrowsePlugin({ skillsDir, statusTimeoutMs: 5_000 })
-  const withOptions = Plugin.define({ id: browse.id, setup: (ctx) => browse.setup({ ...ctx, options: { path: fake.path, ...(input.options ?? {}) } }) })
+  const withOptions = Plugin.define({
+    id: browse.id,
+    setup: (ctx) => browse.setup({ ...ctx, options: { ...(input.packagedBinary ? {} : { path: fake.path }), ...(input.options ?? {}) } }),
+  })
   const probes = new Map<string, Plugin.Context>()
   const probe = Plugin.define({ id: "browse.host-test.probe", setup: (ctx) => void probes.set(ctx.location.directory, ctx) })
   const config = {
-    providers: { lmstudio: { settings: { baseURL: "" } }, ollama: { settings: { baseURL: "" } }, vllm: { settings: { baseURL: "" } } },
+    providers: {
+      lmstudio: { settings: { baseURL: input.model && model ? model.baseUrl : "" } },
+      ollama: { settings: { baseURL: "" } },
+      vllm: { settings: { baseURL: "" } },
+    },
     ...(input.config ?? {}),
   }
   const { OpenCode } = (await import(pathToFileURL(join(SDK, "dist", "index.js")).href)) as typeof import("@opencode/sdk")
@@ -82,6 +97,7 @@ export async function startHost(input: HostInput = {}) {
     client,
     location,
     fake,
+    model,
     probe: () => {
       const ctx = probes.get(work)
       if (!ctx) throw new Error("the probe plugin has not loaded")
@@ -89,6 +105,7 @@ export async function startHost(input: HostInput = {}) {
     },
     async close() {
       await client.close()
+      await model?.close()
       if (offLoopback.length) throw new Error(`the host tried to leave loopback: ${[...new Set(offLoopback)].join(", ")}`)
     },
   }
@@ -142,7 +159,8 @@ export async function attempt(host: Host, sessionID: string, agent: string, tool
     (error: unknown) => ({ ok: false as const, error: error instanceof Error ? `${error.name}: ${error.message}` : String(error) }),
   ).finally(() => (settled = true))
   let asked: string | undefined
-  while (!settled) {
+  const deadline = Date.now() + 120_000
+  while (!settled && Date.now() < deadline) {
     const pending = await host.client.permission.list({ sessionID })
     const request = pending.find((item) => item.action === `browse_${tool}`)
     if (request) {
@@ -152,13 +170,57 @@ export async function attempt(host: Host, sessionID: string, agent: string, tool
     }
     await Promise.race([run, Bun.sleep(25)])
   }
-  return { asked, ...(await run) }
+  const outcome = await Promise.race([
+    run,
+    Bun.sleep(120_000).then(() => ({ ok: false as const, error: "the tool call did not settle in 120 s" })),
+  ])
+  return { asked, ...outcome }
 }
 
 /** The host's own last-match evaluation for an MCP call, which the model path, Code Mode and scripts all consult. */
 export async function effect(host: Host, agent: string, action: string) {
   const sessionID = await session(host, agent)
   return (await host.client.permission.create({ sessionID, agent, action, resources: ["*"] })).effect
+}
+
+/** Waits until the scripted model is listed, so a session can name it. */
+export const modelReady = async (host: Host) => {
+  const models = host.client as unknown as { model: { list: (input: object) => Promise<{ data: { id: string; providerID: string }[] }> } }
+  return until("the scripted model is listed", async () => (await models.model.list({ location: host.location })).data.find((model) => model.providerID === "lmstudio" && model.id === MODEL_ID))
+}
+
+/** A session on the scripted model. */
+export const modelSession = async (host: Host, agent = "build") => {
+  const sessions = host.client.sessions as unknown as { create: (input: object) => Promise<{ id: string }> }
+  return (await sessions.create({ agent, location: host.location, model: { providerID: "lmstudio", id: MODEL_ID } })).id
+}
+
+/**
+ * Drives one scripted turn: the prompt enqueues it, the model answers with a tool call, the tool result comes back, and
+ * the model answers "Done." Every permission the turn raises is refused, as an unattended session would.
+ */
+export async function modelTurn(host: Host, sessionID: string, text: string) {
+  const sessions = host.client.sessions as unknown as { prompt: (input: object) => Promise<unknown> }
+  await sessions.prompt({ sessionID, text })
+  const answered: string[] = []
+  const deadline = Date.now() + 90_000
+  let seen = host.model?.requests.length ?? 0
+  let quietSince = Date.now()
+  while (Date.now() < deadline) {
+    for (const request of await host.client.permission.list({ sessionID })) {
+      answered.push(request.action)
+      await host.client.permission.reply({ sessionID, requestID: request.id, decision: "reject" })
+    }
+    const count = host.model?.requests.length ?? 0
+    if (count !== seen) {
+      seen = count
+      quietSince = Date.now()
+    }
+    // The turn is over when no new model request and no prompt has arrived for a moment.
+    if (count > 0 && Date.now() - quietSince > 1_500 && (await host.client.permission.list({ sessionID })).length === 0) break
+    await Bun.sleep(100)
+  }
+  return answered
 }
 
 export const agentRules = async (host: Host) => new Map((await host.client.agent.list({ location: host.location })).data.map((agent) => [agent.id as string, agent.permissions as Rule[]]))

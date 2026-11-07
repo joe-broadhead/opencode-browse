@@ -48,12 +48,12 @@
     "vendor": {
       "id": "anomaly",
       "name": "Anomaly",
-      "domain": "opencode.ai"
+      "domain": "anoma.ly"
     }
   },
   "jelly": {
     "title": "Browse",
-    "summary": "Drive your real browser from OpenCode: tabs, logins, screenshots, recordings and network captures, with a hand-back for logins and payments.",
+    "summary": "Drive your real or a managed browser: tabs, logins, recordings and captures, with a hand-back for logins and payments.",
     "icon": "assets/icon.svg",
     "tools": [
       {
@@ -187,8 +187,10 @@
     "./icon-256.png": "./assets/icon-256.png"
   },
   "files": [
+    "bin",
     "dist",
     "manifest",
+    "managed-extension",
     "skills",
     "assets/icon.svg",
     "assets/icon-128.png",
@@ -215,7 +217,9 @@
     "drift": "node scripts/check-browse-tools.mjs",
     "bin:pin": "node scripts/pin.mjs",
     "bin:packages": "node scripts/build-bins.mjs",
-    "bin:local": "node scripts/build-bins.mjs --local"
+    "bin:local": "node scripts/build-bins.mjs --local",
+    "jelly-check": "node scripts/jelly-check.mjs",
+    "test:managed": "bun test ./test/managed"
   },
   "devDependencies": {
     "@opencode/client": "2.2.3",

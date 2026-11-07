@@ -23,16 +23,25 @@ const CODES = [
   "SCOPE_LOST",
   "SCOPE_UNREACHABLE",
   "STATUS_UNAVAILABLE",
+  "RELAY_FAILED",
   "DOCTOR_FAILED",
   "HOST_UNTESTED",
   "OPTIONS_INVALID",
   "SKILLS_INVALID",
+  "CHROMIUM_MISSING",
+  "CHROMIUM_UNSUPPORTED",
+  "CHROMIUM_DOWNLOAD_FAILED",
+  "CHROMIUM_EXTRACT_FAILED",
+  "CHROMIUM_UNVERIFIED",
+  "CHROMIUM_INVALID",
+  "CHROMIUM_BRANDED",
+  "EXTENSION_UNVERIFIED",
 ]
 
 describe("the README", () => {
   test("follows the family order", () => {
     expect(README.startsWith("# Browse for OpenCode\n")).toBe(true)
-    expect(README).toContain("**Unofficial; not affiliated with Anomaly or the browse project.**")
+    expect(README).toContain("**Unofficial; not affiliated with Anomaly or OpenCode.**")
     const order = ["## Requirements", "## Install", "## Use", "## Permissions", "## Configure", "## Organisation rollout", "## Troubleshooting", "## Uninstall"]
     const positions = order.map((heading) => README.indexOf(heading))
     for (const position of positions) expect(position).toBeGreaterThan(-1)
@@ -51,6 +60,9 @@ describe("the README", () => {
     for (const tool of TOOLS) expect(README, tool.name).toContain(`browse_${tool.name}`)
     expect(README).toContain("8 run, 10 ask")
     expect(README).toContain("Owner decision, 2026-11-07")
+    expect(README).toContain("Managed browser (optional)")
+    expect(README).toContain("its logins are separate")
+    expect(README).toContain("/browse-install-browser")
   })
 
   test("links to repository files absolutely and carries no pre-release text", () => {
@@ -64,6 +76,8 @@ describe("the docs", () => {
   test("scripting lists exactly the 18 methods with a class", () => {
     for (const tool of TOOLS) expect(SCRIPTING, tool.name).toContain(`\`${tool.name}\``)
     expect(SCRIPTING).toContain("Only `allow` runs")
+    expect(SCRIPTING).toContain("The three captures run by default")
+    expect(SCRIPTING).toContain("authenticated request and response")
     expect(SCRIPTING).toContain("browse.tools")
   })
 

@@ -1,0 +1,33 @@
+{
+  "app": "chrome-for-testing",
+  "version": "157.0.8103.38",
+  "source": "https://googlechromelabs.github.io/chrome-for-testing/",
+  "licence": "Chrome for Testing is distributed by Google under its own terms; the plugin downloads it on demand and does not ship it.",
+  "platforms": {
+    "darwin-arm64": {
+      "cftPlatform": "mac-arm64",
+      "url": "https://storage.googleapis.com/chrome-for-testing-public/157.0.8103.38/mac-arm64/chrome-mac-arm64.zip",
+      "sha256": "3406b38b52b7d341d74450eb7b369be038c9fec9894c8b8a9e9e9f97333caf2f",
+      "bytes": 196562867
+    },
+    "darwin-x64": {
+      "cftPlatform": "mac-x64",
+      "url": "https://storage.googleapis.com/chrome-for-testing-public/157.0.8103.38/mac-x64/chrome-mac-x64.zip",
+      "sha256": "c6fcc2869b0d5a421e880d7bcdabe96e4261c4100e125fc4e4daf6346474efa6",
+      "bytes": 207117913
+    },
+    "linux-x64-gnu": {
+      "cftPlatform": "linux64",
+      "url": "https://storage.googleapis.com/chrome-for-testing-public/157.0.8103.38/linux64/chrome-linux64.zip",
+      "sha256": "8cdeb344e9b2cefe59f4aea8d1d93d5d93054c03cde217665c16fc1f62e72a66",
+      "bytes": 203502190
+    },
+    "linux-arm64-gnu": {
+      "cftPlatform": "linux-arm64",
+      "url": "https://storage.googleapis.com/chrome-for-testing-public/157.0.8103.38/linux-arm64/chrome-linux-arm64.zip",
+      "sha256": "5517510e61657ff43ee9ab804ecd1a499b3d5bd3caf72f097516bd6565ba5a17",
+      "bytes": 203276965
+    }
+  },
+  "pinnedAt": "2026-11-07T20:03:34.810Z"
+}

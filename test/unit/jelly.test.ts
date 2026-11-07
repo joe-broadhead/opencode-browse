@@ -10,7 +10,7 @@ describe("the Jelly declaration", () => {
   test("has every key Jelly reads, and no unknown ones", () => {
     expect(Object.keys(pkg.jelly).sort()).toEqual(["contributes", "icon", "rpc", "signIns", "skills", "summary", "title", "tools", "views"].sort())
     expect(pkg.jelly.title).toBe("Browse")
-    expect(pkg.jelly.summary.length).toBeLessThan(160)
+    expect(pkg.jelly.summary.length).toBeLessThanOrEqual(120)
     expect(pkg.jelly.icon).toBe("assets/icon.svg")
     expect(pkg.jelly.signIns).toEqual([])
     expect(pkg.jelly.views).toEqual([])
@@ -34,6 +34,6 @@ describe("the Jelly declaration", () => {
   })
 
   test("declares the vendor, because browse is not our product", () => {
-    expect(pkg.opencode.vendor).toEqual({ id: "anomaly", name: "Anomaly", domain: "opencode.ai" })
+    expect(pkg.opencode.vendor).toEqual({ id: "anomaly", name: "Anomaly", domain: "anoma.ly" })
   })
 })

@@ -137,7 +137,8 @@ export function resolveBinary(input: ResolveInput = {}): BinaryInfo {
     }
   }
 
-  const fromEnv = env.OPENCODE_BROWSE_BIN
+  // The test seam only: production ignores the environment, so a shell wrapper cannot change which binary runs.
+  const fromEnv = env.OPENCODE_BROWSE_TEST === "1" ? env.OPENCODE_BROWSE_BIN : undefined
   if (fromEnv !== undefined && fromEnv !== "") {
     const path = resolve(fromEnv)
     if (!existsSync(path)) throw browseError("BINARY_MISSING", "OPENCODE_BROWSE_BIN points at a file that does not exist.", "Unset it, or point it at a browse binary.")
@@ -213,6 +214,8 @@ export interface BrowseStatus {
   readonly sessions: readonly { readonly id: string; readonly readOnly: boolean; readonly allowedOrigins: readonly string[] }[]
   readonly autoUpdate: string | null
   readonly updateAvailable: string | null
+  /** The relay answered, but not with a health report: its own error text. */
+  readonly relayError: string | null
 }
 
 /** The CLI prints JSON with two-space indentation; accept one object spanning the whole output or a final line. */
@@ -259,8 +262,17 @@ export function parseStatus(raw: unknown): BrowseStatus | undefined {
       if (id === null) return []
       return [{ id, readOnly: bool(session.readOnly) === true, allowedOrigins: Array.isArray(session.allowedOrigins) ? session.allowedOrigins.filter((origin): origin is string => typeof origin === "string") : [] }]
     }),
-    autoUpdate: text(value.autoUpdate),
+    autoUpdate: (() => {
+      const setting = value.autoUpdate
+      if (typeof setting === "string") return setting
+      if (setting !== null && typeof setting === "object") {
+        const object = setting as Record<string, unknown>
+        return text(object.effective) ?? text(object.mode) ?? text(object.value)
+      }
+      return null
+    })(),
     updateAvailable: update ? text(update.latest) ?? text(update.version) : null,
+    relayError: text(relay.error),
   }
 }
 

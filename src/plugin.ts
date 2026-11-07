@@ -1,14 +1,17 @@
 import { Plugin } from "@opencode/plugin"
-import { errorText, NAMESPACE_DESCRIPTION, PLUGIN_ID, SERVER_NAME } from "./constants.js"
-import { ensureScope, probeVersion, readStatus, resolveBinary, type BinaryInfo, type BrowseStatus, type Probe, type ScopeResult } from "./engine.js"
-import { checkHost } from "./host-version.js"
+import { fileURLToPath } from "node:url"
+import { join } from "node:path"
+import { errorText, NAMESPACE_DESCRIPTION, PLUGIN_ID, SERVER_NAME, SUPPORTED_HOST } from "./constants.js"
+import { ensureScope, probeVersion, readStatus, resolveBinary, runBinary, type BinaryInfo, type BrowseStatus, type Probe, type ScopeResult } from "./engine.js"
+import { checkHost, isTestedHost, type HostCheck } from "./host-version.js"
 import { isScoped, parseOptions, type Options } from "./options.js"
-import { defaultRules, registerDefaultRules, type RuleSet } from "./permissions.js"
-import { reasonOf } from "./redact.js"
+import { conflictRules, defaultRules, registerDefaultRules, type RuleSet } from "./permissions.js"
+import { reasonOf, shortReason } from "./redact.js"
 import { loadSkills, registerSkills } from "./skills.js"
 import { buildStatus, readStatus as readStatusModel, registerStatusCommand, registerStatusRpc, type ServerSource, type Status } from "./status.js"
 import { registerToolsRpc, METHODS } from "./host/tools-rpc.js"
 import { registerDoctorCommand } from "./doctor.js"
+import { ManagedBrowser } from "./managed/browser.js"
 
 /** Internal seam: tests point the plugin at their own skills and a shorter status timeout. */
 interface BrowseSeam {
@@ -16,30 +19,45 @@ interface BrowseSeam {
   readonly statusTimeoutMs?: number
 }
 
-/** The environment the entry carries: the session pin when the options set a scope, and nothing else. */
+/** The package root: `dist/`'s parent when built, the repository when loaded from `src/`. */
+const packageRoot = fileURLToPath(new URL("..", import.meta.url))
+/** The MCP entry: a wrapper that re-verifies the pinned binary at every spawn. */
+export const wrapperPath = () => join(packageRoot, "bin", "mcp.mjs")
+
+/**
+ * The entry's environment. browse's own two switches are always set: `MCP_DIRECT=1` makes the binary serve instead
+ * of supervising, so it can never hand off to another `browse` on this machine, and `AUTO_UPDATE=off` stops the relay
+ * from replacing the pinned file. The session pin is set only by a scope, and removed when the scope is removed.
+ */
 export function serverEnvironment(options: Options): Record<string, string> {
-  return options.scope === undefined ? {} : { OPENCODE_BROWSER_SESSION: options.scope.session }
+  return {
+    OPENCODE_BROWSER_MCP_DIRECT: "1",
+    OPENCODE_BROWSER_AUTO_UPDATE: "off",
+    ...(options.scope === undefined ? {} : { OPENCODE_BROWSER_SESSION: options.scope.session }),
+  }
 }
 
 const commandText = (command: readonly string[]) => command.join(" ")
 
 /**
- * True when the entry is a `browse` MCP server this plugin can own: a local command ending in `mcp` whose program is
- * a browse binary (the vendor's installer, a global npm package, or the pinned path). Of the user's entry only the
- * type and the command are read, never its environment.
+ * True when the entry is a browse MCP server this plugin can own: our wrapper, a browse binary, or the vendor's
+ * unpacked/global npm entry. Of the user's entry only the type and the command are read, never its environment.
  */
-function owned(command: unknown): boolean {
+export function owned(command: unknown): boolean {
   if (!Array.isArray(command) || command.length < 2) return false
   const parts = command.filter((part): part is string => typeof part === "string")
   if (parts.length !== command.length || parts.at(-1) !== "mcp") return false
+  // Our wrapper: [wrapperPath, binary, "mcp"]; the program is two from the end.
   const program = parts.at(-2) ?? ""
+  const before = parts.at(-3) ?? ""
+  if (/[/\\]opencode-browse[/\\]bin[/\\]mcp\.mjs$/.test(before)) return true
   return /(^|[/\\])browse(\.exe)?$/.test(program) || /[/\\]@opencode[/\\]browse[/\\]dist[/\\]cli\.m?js$/.test(program)
 }
 
 /**
- * Registers `browse` as a local MCP server with the pinned binary, or adopts the user's own browse entry (the
- * installer's, or a global npm one) by replacing only its command, so the pinned binary is what runs. Everything else
- * the user set — `disabled`, timeouts, other environment keys — is kept. An entry under this name that is not a
+ * Registers `browse` as a local MCP server running our verifying wrapper, or adopts the user's own browse entry by
+ * replacing only its command and the two switches plus the session pin, so the pinned binary is what runs. Everything
+ * else the user set — `disabled`, timeouts, other environment keys — is kept. An entry under this name that is not a
  * browse command is a conflict, and nothing is registered. Synchronous and never throws.
  */
 export function registerServer(
@@ -52,10 +70,10 @@ export function registerServer(
       const legacy = editor.get("opencode-browser")
       const legacyProblem = legacy === undefined
         ? undefined
-        : errorText("SERVER_LEGACY", `An older "opencode-browser" MCP entry is still in your config, and this plugin registers "${SERVER_NAME}".`, `Remove the "opencode-browser" entry, then restart OpenCode.`)
+        : errorText("SERVER_LEGACY", `An older "opencode-browser" MCP server is still in your config, and its tools are denied by this plugin.`, `Remove the "opencode-browser" entry, then restart OpenCode.`)
       const existing = editor.get(SERVER_NAME)
       if (existing === undefined) {
-        if (entry === undefined) return record(undefined)
+        if (entry === undefined) return record(undefined, legacyProblem)
         editor.set(SERVER_NAME, { type: "local", command: [...entry.command], environment: { ...entry.environment } })
         return record({ type: "plugin", command: commandText(entry.command) }, legacyProblem)
       }
@@ -63,21 +81,26 @@ export function registerServer(
         return record({ type: "conflict", command: existing.type, expected: entry === undefined ? "the pinned browse binary" : commandText(entry.command) }, legacyProblem)
       }
       if (!owned(existing.command)) {
-        return record({
-          type: "conflict",
-          command: commandText(existing.command.filter((part): part is string => typeof part === "string")),
-          expected: entry === undefined ? "the pinned browse binary" : commandText(entry.command),
-        }, legacyProblem)
+        return record(
+          {
+            type: "conflict",
+            command: commandText(existing.command.filter((part): part is string => typeof part === "string")),
+            expected: entry === undefined ? "the pinned browse binary" : commandText(entry.command),
+          },
+          legacyProblem,
+        )
       }
       if (entry === undefined) {
         return record({ type: "adopted", command: commandText(existing.command.filter((part): part is string => typeof part === "string")) }, legacyProblem)
       }
-      // Keep everything else, including a `disabled` the user chose; set only our command and session pin.
       editor.update(SERVER_NAME, (config) => {
         if (config.type !== "local") return
         config.command = [...entry.command]
         const environment = config.environment !== null && typeof config.environment === "object" && !Array.isArray(config.environment) ? config.environment : {}
-        config.environment = { ...environment, ...entry.environment }
+        const next = { ...environment, ...entry.environment }
+        // Removing `scope` unpins the session: the old pin must not survive in the entry.
+        if (!("OPENCODE_BROWSER_SESSION" in entry.environment)) delete next.OPENCODE_BROWSER_SESSION
+        config.environment = next
       })
       record({ type: "adopted", command: commandText(entry.command) }, legacyProblem)
     } catch (error) {
@@ -98,23 +121,79 @@ function cachedLive(bin: string | undefined, timeoutMs: number) {
   }
 }
 
+/** A host check that never throws: the version the host reports and whether it is in range. */
+function safeHost(version: string, allowed: boolean): { host: HostCheck; problem?: string } {
+  try {
+    return { host: checkHost(version, allowed) }
+  } catch (error) {
+    return {
+      host: { version: version === "" ? null : version, range: SUPPORTED_HOST, tested: isTestedHost(version) },
+      problem: (error as Error).message,
+    }
+  }
+}
+
 export function createBrowsePlugin(seam: BrowseSeam = {}) {
   return Plugin.define({
     id: PLUGIN_ID,
     async setup(ctx) {
-      const options = parseOptions(ctx.options)
-      const host = checkHost(ctx.app.version, options.allowUntestedHost)
+      // Options and the host never throw the plugin away: a bad one becomes a status problem (DR-4).
+      let options: Options | undefined
+      let optionsProblem: string | undefined
+      try {
+        options = parseOptions(ctx.options)
+      } catch (error) {
+        optionsProblem = (error as Error).message
+      }
+      const hostResult = safeHost(ctx.app.version, options?.allowUntestedHost === true)
+      const host = hostResult.host
+      const hostProblem = options === undefined ? undefined : hostResult.problem
+      const fatal = optionsProblem ?? hostProblem
+      const rules: RuleSet = { scoped: options !== undefined && isScoped(options), readOnly: options?.scope?.readOnly === true }
+
       const { skills, problems: skillProblems } = await loadSkills(seam.skillsDir)
       const problems = new Map<string, string>(skillProblems.map((problem, index) => [`skill:${index}`, problem]))
       const report = (area: string) => (problem: string | undefined) => void (problem ? problems.set(area, problem) : problems.delete(area))
 
-      const rules: RuleSet = { scoped: isScoped(options), readOnly: options.scope?.readOnly === true }
+      // With no usable options nothing else is set up, but the deny nets still go in, so a legacy server or a
+      // conflicting `browse` server can never run a browser tool unguarded.
+      if (fatal !== undefined || options === undefined) {
+        const block = conflictRules()
+        await registerDefaultRules(ctx.agent, block, report("rules"))
+        const read = async (): Promise<Status> =>
+          buildStatus({
+            host,
+            rules,
+            mode: "real",
+            fatal: fatal ?? errorText("OPTIONS_INVALID", "The plugin options could not be read.", "Fix the plugin options in opencode.json, then restart OpenCode."),
+            binary: { path: null, version: null, source: null, verified: false, tested: false, supported: false },
+            problems: [...problems.values()],
+          })
+        await registerSkills(ctx.skill, skills)
+        await registerStatusCommand(ctx, read)
+        await registerStatusRpc(ctx.rpc, read)
+        await registerDoctorCommand(ctx, {
+          binary: () => undefined,
+          live: async () => ({ reason: "the plugin is not set up" }),
+          scope: () => undefined,
+          applyScope: async () => undefined,
+          problems: () => [...problems.values()],
+          host,
+          managed: () => undefined,
+          installBrowser: async () => ({ message: "Managed mode is not set up: fix the plugin options first." }),
+        })
+        return async () => undefined
+      }
 
       // The binary: resolved once, synchronously, so the transform can register the server in this same tick.
       let binary: BinaryInfo | undefined
       let binaryProblem: string | undefined
-      try {
+      const verifyBinary = () => {
         binary = resolveBinary({ ...(options.path ? { optionPath: options.path } : {}), verify: options.verifyBinary })
+        return binary
+      }
+      try {
+        verifyBinary()
       } catch (error) {
         const code = (error as { code?: string }).code ?? "BINARY_MISSING"
         const message = (error as Error).message.replace(/^[A-Z_]+: /, "").split(" Next step: ")[0] ?? "the browse binary could not be resolved."
@@ -125,17 +204,16 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
       let source: ServerSource | undefined
       await registerServer(
         ctx.mcp,
-        binary === undefined ? undefined : { command: [binary.path, "mcp"], environment: serverEnvironment(options) },
+        binary === undefined ? undefined : { command: [wrapperPath(), binary.path, "mcp"], environment: serverEnvironment(options) },
         (next, problem) => {
           source = next
           report("server")(problem)
         },
       )
-      // Code Mode's catalog describes the namespace with this text; a conflicting entry keeps its own.
       await ctx.tool.transform((editor) => {
         if (source?.type !== "conflict") editor.namespace({ name: SERVER_NAME, description: NAMESPACE_DESCRIPTION })
       })
-      await registerDefaultRules(ctx.agent, defaultRules(rules), rules, report("rules"))
+      await registerDefaultRules(ctx.agent, source?.type === "conflict" ? conflictRules() : defaultRules(rules), report("rules"))
 
       // The pinned session: created or repaired once at setup when the options ask for one.
       let scopeResult: ScopeResult | undefined
@@ -144,19 +222,32 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
         if (binary === undefined || options.scope === undefined) return undefined
         if (!force && scopeResult !== undefined) return scopeResult
         try {
-          scopeResult = await ensureScope(binary.path, options.scope)
+          verifyBinary()
+          scopeResult = await ensureScope(binary!.path, options.scope)
           scopeProblem = undefined
           return scopeResult
         } catch (error) {
           const code = (error as { code?: string }).code ?? "SCOPE_UNREACHABLE"
-          const message = (error as Error).message.replace(/^[A-Z_]+: /, "").split(" Next step: ")[0] ?? "the pinned session could not be prepared."
-          scopeProblem = errorText(code, message, (error as { nextStep?: string }).nextStep ?? "Run /browse-doctor.")
+          const reason = shortReason((error as Error).message.replace(/^[A-Z_]+: /, "").split(" Next step: ")[0] ?? "") ?? "the pinned session could not be prepared"
+          scopeProblem = errorText(code, reason, (error as { nextStep?: string }).nextStep ?? "Run /browse-doctor.")
           throw error
         }
       }
       if (binary !== undefined && options.scope !== undefined) await applyScope(false).catch(() => undefined)
 
-      // The version probe is a one-off at setup; status shows its answer.
+      // Managed mode: a separate Chromium and profile, started in the background and stopped on dispose.
+      let managed: ManagedBrowser | undefined
+      if (binary !== undefined && options.browser === "managed") {
+        managed = new ManagedBrowser({
+          packageRoot,
+          binary: binary.path,
+          headless: options.headless,
+          ...(options.chromiumPath ? { chromiumPath: options.chromiumPath } : {}),
+          verify: () => verifyBinary(),
+        })
+        void managed.start()
+      }
+
       let probe: Probe | null = null
       if (binary !== undefined) void probeVersion(binary.path).then((result) => (probe = result))
       const live = cachedLive(binary?.path, seam.statusTimeoutMs ?? 10_000)
@@ -166,25 +257,28 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
           return buildStatus({
             host,
             rules,
-            binary: { path: null, version: null, source: null, verified: false, tested: false, supported: false },
+            mode: options.browser,
             ...(binaryProblem ? { binaryProblem } : {}),
             ...(source ? { source } : {}),
             ...(scopeProblem ? { scopeProblem } : {}),
             problems: [...problems.values()],
+            binary: { path: null, version: null, source: null, verified: false, tested: false, supported: false },
           })
         }
         return readStatusModel(ctx, {
           host,
           rules,
+          mode: options.browser,
           binary,
           ...(source ? { source } : {}),
           probe,
           ...(options.scope
-            ? { scope: { session: options.scope.session, readOnly: options.scope.readOnly, allowedOrigins: options.scope.allowedOrigins, matches: scopeResult !== undefined } }
+            ? { scope: { session: options.scope.session, readOnly: options.scope.readOnly, allowedOrigins: options.scope.allowedOrigins, matches: false } }
             : {}),
           ...(scopeProblem ? { scopeProblem } : {}),
           problems: [...problems.values()],
           live: () => live(),
+          managed: () => managed?.status(),
         })
       }
 
@@ -198,13 +292,47 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
         applyScope,
         problems: () => [...problems.values()],
         host,
+        managed: () => managed?.status(),
+        installBrowser: async () => {
+          if (managed === undefined) return { message: "Set \"browser\": \"managed\" in this plugin's options first." }
+          await managed.installAndStart()
+          return { message: `Chrome for Testing is installed; the managed browser is ${managed.status().state}.` }
+        },
       })
+      await ctx.command.transform((editor) =>
+        editor.add({
+          name: "browse-install-browser",
+          description: "Download and verify Chrome for Testing for managed mode (about 150-210 MB), then start it",
+          execute: async ({ sessionID }) => {
+            let text: string
+            if (managed === undefined) {
+              text = "Managed mode is off. Set \"browser\": \"managed\" in this plugin's options, restart OpenCode, then run /browse-install-browser."
+            } else {
+              const before = managed.status()
+              if (before.state === "running") {
+                text = "The managed browser is already running."
+              } else {
+                try {
+                  await managed.installAndStart()
+                  const after = managed.status()
+                  text = `Chrome for Testing ${after.chromium.version ?? after.chromiumPin?.version ?? ""} is ${after.chromium.verified ? "verified and installed" : "in use"}; the managed browser is ${after.state}. ${after.state === "running" ? "Its profile is separate from your own browser: it starts signed out of every site." : "Run /browse-doctor for the next step."}`
+                } catch (error) {
+                  text = `${(error as { code?: string }).code ?? "CHROMIUM_INSTALL_FAILED"}: ${shortReason((error as Error).message) ?? "the browser could not be installed"}. Next step: Run /browse-doctor.`
+                }
+              }
+            }
+            await ctx.session.synthetic({ sessionID, text, description: "Browse install browser", resume: false })
+          },
+        }),
+      )
       const stopTools = await registerToolsRpc(ctx, { methods: METHODS, mcp: { server: SERVER_NAME, managed: () => source?.type !== "conflict" } })
       return async () => {
+        await managed?.stop()
         await stopTools()
       }
     },
   })
 }
 
+export { runBinary }
 export type { Status }

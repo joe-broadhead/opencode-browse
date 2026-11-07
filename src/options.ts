@@ -12,6 +12,12 @@ export interface ScopeOptions {
 export interface Options {
   /** A browse binary to use instead of the pinned one. Reported unverified and untested. */
   readonly path?: string
+  /** `real` (the user's browser, with the Web Store extension) or `managed` (a separate Chromium and profile). */
+  readonly browser: "real" | "managed"
+  /** A Chromium or Chrome for Testing binary for managed mode, instead of the pinned download. */
+  readonly chromiumPath?: string
+  /** Run the managed browser headless. Headed by default, so the user can watch. */
+  readonly headless: boolean
   /** Pin the server to a browse session with this scope. */
   readonly scope?: ScopeOptions
   /** Check the pinned binary's SHA-256 before running it (the default). */
@@ -21,7 +27,7 @@ export interface Options {
 }
 
 const EXAMPLE = `"plugins": [{ "package": "@joe-broadhead/opencode-browse", "options": { "scope": { "allowedOrigins": ["github.com"] } } }]`
-const ACCEPTED = ["path", "scope", "verifyBinary", "allowUntestedHost"] as const
+const ACCEPTED = ["path", "browser", "chromiumPath", "headless", "scope", "verifyBinary", "allowUntestedHost"] as const
 
 const invalid = (problem: string) =>
   browseError("OPTIONS_INVALID", `${problem}.`, `Fix the plugin options in opencode.json, for example ${EXAMPLE}.`)
@@ -34,7 +40,7 @@ const ORIGIN = /^(?:https?:\/\/)?(?:\*\.)?[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::\d
 
 /** Validates the plugin options from opencode.json. Every option is optional. */
 export function parseOptions(raw: unknown): Options {
-  const defaults: Options = { verifyBinary: true, allowUntestedHost: false }
+  const defaults: Options = { browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false }
   if (raw === undefined || raw === null) return defaults
   if (typeof raw !== "object" || Array.isArray(raw)) throw invalid(`The plugin options must be an object, found ${describe(raw)}`)
   const input = raw as Record<string, unknown>
@@ -43,14 +49,20 @@ export function parseOptions(raw: unknown): Options {
       throw invalid(`Unknown option "${key}". Accepted options: ${ACCEPTED.map((name) => `"${name}"`).join(", ")}`)
     }
   }
-  const { path, scope, verifyBinary = true, allowUntestedHost = false } = input
+  const { path, browser = "real", chromiumPath, headless = false, scope, verifyBinary = true, allowUntestedHost = false } = input
   if (path !== undefined && (typeof path !== "string" || path.trim() === "")) {
     throw invalid(`The option "path" must be a file path, found ${describe(path)}`)
   }
+  if (browser !== "real" && browser !== "managed") throw invalid(`The option "browser" must be "real" or "managed", found ${describe(browser)}`)
+  if (chromiumPath !== undefined && (typeof chromiumPath !== "string" || chromiumPath.trim() === "")) throw invalid(`The option "chromiumPath" must be a file path, found ${describe(chromiumPath)}`)
+  if (typeof headless !== "boolean") throw invalid(`The option "headless" must be true or false, found ${describe(headless)}`)
   if (typeof verifyBinary !== "boolean") throw invalid(`The option "verifyBinary" must be true or false, found ${describe(verifyBinary)}`)
   if (typeof allowUntestedHost !== "boolean") throw invalid(`The option "allowUntestedHost" must be true or false, found ${describe(allowUntestedHost)}`)
   return {
     ...(typeof path === "string" ? { path: path.trim() } : {}),
+    browser,
+    ...(typeof chromiumPath === "string" ? { chromiumPath: chromiumPath.trim() } : {}),
+    headless,
     ...(scope === undefined ? {} : { scope: parseScope(scope) }),
     verifyBinary,
     allowUntestedHost,

@@ -2,11 +2,13 @@ import type { Plugin } from "@opencode/plugin"
 import { PINNED_VERSION, SERVER_NAME } from "./constants.js"
 import { parseJsonOutput, runBinary, type BinaryInfo, type BrowseStatus, type ScopeResult } from "./engine.js"
 import type { ScopeOptions } from "./options.js"
+import type { ManagedStatus } from "./managed/browser.js"
 import { shortReason } from "./redact.js"
 import type { HostCheck } from "./host-version.js"
 
 export interface DoctorInput {
   readonly binary?: BinaryInfo
+  readonly managed?: ManagedStatus
   readonly host: HostCheck
   readonly live: { readonly status?: BrowseStatus; readonly reason?: string }
   readonly scope?: ScopeOptions
@@ -58,7 +60,7 @@ export function renderDoctor(input: DoctorInput, vendor?: unknown): string {
       binary.tested ? `the pinned ${PINNED_VERSION}` : `not the pinned ${PINNED_VERSION}`
     } · ${binary.platform}`,
   )
-  lines.push(`- Relay: ${live.status ? (live.status.relay.running ? `running${live.status.relay.version ? ` · ${live.status.relay.version}` : ""}${live.status.relay.stale ? " · stale build" : ""}` : "stopped") : `unknown (${live.reason ?? "no answer"})`}`)
+  lines.push(`- Relay: ${live.status ? (live.status.relay.running ? `running${live.status.relay.version ? ` · ${live.status.relay.version}` : ""}${live.status.relay.stale ? " · stale build" : ""} · auto-update off` : "stopped") : `unknown (${live.reason ?? "no answer"})`}`)
   lines.push(
     `- Extension: ${
       live.status
@@ -68,7 +70,19 @@ export function renderDoctor(input: DoctorInput, vendor?: unknown): string {
         : "unknown"
     }`,
   )
-  if (!live.status?.extension.connected) lines.push(`- Pair: "${binary.path}" pair`)
+  if (input.managed !== undefined) {
+    const managed = input.managed
+    const chromium = managed.chromium.path === null
+      ? `none${managed.chromiumPin ? ` (pinned Chrome for Testing ${managed.chromiumPin.version}${managed.chromiumPin.supported ? "" : ", no build for this platform"})` : ""}`
+      : `Chrome for Testing ${managed.chromium.version} (${managed.chromium.verified ? "verified" : "unverified, your own"}; ${managed.chromium.source})`
+    lines.push(`- Mode: managed browser · ${managed.state}${managed.pid === null ? "" : ` · pid ${managed.pid}`}${managed.headless ? " · headless" : " · headed"}`)
+    lines.push(`  ${chromium} · extension ${managed.extension.version ?? "unknown"} · profile ${managed.profile}`)
+    if (managed.lastError) lines.push(`  Last error: ${managed.lastError}`)
+    if (managed.state !== "running") lines.push(`- Install browser: /browse-install-browser (asks nothing; it downloads and verifies the pinned Chrome for Testing)`)
+  } else {
+    lines.push("- Mode: real browser (the Web Store extension)")
+    if (!live.status?.extension.connected) lines.push(`- Pair: "${binary.path}" pair`)
+  }
   if (scope) {
     const state = scopeResult === undefined ? "not prepared" : scopeResult.changed ? scopeResult.action : `ready (${scopeResult.action})`
     lines.push(`- Scope: ${scope.session}${scope.readOnly ? " (read-only)" : ""}${scope.allowedOrigins.length ? ` · ${scope.allowedOrigins.join(", ")}` : " · no allowlist"} · ${state}`)
@@ -83,9 +97,12 @@ export function renderDoctor(input: DoctorInput, vendor?: unknown): string {
 
 function nextStep(input: DoctorInput, live: DoctorInput["live"], scopeResult: ScopeResult | undefined): string {
   if (input.binary === undefined) return "Reinstall the plugin so its platform package is installed."
-  if (!input.binary.verified) return "The binary is not the packaged one; remove the \"path\" option to use the pinned release."
+  if (input.binary.source === "option") return "The binary is your own path option, not the packaged one; remove \"path\" to use the pinned release."
   if (!input.binary.tested) return `The binary is not the pinned ${PINNED_VERSION}; update the plugin.`
   if (scopeResult?.changed) return scopeResult.action[0]?.toUpperCase() + scopeResult.action.slice(1) + "."
+  if (input.managed?.state === "not_installed") return "Run /browse-install-browser to download and verify the pinned Chrome for Testing."
+  if (input.managed?.state === "failed") return `The managed browser failed: ${input.managed.lastError ?? "see the browser log"}. Run /browse-doctor again after fixing it.`
+  if (input.managed?.state === "starting") return "The managed browser is starting; run /browse-doctor again in a few seconds."
   if (input.scope && scopeResult === undefined) return `Run /browse-doctor again to prepare session "${input.scope.session}", or pair the browser first with \`browse pair\`.`
   if (!live.status) return `Run \`${input.binary.path} status\` in a terminal and fix what it reports.`
   if (!live.status.relay.running) return "Ask the agent to open a page, which starts the relay."
@@ -98,6 +115,8 @@ function nextStep(input: DoctorInput, live: DoctorInput["live"], scopeResult: Sc
 
 export interface DoctorDeps {
   readonly binary: () => BinaryInfo | undefined
+  readonly managed: () => ManagedStatus | undefined
+  readonly installBrowser: () => Promise<{ message: string }>
   readonly live: () => Promise<{ status?: BrowseStatus; reason?: string }>
   readonly scope: () => ScopeOptions | undefined
   readonly applyScope: (force: boolean) => Promise<ScopeResult | undefined>
@@ -131,6 +150,7 @@ export function registerDoctorCommand(
             host: deps.host,
             live: await deps.live(),
             ...(deps.scope() ? { scope: deps.scope() } : {}),
+            ...(deps.managed() ? { managed: deps.managed() } : {}),
             ...(scopeResult ? { scopeResult } : {}),
             problems,
           },

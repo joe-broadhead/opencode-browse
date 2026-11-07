@@ -66,18 +66,9 @@ jobs:
         run: npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP"
       - name: Run the pack test against that tarball
         run: PACK_TARBALL="$(ls "$RUNNER_TEMP"/*.tgz)" node scripts/check.mjs pack
-      - name: Require the four platform packages first
+      - name: Require the four platform packages first, carrying this pin
         if: ${{ vars.SKIP_NATIVE_CHECK != '1' }}
-        run: |
-          set -euo pipefail
-          version="$(node -p 'require("./package.json").version')"
-          for platform in darwin-arm64 darwin-x64 linux-x64-gnu linux-arm64-gnu; do
-            name="@joe-broadhead/opencode-browse-bin-${platform}"
-            if ! npm view "${name}@${version}" version >/dev/null 2>&1; then
-              echo "::error::${name}@${version} is not on npm. Publish the platform packages first, then rerun; set the repository variable SKIP_NATIVE_CHECK=1 only for the first bootstrap."
-              exit 1
-            fi
-          done
+        run: node scripts/verify-platform-packages.mjs "$(node -p 'require("./package.json").version')"
       - name: Publish with provenance
         run: |
           name="$(node -p 'require("./package.json").name')"

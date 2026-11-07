@@ -10,9 +10,10 @@ const findRule = (rules: Rule[], name: string) => rules.findLast((rule) => rule.
 describe("the default rules", () => {
   test("start with a deny for every name, so a tool browse adds later is off", () => {
     const rules = defaultRules()
-    expect(rules[0]).toEqual({ action: "browse_*", resource: "*", effect: "deny" })
-    expect(rules.filter((rule) => rule.action.endsWith("*"))).toHaveLength(1)
-    expect(rules).toHaveLength(19)
+    expect(rules[0]).toEqual({ action: "opencode_browser_*", resource: "*", effect: "deny" })
+    expect(rules[1]).toEqual({ action: "browse_*", resource: "*", effect: "deny" })
+    expect(rules.filter((rule) => rule.action.endsWith("*")).map((rule) => rule.action)).toEqual(["opencode_browser_*", "browse_*"])
+    expect(rules).toHaveLength(20)
   })
 
   test("then one rule per known tool, by exact name, with the owner's effect", () => {
@@ -41,7 +42,7 @@ describe("insertion", () => {
   test("goes directly after the agent's base allow, and only once", () => {
     const permissions: Rule[] = [base()]
     expect(insertRules(permissions, defaultRules())).toBe(true)
-    expect(permissions.slice(1, 20)).toEqual(defaultRules())
+    expect(permissions.slice(1, 21)).toEqual(defaultRules())
     expect(insertRules(permissions, defaultRules())).toBe(false)
   })
 
@@ -64,6 +65,36 @@ describe("insertion", () => {
   })
 })
 
+describe("upgrades between profiles", () => {
+  test("adding scope replaces the default block, so the scoped denies decide", () => {
+    const permissions: Rule[] = [base()]
+    insertRules(permissions, defaultRules())
+    insertRules(permissions, defaultRules({ scoped: true, readOnly: true }))
+    expect(evaluate(permissions, action("session_new"))).toBe("deny")
+    expect(evaluate(permissions, action("session_allowlist"))).toBe("deny")
+    expect(evaluate(permissions, action("execute"))).toBe("allow")
+    // Only one block remains: the scoped one.
+    expect(hasDefaultRules(permissions, { scoped: true, readOnly: true })).toBe(true)
+    expect(hasDefaultRules(permissions, { scoped: false, readOnly: false })).toBe(false)
+  })
+
+  test("removing scope replaces the scoped block with the default one", () => {
+    const permissions: Rule[] = [base()]
+    insertRules(permissions, defaultRules({ scoped: true, readOnly: true }))
+    insertRules(permissions, defaultRules())
+    expect(evaluate(permissions, action("session_new"))).toBe("ask")
+    expect(evaluate(permissions, action("execute"))).toBe("ask")
+    expect(hasDefaultRules(permissions, { scoped: false, readOnly: false })).toBe(true)
+  })
+
+  test("the legacy server's tools are denied by exact-name pattern", () => {
+    const rules = defaultRules()
+    expect(evaluate(rules, "opencode_browser_execute")).toBe("deny")
+    expect(evaluate(rules, "opencode_browser_network")).toBe("deny")
+    expect(evaluate(rules, "opencode_browser_status")).toBe("deny")
+  })
+})
+
 describe("agents without the rules", () => {
   test("are the ones with a base allow whose own rules let a new browse tool run", () => {
     const agents = [
@@ -83,7 +114,7 @@ describe("registration", () => {
       callback({ list: () => { throw new Error("boom") }, update: () => undefined })
       return Promise.resolve({ dispose: async () => undefined })
     }
-    await registerDefaultRules({ transform } as never, defaultRules(), { scoped: false, readOnly: false }, (problem) => problems.push(problem))
+    await registerDefaultRules({ transform } as never, defaultRules(), (problem) => problems.push(problem))
     expect(problems[0]).toStartWith("RULES_NOT_ADDED: Browse's default permission rules could not be added")
     expect(problems[0]).toContain("Next step: Restart OpenCode.")
   })

@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test"
-import { cleanup, attempt, effect, session, startHost } from "./harness.js"
+import { cleanup, attempt, effect, modelReady, modelSession, modelTurn, session, startHost } from "./harness.js"
 import { NEW_TOOL, REAL_TOOLS } from "./fake-browse.js"
 
 afterAll(cleanup)
@@ -47,6 +47,33 @@ describe("registering the server", () => {
   })
 })
 
+describe("review findings, through the host", () => {
+  test("DR-4: a bad option still loads the plugin, with no server and no tools", async () => {
+    const host = await startHost({ options: { nope: 1 } as Record<string, unknown>, expectTools: false })
+    try {
+      const { data: plugins } = await host.client.plugin.list({ location: host.location })
+      expect(plugins.find((plugin) => plugin.id === "browse")?.state?.status).toBe("active")
+      const { data: servers } = await host.client.mcp.list({ location: host.location })
+      expect(servers.find((server) => server.name === "browse")).toBeUndefined()
+    } finally {
+      await host.close()
+    }
+  })
+
+  test("DR-5: a legacy opencode-browser server's tools are denied by exact-name pattern", async () => {
+    const host = await startHost({
+      options: { verifyBinary: false },
+      config: { mcp: { servers: { "opencode-browser": { type: "local", command: ["node", "legacy/mcp.js"] } } } },
+    })
+    try {
+      expect(await effect(host, "build", "opencode_browser_execute")).toBe("deny")
+      expect(await effect(host, "build", "opencode_browser_network")).toBe("deny")
+    } finally {
+      await host.close()
+    }
+  })
+})
+
 describe("the owner's permission table, through the host", () => {
   test("the reads and the captures run with no prompt", async () => {
     const host = await startHost({ options: { verifyBinary: false } })
@@ -73,6 +100,7 @@ describe("the owner's permission table, through the host", () => {
       expect(host.fake.tools()).not.toContain("execute")
 
       const accepted = await attempt(host, sessionID, "build", "execute", "once", { code: "return 1" })
+      console.log("DBG accepted", JSON.stringify(accepted))
       expect(accepted.asked).toBe("browse_execute")
       expect(accepted.ok).toBe(true)
       expect(host.fake.tools()).toContain("execute")
@@ -111,6 +139,35 @@ describe("the owner's permission table, through the host", () => {
       await host.close()
     }
   })
+})
+
+describe("Code Mode", () => {
+  test("a tools.browse read runs inside the program, and an inner execute asks and never reaches the server", async () => {
+    const host = await startHost({ options: { verifyBinary: false }, model: true })
+    try {
+      await modelReady(host)
+      host.model!.script = [
+        {
+          tool: "execute",
+          arguments: {
+            code: [
+              "const results = []",
+              "results.push(String((await tools.browse.status({})) !== undefined))",
+              "try { await tools.browse.execute({ code: 'return 1' }); results.push('ran') } catch (error) { results.push('refused') }",
+              "return results",
+            ].join("\n"),
+          },
+        },
+      ]
+      const sessionID = await modelSession(host)
+      const asked = await modelTurn(host, sessionID, "Check the browser.")
+      expect(asked).toContain("browse_execute")
+      expect(host.fake.tools()).toContain("status")
+      expect(host.fake.tools()).not.toContain("execute")
+    } finally {
+      await host.close()
+    }
+  }, 120_000)
 })
 
 describe("the scoped profile", () => {

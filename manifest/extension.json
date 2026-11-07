@@ -1,0 +1,129 @@
+{
+  "app": "browse",
+  "artifact": "extension",
+  "version": "0.0.14",
+  "channel": "stable",
+  "manifest": "https://anoma.ly/release/browse/extension/stable.json",
+  "upstream": "https://github.com/anomalyco/browse",
+  "licence": "MIT",
+  "copyright": "Copyright (c) 2025 opencode",
+  "zip": {
+    "url": "https://anoma.ly/release/browse/files/8b33e8ce8c96446dfd267c5343c30e0c88058ecfe7fec749d1c3c7c4b4d2b68a/opencode-browser-0.0.14.zip",
+    "sha256": "8b33e8ce8c96446dfd267c5343c30e0c88058ecfe7fec749d1c3c7c4b4d2b68a",
+    "bytes": 182081
+  },
+  "totalBytes": 600735,
+  "files": [
+    {
+      "path": "assets/offscreen-DVZCkEfv.js",
+      "sha256": "435fb09b5af4fea38efe8635dead4b4b558d9b3e923f96fcc5726abafa18874b",
+      "bytes": 3867
+    },
+    {
+      "path": "assets/onboarding-CtJVwSly.css",
+      "sha256": "09407385667228766d6e7d8d377bea341bc03a0fd57dd9e5539b544cc9573b79",
+      "bytes": 15746
+    },
+    {
+      "path": "assets/onboarding-DMAbK-Ji.js",
+      "sha256": "5b484ed4d63df83932357315db419dab26ff0eb87181d3c26670444e3a9c9b78",
+      "bytes": 78679
+    },
+    {
+      "path": "assets/protocol-B-Ozjg73.js",
+      "sha256": "0f9680d82975f58119f41dba05a2aa9e5cb87fb760bc7ba48beda96df5c97336",
+      "bytes": 1258
+    },
+    {
+      "path": "assets/protocol-BetzY9zK.js",
+      "sha256": "5f378044169f766fea174a93dcb330e11151f8e2019877a04378496c6db743d9",
+      "bytes": 1765
+    },
+    {
+      "path": "assets/relay-form-DPDDlmkK.css",
+      "sha256": "9087a1a64ce9b04653c7810f2609c03db0a4a446b7018b1badd1c34ba8ecac95",
+      "bytes": 42004
+    },
+    {
+      "path": "assets/relay-form-Ptevrso6.js",
+      "sha256": "b344adad058364caf2409bf0feabadcaa0c183941574e8836cd6c9415d2f1ca1",
+      "bytes": 187153
+    },
+    {
+      "path": "assets/settings-C7TVthLQ.css",
+      "sha256": "7b336ef5edf6d8324aa2c26d19650d407b59b702350453cd44561ed22321dc52",
+      "bytes": 15544
+    },
+    {
+      "path": "assets/settings-grst1DTK.js",
+      "sha256": "330808c5dc7688cd289bccc915e1629af69c2f4feab594fd3c05bdde31f6768e",
+      "bytes": 187167
+    },
+    {
+      "path": "assets/welcome-DoPKnGcG.js",
+      "sha256": "d48d743a7b2e26af14514dd4482865bd525426aa1bcbc5dbc5fc65f5b870d81b",
+      "bytes": 70
+    },
+    {
+      "path": "background.js",
+      "sha256": "b720158766d1622068c1ae82d08c1c5281deb92b39ce7727d7009948b7caee78",
+      "bytes": 50711
+    },
+    {
+      "path": "content.js",
+      "sha256": "cb002bbb5f9a9f6c68bec639f456732d3f9d490fc9eed05f5a288e2f0d3a0787",
+      "bytes": 10502
+    },
+    {
+      "path": "icons/icon-128.png",
+      "sha256": "de758269b49dfe4a0095ee46e5080eb0995c850b3d93176d830ad169804edeff",
+      "bytes": 1202
+    },
+    {
+      "path": "icons/icon-16.png",
+      "sha256": "878cde8861a8da289fe32f9ce2117637fcdbabdd7d60bc379a6db9a04bfaaa44",
+      "bytes": 420
+    },
+    {
+      "path": "icons/icon-32.png",
+      "sha256": "de5634c3dc3c1a03d154b20deb3bda811596e96b231f7bb1a3608994f4d9beb4",
+      "bytes": 554
+    },
+    {
+      "path": "icons/icon-48.png",
+      "sha256": "3b3559b546d9fb7d4650530bda8150210b3301a6b6f70d7bb63f341bc0e42a89",
+      "bytes": 639
+    },
+    {
+      "path": "icons/logo.svg",
+      "sha256": "e29bbe33380ad1c1ada9134b52f229d30e9776d60481512c9d81f2bb6f37def9",
+      "bytes": 612
+    },
+    {
+      "path": "manifest.json",
+      "sha256": "e897b0939f500f5d56ebaa3f8c9d6ba54eb41123352707a45f8cf41f7c11ec29",
+      "bytes": 1354
+    },
+    {
+      "path": "offscreen.html",
+      "sha256": "3c138c08bec008c569490ec2c92fb3d3d52af39ceaf4647340ef9e76bb0f2619",
+      "bytes": 229
+    },
+    {
+      "path": "onboarding.html",
+      "sha256": "b2a335db41cd7018b11d73c599a5461a7ffd687a7fbd9eaec0a69770d0a9ddcd",
+      "bytes": 528
+    },
+    {
+      "path": "settings.html",
+      "sha256": "5f94948a7fffc74107012a2f16dde32b94fe0543c712a67257e9448cb4491f74",
+      "bytes": 514
+    },
+    {
+      "path": "welcome.html",
+      "sha256": "e089fd01cbdb4d6658861dd02cb119f74f3d56676455a3111712e01712f2f9cd",
+      "bytes": 217
+    }
+  ],
+  "pinnedAt": "2026-11-07T20:31:38.360Z"
+}

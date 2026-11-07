@@ -74,13 +74,17 @@ describe("registerServer", () => {
 })
 
 describe("the server environment", () => {
-  test("carries the session pin only, and only when scoped", () => {
-    expect(serverEnvironment(parseOptions({}))).toEqual({})
-    expect(serverEnvironment(parseOptions({ scope: { session: "work" } }))).toEqual({ OPENCODE_BROWSER_SESSION: "work" })
+  test("turns supervision and auto-update off, and carries the session pin only when scoped", () => {
+    expect(serverEnvironment(parseOptions({}))).toEqual({ OPENCODE_BROWSER_MCP_DIRECT: "1", OPENCODE_BROWSER_AUTO_UPDATE: "off" })
+    expect(serverEnvironment(parseOptions({ scope: { session: "work" } }))).toEqual({
+      OPENCODE_BROWSER_MCP_DIRECT: "1",
+      OPENCODE_BROWSER_AUTO_UPDATE: "off",
+      OPENCODE_BROWSER_SESSION: "work",
+    })
   })
 
   test("never sets an ALLOW_* switch", () => {
     const environment = serverEnvironment(parseOptions({ scope: { readOnly: true, allowedOrigins: ["github.com"] } }))
-    expect(Object.keys(environment)).toEqual(["OPENCODE_BROWSER_SESSION"])
+    expect(Object.keys(environment).filter((key) => key.includes("ALLOW_"))).toEqual([])
   })
 })

@@ -47,6 +47,7 @@ describe("JSON from the CLI", () => {
       sessions: [{ id: "opencode", readOnly: true, allowedOrigins: ["github.com"] }],
       autoUpdate: null,
       updateAvailable: "0.0.15",
+      relayError: null,
     })
     expect(parseStatus({ relay: "nope", extension: null, sessions: [1, null, {}] })).toEqual({
       relay: { running: false, version: null, stale: false },
@@ -54,8 +55,14 @@ describe("JSON from the CLI", () => {
       sessions: [],
       autoUpdate: null,
       updateAvailable: null,
+      relayError: null,
     })
     expect(parseStatus("x")).toBeUndefined()
+    // DR-15: autoUpdate is an object, and a relay error is carried.
+    const object = parseStatus({ relay: { running: true }, extension: null, sessions: [], autoUpdate: { mode: "notify", effective: "notify" } })
+    expect(object?.autoUpdate).toBe("notify")
+    const broken = parseStatus({ relay: { running: false, error: "the relay panicked" }, extension: null, sessions: [] })
+    expect(broken?.relayError).toBe("the relay panicked")
     expect(parseStatus(null)).toBeUndefined()
   })
 })
@@ -96,7 +103,8 @@ describe("resolution", () => {
     writeFileSync(own, "x")
     expect(resolveBinary({ packageRoot: dir, optionPath: own })).toMatchObject({ source: "option", verified: false, tested: false })
     expect(() => resolveBinary({ packageRoot: dir, optionPath: join(dir, "nope") })).toThrow(/^BINARY_MISSING: /)
-    expect(resolveBinary({ packageRoot: dir, env: { OPENCODE_BROWSE_BIN: own } })).toMatchObject({ source: "environment" })
+    expect(resolveBinary({ packageRoot: dir, env: { OPENCODE_BROWSE_TEST: "1", OPENCODE_BROWSE_BIN: own } })).toMatchObject({ source: "environment" })
+    expect(() => resolveBinary({ packageRoot: dir, env: { OPENCODE_BROWSE_BIN: own } })).toThrow(/^BINARY_MISSING: /)
   })
 
   test("an unsupported platform says so", () => {

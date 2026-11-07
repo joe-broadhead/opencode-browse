@@ -26,7 +26,7 @@ describe("the tarball", () => {
 
   test("ships the two bundles and the data files, and no source", () => {
     const listed = files()
-    for (const wanted of ["dist/index.js", "dist/tui.js", "manifest/browse.json", "NOTICE", "README.md", "LICENSE", "CHANGELOG.md", "skills/browse/SKILL.md", "skills/browse-capture/SKILL.md", "assets/icon.svg", "assets/icon-128.png", "assets/icon-256.png"]) {
+    for (const wanted of ["dist/index.js", "dist/tui.js", "bin/mcp.mjs", "managed-extension/manifest.json", "manifest/browse.json", "manifest/extension.json", "manifest/chromium.json", "NOTICE", "README.md", "LICENSE", "CHANGELOG.md", "skills/browse/SKILL.md", "skills/browse-capture/SKILL.md", "assets/icon.svg", "assets/icon-128.png", "assets/icon-256.png"]) {
       expect(listed, wanted).toContain(wanted)
     }
     expect(listed.filter((file) => file.startsWith("src/"))).toEqual([])
@@ -56,6 +56,24 @@ describe("the tarball", () => {
     const tui = execFileSync("tar", ["-xzOf", tarball, "package/dist/tui.js"], { encoding: "utf8" })
     expect(Buffer.byteLength(tui)).toBeLessThan(30 * 1024)
     expect(tui).not.toContain("zod")
+  })
+
+  test("the managed artefacts are pinned: the extension per file, Chrome for Testing per platform", () => {
+    const extension = JSON.parse(execFileSync("tar", ["-xzOf", tarball, "package/manifest/extension.json"], { encoding: "utf8" }))
+    expect(extension.version).toBe("0.0.14")
+    expect(extension.zip.sha256).toMatch(/^[0-9a-f]{64}$/)
+    expect(extension.files.length).toBeGreaterThan(10)
+    for (const file of extension.files) expect(file.sha256).toMatch(/^[0-9a-f]{64}$/)
+    const chromium = JSON.parse(execFileSync("tar", ["-xzOf", tarball, "package/manifest/chromium.json"], { encoding: "utf8" }))
+    expect(chromium.version).toMatch(/^\d+\.\d+\.\d+\.\d+$/)
+    for (const key of ["darwin-arm64", "darwin-x64", "linux-x64-gnu", "linux-arm64-gnu"]) {
+      expect(chromium.platforms[key].sha256).toMatch(/^[0-9a-f]{64}$/)
+      expect(chromium.platforms[key].bytes).toBeGreaterThan(1_000_000)
+    }
+    // The MCP wrapper is executable in the tarball: OpenCode spawns the path directly.
+    const listing = execFileSync("tar", ["-tvzf", tarball, "package/bin/mcp.mjs"], { encoding: "utf8" })
+    expect(listing.startsWith("-rwxr-xr-x")).toBe(true)
+    expect(execFileSync("tar", ["-xzOf", tarball, "package/bin/mcp.mjs"], { encoding: "utf8" }).startsWith("#!/usr/bin/env node")).toBe(true)
   })
 
   test("the pinned manifest records four targets, each with a digest and a size", () => {

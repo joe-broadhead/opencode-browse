@@ -6,7 +6,7 @@ const host = { version: "2.2.4", range: ">=2.2.3 <2.3.0", tested: true }
 const rules = { scoped: false, readOnly: false }
 const binary = { path: "/opt/browse", version: "0.0.14", source: "package" as const, verified: true, tested: true, supported: true }
 
-const facts = (overrides: Partial<StatusFacts> = {}): StatusFacts => ({ host, rules, binary, probe: { version: "0.0.14", tested: true }, ...overrides })
+const facts = (overrides: Partial<StatusFacts> = {}): StatusFacts => ({ host, rules, binary, mode: "real", probe: { version: "0.0.14", tested: true }, ...overrides })
 
 describe("buildStatus", () => {
   test("with no binary: not configured, and its own next step", () => {
@@ -24,7 +24,7 @@ describe("buildStatus", () => {
   test("a conflicting entry wins over the server state", () => {
     const status = buildStatus(facts({ source: { type: "conflict", command: "a local command", expected: "/opt/browse mcp" } }))
     expect(status.state).toBe("conflict")
-    expect(status.nextStep).toContain("Remove that entry")
+    expect(status.nextStep).toContain("Every tool of that server is denied")
   })
 
   test("connected carries the relay and extension truth, and the counts", () => {
@@ -79,18 +79,114 @@ describe("buildStatus", () => {
   })
 })
 
+describe("review findings", () => {
+  test("DR-4: a bad option or host is a status, with its own next step", () => {
+    const options = buildStatus(facts({ fatal: "OPTIONS_INVALID: Unknown option \"nope\". Next step: Fix the plugin options in opencode.json." }))
+    expect(options.state).toBe("failed")
+    expect(options.nextStep).toContain("Fix the plugin options")
+    const hostOutside = buildStatus(facts({ fatal: "HOST_UNTESTED: This plugin supports OpenCode >=2.2.3 <2.3.0, found 2.1.0. Next step: Use OpenCode >=2.2.3 <2.3.0.", host: { version: "2.1.0", range: ">=2.2.3 <2.3.0", tested: false } }))
+    expect(hostOutside.state).toBe("host_untested")
+  })
+
+  test("DR-5: a legacy server is the next step", () => {
+    const status = buildStatus(facts({ server: { status: "connected" }, tools: ["status"], legacy: true }))
+    expect(status.legacy).toBe(true)
+    expect(status.nextStep).toContain('"opencode-browser" MCP server is still configured')
+  })
+
+  test("DR-17: a conflict denies every tool of the server holding the name", () => {
+    const status = buildStatus(facts({ source: { type: "conflict", command: "a local command", expected: "/opt/browse mcp" }, tools: ["execute", "network"] }))
+    expect(status.access).toEqual({ run: 0, ask: 0, off: 18 })
+  })
+
+  test("DR-21: a scope that cannot be read is not reported as matching", async () => {
+    const { readStatus } = await import("../../src/status.js")
+    const status = await readStatus(
+      { mcp: { list: async () => ({ data: [{ name: "browse", status: { status: "connected" } }] }) }, agent: { list: async () => ({ data: [] }) }, tool: { list: async () => [] } } as never,
+      { host, rules, mode: "real", binary, scope: { session: "opencode", readOnly: true, allowedOrigins: [], matches: false }, live: async () => ({ status: { relay: { running: false, version: null, stale: false }, extension: { connected: false, version: null, pairingState: null, protocolCompatible: null, nextStep: null }, sessions: [], autoUpdate: null, updateAvailable: null, relayError: null } }) },
+    )
+    expect(status.scope?.matches).toBe(false)
+  })
+
+  test("DR-15: a relay that reports an error is not read as merely stopped", async () => {
+    const { readStatus } = await import("../../src/status.js")
+    const status = await readStatus(
+      { mcp: { list: async () => ({ data: [{ name: "browse", status: { status: "connected" } }] }) }, agent: { list: async () => ({ data: [] }) }, tool: { list: async () => [] } } as never,
+      {
+        host,
+        rules,
+        mode: "real",
+        binary,
+        live: async () => ({ status: { relay: { running: false, version: null, stale: false }, extension: { connected: false, version: null, pairingState: null, protocolCompatible: null, nextStep: null }, sessions: [], autoUpdate: null, updateAvailable: null, relayError: "the relay panicked" } }),
+      },
+    )
+    expect(status.problems.some((problem) => problem.startsWith("RELAY_FAILED"))).toBe(true)
+    expect(status.nextStep).toContain("Run /browse-doctor")
+  })
+
+  test("managed mode: not installed names the command and the size", () => {
+    const status = buildStatus(
+      facts({
+        mode: "managed",
+        server: { status: "connected" },
+        tools: ["status"],
+        managed: {
+          mode: "managed",
+          state: "not_installed",
+          chromium: { path: null, version: null, source: null, verified: false },
+          chromiumPin: { version: "157.0.8103.38", supported: true, bytes: 196_562_867 },
+          extension: { version: "0.0.14", directory: null },
+          profile: "/p",
+          pid: null,
+          headless: false,
+          lastError: null,
+        },
+      }),
+    )
+    expect(status.nextStep).toContain("/browse-install-browser")
+    expect(status.nextStep).toContain("197 MB")
+  })
+
+  test("managed mode: a running browser is a row, and its profile is separate", () => {
+    const text = formatStatus(
+      buildStatus(
+        facts({
+          mode: "managed",
+          server: { status: "connected" },
+          tools: ["status"],
+          relay: { running: true, version: "0.0.14", stale: false },
+          extension: { connected: true, version: "0.0.14", pairingState: "paired", compatible: true, nextStep: null },
+          managed: {
+            mode: "managed",
+            state: "running",
+            chromium: { path: "/c", version: "157.0.8103.38", source: "installed", verified: true },
+            chromiumPin: { version: "157.0.8103.38", supported: true },
+            extension: { version: "0.0.14", directory: "/e" },
+            profile: "/p",
+            pid: 42,
+            headless: true,
+            lastError: null,
+          },
+        }),
+      ),
+    )
+    expect(text).toContain("- Mode: managed browser")
+    expect(text).toContain("- Managed: running · pid 42 · headless · extension 0.0.14 · Chrome for Testing 157.0.8103.38 (verified; installed)")
+  })
+})
+
 describe("formatStatus", () => {
   test("has the S9 rows, in order, with the one next step last", () => {
     const text = formatStatus(buildStatus(facts({ server: { status: "connected" }, tools: ["status"], relay: { running: true, version: "0.0.14", stale: false }, extension: { connected: true, version: "0.0.14", pairingState: "paired", compatible: true, nextStep: null } })))
     const labels = text.split("\n").filter((line) => line.startsWith("- ")).map((line) => line.slice(2, line.indexOf(":")))
-    expect(labels).toEqual(["Connection", "Access", "Browser", "Relay", "Extension", "Tools", "Agents without default rules", "OpenCode", "Next step"])
+    expect(labels).toEqual(["Connection", "Mode", "Access", "Browser", "Relay", "Extension", "Tools", "Agents without default rules", "OpenCode", "Next step"])
     expect(text).not.toContain("Account")
   })
 
   test("shows the access counts and the binary's provenance", () => {
     const text = formatStatus(buildStatus(facts({ server: { status: "connected" }, tools: ["status"] })))
     expect(text).toContain("8 run · 10 ask · 0 off")
-    expect(text).toContain("browse 0.0.14 (verified, pinned; the platform package)")
+    expect(text).toContain("browse 0.0.14 (verified at startup, pinned; the platform package)")
   })
 })
 
