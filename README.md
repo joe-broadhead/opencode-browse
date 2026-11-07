@@ -70,7 +70,7 @@ the toolbar button, resumes the script.
 
 Every page action runs through `browse_execute`, and it asks first. Reads and tab cleanup run without asking.
 
-**The three captures run without asking, by default (the owner's decision, 2026-11-07).** Read this before you rely on
+**The three captures run without asking, by default.** This is a deliberate default; read this before you rely on
 that default:
 
 - `browse_network` captures **authenticated request and response traffic** from your logged-in session, including
@@ -108,7 +108,7 @@ The plugin adds these rules to every agent, directly after the agent's base rule
 | `browse_status`, `browse_session_list`, `browse_secrets_list`, `browse_secrets_status`, `browse_tabs_cleanup` | `browse_execute`, `browse_session_new`, `browse_session_use`, `browse_session_adopt`, `browse_session_reset`, `browse_session_delete`, `browse_session_allowlist`, `browse_settings` | none of the 18; any tool browse adds later |
 | `browse_network`, `browse_recording`, `browse_flight_recorder` (captures) | `browse_secrets_run`, `browse_secrets_refresh` (act with your stored credentials) | |
 
-So **8 run, 10 ask, and a tool this plugin does not know is refused**. Owner decision, 2026-11-07.
+So **8 run, 10 ask, and a tool this plugin does not know is refused**.
 
 Everything later than these rules still wins: an agent's own stricter rules (Plan and Explore cannot drive the
 browser), your `permissions` in `opencode.json`, and your saved "Always allow" answers. In an unattended run such as

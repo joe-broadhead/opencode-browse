@@ -16,7 +16,7 @@ describe("the default rules", () => {
     expect(rules).toHaveLength(20)
   })
 
-  test("then one rule per known tool, by exact name, with the owner's effect", () => {
+  test("then one rule per known tool, by exact name, with its default effect", () => {
     const rules = defaultRules()
     for (const tool of TOOLS) expect(findRule(rules, tool.name), tool.name).toEqual({ action: action(tool.name), resource: "*", effect: tool.effect })
     expect(evaluate(rules, action("shiny_new_tool"))).toBe("deny")

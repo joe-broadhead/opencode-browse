@@ -1,10 +1,10 @@
 // Every fact the plugin keeps about browse's MCP tools: the 18 the server lists at 0.0.14 (9bf2dac), each with its
-// MCP annotation, its class for the tools RPC, and the default permission effect the owner ruled on 2026-11-07.
+// MCP annotation, its class for the tools RPC, and the default permission effect.
 // The default rules, the tools RPC's table, status's unknown tools, the Jelly declaration and the tests all derive
 // from this file, so a tool cannot drift between them. Keep it free of runtime imports: scripts/check-browse-tools.mjs
 // and the drift job load it directly.
 //
-// Effects (owner 2026-11-07): the reads and the tab cleanup run; the page action, the session tools, the settings and
+// Effects: the reads and the tab cleanup run; the page action, the session tools, the settings and
 // the three tools that act with the user's secrets or widen reach ask; nothing known is off. A tool browse adds later
 // matches no exact name, so DEFAULT_UNKNOWN denies it until it is classified here.
 
@@ -237,7 +237,7 @@ export function specOf(name: string): ToolSpec | undefined {
 }
 
 /**
- * The scoped profile (owner decision D-6): the session tools that could leave a pinned session or widen its reach
+ * The scoped profile: the session tools that could leave a pinned session or widen its reach
  * are off, and `execute` runs when the pinned session is read-only (input is refused by the relay) and asks otherwise.
  */
 export const SCOPED_EFFECTS: Readonly<Record<string, Effect>> = {

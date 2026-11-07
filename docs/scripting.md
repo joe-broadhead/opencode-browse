@@ -42,8 +42,8 @@ Only `allow` runs. An `ask` is refused with `PERMISSION_DENIED` and no prompt, b
 `deny` is refused and the method is absent from the agent's tool list. A saved "Always allow" does not authorize a
 script: a script's grant is a rule in config, or a Jobs run session.
 
-**The three captures run by default, and a script can start one with no model turn and no prompt.** That is the
-owner's decision of 2026-11-07, and it is worth weighing before you grant a script a session:
+**The three captures run by default, and a script can start one with no model turn and no prompt.** That is a
+deliberate default, and it is worth weighing before you grant a script a session:
 
 - `network` captures authenticated request and response **headers and bodies** from the user's logged-in session
   (credential-bearing fields become references, the rest is in clear) and writes a redacted HAR to a path the script

@@ -9,7 +9,7 @@ Captures are real page content: a recording shows whatever is on the tab, and a 
 Credential-bearing fields become references (`${BC_SECRET_N}`, `${BC_REDACTED_N}`), not values, but everything else —
 names, addresses, messages, personal data — stays in clear. Write artifacts outside the repository.
 
-All three capture tools run without asking (owner ruling, 2026-11-07). That does not make them free: say in one
+All three capture tools run without asking, by default. That does not make them free: say in one
 sentence what will be captured and where it will be written before the call, and tell the user what the result holds.
 If the user wants them to ask or stay off, they add a later rule for that agent — `browse_network`,
 `browse_recording` or `browse_flight_recorder` with `"effect": "ask"` or `"deny"`.

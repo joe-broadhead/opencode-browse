@@ -66,7 +66,7 @@ so that needs you; the next status read reports `SCOPE_LOST` and the doctor repa
 ## Permissions
 
 The block, as `/browse-status` prints it, is `src/permissions.ts` evaluated: `browse_*` deny first, then one rule per
-known tool. The owner's ruling of 2026-11-07 gives 8 allows, 10 asks and no denies among the 18.
+known tool: 8 allows, 10 asks and no denies among the 18.
 
 To turn a capture off for one agent:
 

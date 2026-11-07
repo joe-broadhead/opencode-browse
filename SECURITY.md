@@ -35,7 +35,7 @@ the steps to reproduce.
   not copy, log or transmit them. A capture's artifact is real page content: credentials become references, everything
   else stays in clear.
 
-- **The three captures run without asking, by default** (owner decision, 2026-11-07). `network` records authenticated
+- **The three captures run without asking, by default** (a deliberate default; see below to change it). `network` records authenticated
   request and response headers and bodies from the user's session; `recording` records the tab's pixels and, in
   tab-capture mode, its audio; `flight_recorder` buffers the tab's pixels and saves a clip on request. Each writes to
   a path the agent chooses and stays there until deleted. `README.md` has the recipe to make one ask or turn it off
@@ -60,7 +60,7 @@ The plugin inserts, directly after each agent's base `* * allow`:
 
 1. `{ "action": "browse_*", "resource": "*", "effect": "deny" }`, so a tool browse adds later is off until this plugin
    classifies it;
-2. one rule per known tool, by exact name: 8 `allow`, 10 `ask`, no `deny` among the 18 (owner decision, 2026-11-07).
+2. one rule per known tool, by exact name: 8 `allow`, 10 `ask`, no `deny` among the 18.
 
 A later rule of the agent's, yours in `opencode.json`, or a saved approval still wins. Agents without a base allow get
 no rules: inserting the block there would turn a default deny into an ask.

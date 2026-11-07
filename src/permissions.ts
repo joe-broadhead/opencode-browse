@@ -29,7 +29,7 @@ const DEFAULT_SET: RuleSet = { scoped: false, readOnly: false }
  *   2. every `browse_*` is off, so a tool browse adds later is off until a release classifies it;
  *   3. one rule per known tool, by its exact name, from src/browse-tools.ts.
  * Reads and tab cleanup run; `execute`, the session tools, the settings and the three tools that act with the user's
- * secrets or widen reach ask (owner ruling, 2026-11-07). Nothing known is denied.
+ * secrets or widen reach ask. Nothing known is denied.
  *
  * The scoped profile (a pinned session) is stricter: the session tools that could leave it or widen it are off, and
  * `execute` runs only when the pinned session is read-only, where the relay refuses all input.

@@ -59,7 +59,8 @@ describe("the README", () => {
   test("names every tool and the counts", () => {
     for (const tool of TOOLS) expect(README, tool.name).toContain(`browse_${tool.name}`)
     expect(README).toContain("8 run, 10 ask")
-    expect(README).toContain("Owner decision, 2026-11-07")
+    expect(README).toContain("The three captures run without asking, by default.")
+    expect(README).not.toMatch(/owner('s)? (decision|ruling)/i)
     expect(README).toContain("Managed browser (optional)")
     expect(README).toContain("its logins are separate")
     expect(README).toContain("/browse-install-browser")

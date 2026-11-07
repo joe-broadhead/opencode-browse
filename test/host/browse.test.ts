@@ -74,7 +74,7 @@ describe("review findings, through the host", () => {
   })
 })
 
-describe("the owner's permission table, through the host", () => {
+describe("the permission table, through the host", () => {
   test("the reads and the captures run with no prompt", async () => {
     const host = await startHost({ options: { verifyBinary: false } })
     try {

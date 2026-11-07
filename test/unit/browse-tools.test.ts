@@ -27,7 +27,7 @@ describe("the tool table", () => {
     }
   })
 
-  test("the owner's ruling of 2026-11-07: 8 run, 10 ask, none off", () => {
+  test("the default table: 8 run, 10 ask, none off", () => {
     const counts = TOOLS.reduce((all, tool) => ({ ...all, [tool.effect]: all[tool.effect] + 1 }), { allow: 0, ask: 0, deny: 0 })
     expect(counts).toEqual({ allow: 8, ask: 10, deny: 0 })
     for (const name of ["network", "recording", "flight_recorder"]) expect(effectOf(name)).toBe("allow")
