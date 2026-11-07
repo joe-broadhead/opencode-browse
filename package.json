@@ -1,0 +1,232 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@joe-broadhead/opencode-browse",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Drive the user's real Chromium browser from OpenCode, with the browse extension: their tabs, logins and extensions, and a hand-back for logins, 2FA and payments",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "browse",
+    "browser"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joe-broadhead/opencode-browse.git"
+  },
+  "homepage": "https://github.com/joe-broadhead/opencode-browse#readme",
+  "bugs": {
+    "url": "https://github.com/joe-broadhead/opencode-browse/issues"
+  },
+  "opencode": {
+    "host": ">=2.2.3 <2.3.0",
+    "icons": [
+      {
+        "src": "assets/icon.svg",
+        "mimeType": "image/svg+xml",
+        "sizes": [
+          "any"
+        ]
+      },
+      {
+        "src": "assets/icon-128.png",
+        "mimeType": "image/png",
+        "sizes": [
+          "128x128"
+        ]
+      },
+      {
+        "src": "assets/icon-256.png",
+        "mimeType": "image/png",
+        "sizes": [
+          "256x256"
+        ]
+      }
+    ],
+    "vendor": {
+      "id": "anomaly",
+      "name": "Anomaly",
+      "domain": "opencode.ai"
+    }
+  },
+  "jelly": {
+    "title": "Browse",
+    "summary": "Drive your real browser from OpenCode: tabs, logins, screenshots, recordings and network captures, with a hand-back for logins and payments.",
+    "icon": "assets/icon.svg",
+    "tools": [
+      {
+        "name": "browse.status",
+        "permission": "browse_status",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "browse.session_list",
+        "permission": "browse_session_list",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "browse.secrets_list",
+        "permission": "browse_secrets_list",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "browse.secrets_status",
+        "permission": "browse_secrets_status",
+        "effect": "allow",
+        "readOnly": true
+      },
+      {
+        "name": "browse.tabs_cleanup",
+        "permission": "browse_tabs_cleanup",
+        "effect": "allow",
+        "readOnly": false
+      },
+      {
+        "name": "browse.execute",
+        "permission": "browse_execute",
+        "effect": "ask",
+        "readOnly": false
+      },
+      {
+        "name": "browse.session_new",
+        "permission": "browse_session_new",
+        "effect": "ask",
+        "readOnly": false
+      },
+      {
+        "name": "browse.session_use",
+        "permission": "browse_session_use",
+        "effect": "ask",
+        "readOnly": false
+      },
+      {
+        "name": "browse.session_adopt",
+        "permission": "browse_session_adopt",
+        "effect": "ask",
+        "readOnly": false
+      },
+      {
+        "name": "browse.session_reset",
+        "permission": "browse_session_reset",
+        "effect": "ask",
+        "readOnly": false
+      },
+      {
+        "name": "browse.session_delete",
+        "permission": "browse_session_delete",
+        "effect": "ask",
+        "readOnly": false
+      },
+      {
+        "name": "browse.settings",
+        "permission": "browse_settings",
+        "effect": "ask",
+        "readOnly": false
+      },
+      {
+        "name": "browse.network",
+        "permission": "browse_network",
+        "effect": "allow",
+        "readOnly": false
+      },
+      {
+        "name": "browse.recording",
+        "permission": "browse_recording",
+        "effect": "allow",
+        "readOnly": false
+      },
+      {
+        "name": "browse.flight_recorder",
+        "permission": "browse_flight_recorder",
+        "effect": "allow",
+        "readOnly": false
+      },
+      {
+        "name": "browse.secrets_run",
+        "permission": "browse_secrets_run",
+        "effect": "ask",
+        "readOnly": false
+      },
+      {
+        "name": "browse.secrets_refresh",
+        "permission": "browse_secrets_refresh",
+        "effect": "ask",
+        "readOnly": false
+      },
+      {
+        "name": "browse.session_allowlist",
+        "permission": "browse_session_allowlist",
+        "effect": "ask",
+        "readOnly": false
+      }
+    ],
+    "skills": [
+      "browse",
+      "browse-capture"
+    ],
+    "rpc": [],
+    "views": [],
+    "signIns": [],
+    "contributes": {
+      "homeFeeds": [],
+      "homeWidgets": [],
+      "workKinds": [],
+      "settings": []
+    }
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./tui": "./dist/tui.js",
+    "./icon.svg": "./assets/icon.svg",
+    "./icon-128.png": "./assets/icon-128.png",
+    "./icon-256.png": "./assets/icon-256.png"
+  },
+  "files": [
+    "dist",
+    "manifest",
+    "skills",
+    "assets/icon.svg",
+    "assets/icon-128.png",
+    "assets/icon-256.png",
+    "NOTICE",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "optionalDependencies": {
+    "@joe-broadhead/opencode-browse-bin-darwin-arm64": "0.0.0",
+    "@joe-broadhead/opencode-browse-bin-darwin-x64": "0.0.0",
+    "@joe-broadhead/opencode-browse-bin-linux-x64-gnu": "0.0.0",
+    "@joe-broadhead/opencode-browse-bin-linux-arm64-gnu": "0.0.0"
+  },
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "typecheck": "node scripts/check.mjs typecheck",
+    "build": "node scripts/check.mjs build",
+    "test": "node scripts/check.mjs unit",
+    "test:host": "node scripts/check.mjs host",
+    "test:pack": "node scripts/check.mjs pack",
+    "lint": "node scripts/check.mjs forbidden",
+    "drift": "node scripts/check-browse-tools.mjs",
+    "bin:pin": "node scripts/pin.mjs",
+    "bin:packages": "node scripts/build-bins.mjs",
+    "bin:local": "node scripts/build-bins.mjs --local"
+  },
+  "devDependencies": {
+    "@opencode/client": "2.2.3",
+    "@opencode/plugin": "2.2.3",
+    "@opencode/sdk": "2.2.3",
+    "@opentui/core": "0.8.0",
+    "@opentui/solid": "0.8.0",
+    "@types/bun": "1.4.4",
+    "@types/node": "24.19.2",
+    "esbuild": "0.28.2",
+    "solid-js": "1.9.17",
+    "typescript": "5.9.3"
+  }
+}
