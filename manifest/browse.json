@@ -1,0 +1,48 @@
+{
+  "app": "browse",
+  "version": "0.0.14",
+  "channel": "stable",
+  "manifest": "https://anoma.ly/release/browse/cli/stable.json",
+  "upstream": "https://github.com/anomalyco/browse",
+  "licence": "MIT",
+  "copyright": "Copyright (c) 2025 opencode",
+  "pinnedAt": "2026-11-07T19:24:50.272Z",
+  "targets": {
+    "darwin-arm64": {
+      "target": "macos-arm64",
+      "asset": "opencode-browse-darwin-arm64-0.0.14.tgz",
+      "url": "https://anoma.ly/release/browse/files/443e3d986bb99dd103caaf82f57073968a1fc50b6d1620625ef3b7189cbce72a/opencode-browse-darwin-arm64-0.0.14.tgz",
+      "tgzSha256": "443e3d986bb99dd103caaf82f57073968a1fc50b6d1620625ef3b7189cbce72a",
+      "tgzBytes": 52974913,
+      "sha256": "441887272aaf943ef93fab0a7cdaf4d37200bb565ccfc874b81d8a575f3d43ef",
+      "bytes": 114885602
+    },
+    "darwin-x64": {
+      "target": "macos-x64",
+      "asset": "opencode-browse-darwin-x64-0.0.14.tgz",
+      "url": "https://anoma.ly/release/browse/files/55812c1c245268ee261af0fe86c29e2a00bb0981dad167815116cf4e6a8e2b15/opencode-browse-darwin-x64-0.0.14.tgz",
+      "tgzSha256": "55812c1c245268ee261af0fe86c29e2a00bb0981dad167815116cf4e6a8e2b15",
+      "tgzBytes": 54623769,
+      "sha256": "8f8005089cc0a70c3aa0e563b2f7c1efde75e877d1d0c185bf4a2849e59266e8",
+      "bytes": 123694560
+    },
+    "linux-x64-gnu": {
+      "target": "linux-x64",
+      "asset": "opencode-browse-linux-x64-0.0.14.tgz",
+      "url": "https://anoma.ly/release/browse/files/13797be8926b22a09c84b874a4909516852f6d01a86cc74bcafab27ffcc4517b/opencode-browse-linux-x64-0.0.14.tgz",
+      "tgzSha256": "13797be8926b22a09c84b874a4909516852f6d01a86cc74bcafab27ffcc4517b",
+      "tgzBytes": 63142558,
+      "sha256": "78c041be3164ca072068c373b13e37c737a49d3c2c5afc8c10824aa3fc090585",
+      "bytes": 134637744
+    },
+    "linux-arm64-gnu": {
+      "target": "linux-arm64",
+      "asset": "opencode-browse-linux-arm64-0.0.14.tgz",
+      "url": "https://anoma.ly/release/browse/files/3b9928bbcc68432ce3fced6fc4ca5a3af767141cdab99e93616e71b9309ed05f/opencode-browse-linux-arm64-0.0.14.tgz",
+      "tgzSha256": "3b9928bbcc68432ce3fced6fc4ca5a3af767141cdab99e93616e71b9309ed05f",
+      "tgzBytes": 63860875,
+      "sha256": "4d2ad7ae27d84bb467f74f30855eae2a594384ae79e8c4721d4f754852276020",
+      "bytes": 134728696
+    }
+  }
+}
