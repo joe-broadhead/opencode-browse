@@ -4,7 +4,7 @@
 
 | OpenCode | Status |
 | --- | --- |
-| 2.2.3, 2.2.4, 2.2.5 | supported and tested |
+| 2.2.3, 2.2.4, 2.2.5, 2.2.6 | supported and tested |
 | other 2.2.x | starts; status marks the host untested |
 | outside `>=2.2.3 <2.3.0` | status only, with `HOST_UNTESTED`, unless `allowUntestedHost` is true |
 

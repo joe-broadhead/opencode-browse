@@ -47,7 +47,7 @@ It runs with a throwaway HOME, XDG dirs and a free port, and stops the relay it 
 | `unit` | `bun test ./test/unit` |
 | `build` | esbuild: two self-contained bundles, no relative imports |
 | `icons` | the family icon contract |
-| `host` | the embedded OpenCode host on 2.2.3, 2.2.4 and 2.2.5, against the fake browse |
+| `host` | the embedded OpenCode host on 2.2.3, 2.2.4, 2.2.5 and 2.2.6, against the fake browse |
 | `pack` | the tarball, the bundles, the platform package resolution and the tamper refusal |
 | `forbidden` | the list in `AGENTS.md` |
 | `copies` | the shared tools RPC outside its plugin block |

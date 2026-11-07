@@ -7,7 +7,7 @@ and its extension, with a hand-back for logins, 2FA and payments.
 
 ## Requirements
 
-- OpenCode `>=2.2.3 <2.3.0` (tested on 2.2.3, 2.2.4 and 2.2.5).
+- OpenCode `>=2.2.3 <2.3.0` (tested on 2.2.3, 2.2.4, 2.2.5 and 2.2.6).
 - macOS (arm64 or x64) or Linux (x64 or arm64, glibc).
 - A Chromium-family browser (Chrome, Edge, Brave, Arc, Helium, Vivaldi, Opera or Chromium).
 - Node.js 22.19 or later, which OpenCode already needs.
