@@ -42,6 +42,10 @@ protocol and CLI, and never starts a relay or an extension.
 | `copies` | the shared tools RPC outside its plugin block |
 | `whitelist` | `package.json` and `dist/` shape |
 
+`npm run test:managed` is separate from `npm run check`, because it downloads Chrome for Testing (about 200 MB) into
+an isolated cache and starts a real browser headless. It pairs automatically, opens a page this test serves, takes a
+screenshot and stops; it never touches your browser, your Chrome or your profile.
+
 Run one with `node scripts/check.mjs <stage>`. On a loaded machine, run heavy stages through
 `bash ~/opencode-release/review/tools/with-slot.sh npm run check`, which allows three hosts at once.
 
@@ -60,10 +64,20 @@ Classify any new tool in `src/browse-tools.ts`, re-capture `test/fixtures/live-t
 `node test/fixtures/capture-tools.mjs`, and update the Jelly section and the docs in the same commit. The capture runs
 the binary with a fresh `HOME`, `XDG_*` and `TMPDIR`, no installer and no pairing, and kills only its own child.
 
+## Managed mode's pins
+
+`scripts/pin-managed.mjs` pins two artefacts: browse's built extension (from the release service's stable zip, verified
+by SHA-256 and unpacked into `managed-extension/`, with every file's digest in `manifest/extension.json`) and a Chrome
+for Testing version (its four downloads measured here, in `manifest/chromium.json`, because CfT publishes no hashes).
+Move either with `node scripts/pin-managed.mjs --refresh`, and commit `managed-extension/` with the manifest.
+
 ## Releasing
 
 1. Remove `"private": true` from `package.json`, set the version, and move the CHANGELOG's Unreleased section to that
    version.
-2. Publish the four platform packages first (`dist-packages/*.tgz`), then tag `v<version>`; the release workflow runs
-   the checks, packs, runs the pack test on that tarball, and publishes with provenance.
+2. Publish the four platform packages first (`dist-packages/*.tgz`). This is the approved bootstrap and it is by hand:
+   CI cannot rebuild them from the git-ignored cache. Then tag `v<version>`; the release workflow runs the checks,
+   packs, runs the pack test on that tarball, downloads each published platform package and **compares its
+   `manifest/browse.json` digest with this repo's pin** (`scripts/verify-platform-packages.mjs`), and publishes with
+   provenance.
 3. A rerun skips a version already on npm.

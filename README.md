@@ -3,7 +3,7 @@
 Drive your real Chromium browser from OpenCode — your tabs, logins and extensions — through the browse MCP server
 and its extension, with a hand-back for logins, 2FA and payments.
 
-**Unofficial; not affiliated with Anomaly or the browse project.**
+**Unofficial; not affiliated with Anomaly or OpenCode.**
 
 ## Requirements
 
@@ -13,7 +13,8 @@ and its extension, with a hand-back for logins, 2FA and payments.
 - Node.js 22.19 or later, which OpenCode already needs.
 
 The plugin ships the pinned browse binary for your platform, so you do not install browse yourself. The browse
-browser extension is installed from the Chrome Web Store, and you pair it once.
+browser extension is installed from the Chrome Web Store, and you pair it once — or let the plugin run a **managed
+browser** of its own (below) and install nothing.
 
 ## Install
 
@@ -32,6 +33,27 @@ Restart OpenCode. Then add the extension and pair it:
 There is nothing to sign in to: no account, no OAuth, no `/connect` entry. Pairing is between your browser and the
 relay on your computer.
 
+## Managed browser (optional)
+
+Set `"browser": "managed"` and the plugin runs a **separate Chromium** — Chrome for Testing, downloaded on demand —
+with **its own profile** in the plugin's data folder and browse's extension loaded unpacked and paired automatically.
+Nothing is installed in your own browser, and **its logins are separate**: the managed profile starts signed out of
+every site, so a task that needs your accounts belongs in the real browser.
+
+```jsonc
+{ "options": { "browser": "managed", "headless": false } }
+```
+
+- Headed by default, so you can watch; `"headless": true` runs it without a window.
+- Run `/browse-install-browser` to download and verify the pinned Chrome for Testing (about 150–210 MB) and start it.
+  The plugin never downloads it on its own, and a digest mismatch is refused.
+- `"chromiumPath": "/path/to/chrome"` uses a Chromium or Chrome for Testing you already have instead; branded Google
+  Chrome is refused, because it will not load a preloaded unpacked extension.
+- The browser stops when the plugin is disposed (a reload or exit); a profile lock left by a crash is cleared on the
+  next start, and a browser a previous run left behind is stopped only when its command line names the executable this
+  plugin launched.
+- Permissions and the scoped profile are unchanged.
+
 ## Use
 
 Ask for browser work the way you would a person:
@@ -46,16 +68,40 @@ The agent opens its own background tabs in a collapsed group, works with Playwri
 you can continue: a login, 2FA, a passkey, a captcha or a payment. Only a real click on the card's **Continue**, or on
 the toolbar button, resumes the script.
 
-Every page action runs through `browse_execute`, and it asks first. Reads, tab cleanup and captures run without
-asking. Captures write real page content: read the `browse-capture` skill's guidance before asking for one.
+Every page action runs through `browse_execute`, and it asks first. Reads and tab cleanup run without asking.
+
+**The three captures run without asking, by default (the owner's decision, 2026-11-07).** Read this before you rely on
+that default:
+
+- `browse_network` captures **authenticated request and response traffic** from your logged-in session, including
+  headers and bodies (credential-bearing fields become references; everything else is in clear). `stop` writes a
+  redacted HAR to a path the agent chooses.
+- `browse_recording` records **the real tab's pixels**, and the tab's **audio** in tab-capture mode, to a path the
+  agent chooses.
+- `browse_flight_recorder` keeps a rolling buffer of **the tab's pixels** in memory, and `save_last` writes a clip to a
+  path the agent chooses.
+
+Stored where the agent writes them, for as long as you keep the file. A recording or a HAR is real page content: write
+it outside the repository, and delete it when you are done. To make one ask, or turn it off, in one agent:
+
+```json
+{ "agents": { "build": { "permissions": [
+  { "action": "browse_network", "resource": "*", "effect": "ask" },
+  { "action": "browse_recording", "resource": "*", "effect": "deny" }
+] } } }
+```
+
+A script can start a capture with no model turn and no prompt; `docs/scripting.md` repeats this.
 
 ## Permissions
 
 The plugin adds these rules to every agent, directly after the agent's base rule that allows everything:
 
-1. `{ "action": "browse_*", "resource": "*", "effect": "deny" }`: a tool browse adds later is **off** until this plugin
-   classifies it.
-2. One rule per known tool, by exact name, from [`src/browse-tools.ts`](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/src/browse-tools.ts).
+1. `{ "action": "opencode_browser_*", "resource": "*", "effect": "deny" }`: an older browse server, if one is still
+   configured, is off by exact-name pattern.
+2. `{ "action": "browse_*", "resource": "*", "effect": "deny" }`: a tool browse adds later is **off** until this plugin
+   classifies it. A `browse` entry that is not a browse server is denied the same way.
+3. One rule per known tool, by exact name, from [`src/browse-tools.ts`](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/src/browse-tools.ts).
 
 | Runs without asking | Asks first | Off |
 | --- | --- | --- |
@@ -147,12 +193,13 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 | `BINARY_UNVERIFIED` | the binary does not match its pinned SHA-256 | reinstall; set `verifyBinary: false` only if you trust the file |
 | `UNSUPPORTED_PLATFORM` | no package ships for this OS or architecture | set `path` to a browse binary you built or installed |
 | `SERVER_CONFLICT` | as `conflict` above | remove the entry |
-| `SERVER_LEGACY` | an older `opencode-browser` entry is in your config | remove it; this plugin registers `browse` |
+| `SERVER_LEGACY` | an older `opencode-browser` entry is in your config; its tools are denied | remove it; this plugin registers `browse` |
 | `SERVER_NOT_REGISTERED` | the server transform failed | restart OpenCode |
 | `RULES_NOT_ADDED` | the default rules could not be inserted | restart OpenCode |
 | `SCOPE_LOST` | the pinned session is gone or differs | run `/browse-doctor` |
 | `SCOPE_UNREACHABLE` | the session could not be created (relay down, CLI error) | pair the browser, then `/browse-doctor` |
 | `STATUS_UNAVAILABLE` | `browse status` did not answer | run `browse status` yourself, then press `r` |
+| `RELAY_FAILED` | the relay answered with an error rather than a health report | run `/browse-doctor` |
 | `DOCTOR_FAILED` | the vendor doctor exited non-zero | read its checks, fix the first failure |
 | `HOST_UNTESTED` | as `host untested` above | use a supported OpenCode |
 | `OPTIONS_INVALID` | an option failed validation | fix the option the message names |
@@ -160,6 +207,11 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 | Extension not paired | the browser has no key for this relay | run `browse pair`, enter the code on the options page |
 | Relay stopped | nothing has needed the browser yet | ask the agent to open a page, or run `browse status` |
 | Protocol incompatible | the extension and binary are from different releases | update the extension in the browser |
+| `CHROMIUM_MISSING` / `CHROMIUM_UNSUPPORTED` | managed mode has no browser for this platform or path | run `/browse-install-browser`, or set `chromiumPath` |
+| `CHROMIUM_DOWNLOAD_FAILED` / `CHROMIUM_EXTRACT_FAILED` | the Chrome for Testing download or unzip failed | check the network and `unzip`, then run `/browse-install-browser` again |
+| `CHROMIUM_UNVERIFIED` | the managed browser changed since it was installed | run `/browse-install-browser` again |
+| `CHROMIUM_INVALID` / `CHROMIUM_BRANDED` | `chromiumPath` is not a Chromium, or is branded Chrome | point it at Chromium or Chrome for Testing |
+| `EXTENSION_UNVERIFIED` | the bundled extension does not match its pin | reinstall the plugin |
 
 ## Uninstall
 
@@ -168,7 +220,8 @@ opencode plugin remove @joe-broadhead/opencode-browse
 ```
 
 That removes the plugin, its platform package and its rules; it does not touch your browser. The extension is
-uninstalled from your browser's extensions page. If you also ran the vendor's installer in the past, `browse uninstall`
+uninstalled from your browser's extensions page. Managed mode's profile and Chrome for Testing are in
+`~/.local/share/opencode-browse/managed` and `~/.cache/opencode-browse`; delete those folders to remove them. If you also ran the vendor's installer in the past, `browse uninstall`
 removes the files it left behind.
 
 ## Links

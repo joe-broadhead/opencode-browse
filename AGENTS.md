@@ -7,6 +7,9 @@ browse's MCP server; it never runs a browser itself.
 
 - `src/browse-tools.ts` is the single source of truth for the 18 tools, their annotations, classes and default effects.
   The rules, the tools RPC, status, the Jelly section and the tests derive from it.
+- `bin/mcp.mjs` is the MCP entry; it re-verifies the pinned binary at every spawn. `src/managed/` is managed mode:
+  Chrome for Testing in its own profile, the pinned extension, and browse's own pairing. Never touch the user's browser,
+  Chrome or profile from managed mode or its tests.
 - `manifest/browse.json` is the pin. `scripts/pin.mjs` writes it; `scripts/build-bins.mjs` builds the platform packages.
 - The plugin never edits a config file, never runs `browse install`, `browse update` or `browse pair`, and never adds an
   `OPENCODE_BROWSER_ALLOW_*` environment variable.
@@ -23,7 +26,7 @@ browse's MCP server; it never runs a browser itself.
   turns an inner `ask` of a script's own call into a refusal.
 - Private host source, host checkouts, and `consumer-host`.
 - Machine-local absolute paths and `/tmp/` literals; make temp folders with `mkdtemp` under `realpathSync("/tmp")`.
-- A shell: the plugin runs the binary with an argument list (`execFile`), never `exec` or `spawn` with `shell: true`.
+- A shell: the plugin runs the binary with an argument list (`execFile`, `spawn`), never `exec`/`execSync` or `shell: true`.
 - Writing under the user's config directory, or adding an `OPENCODE_BROWSER_ALLOW_*` variable.
 
 `scripts/check-forbidden.mjs` enforces the first list and the shell rule; the typecheck enforces what the public

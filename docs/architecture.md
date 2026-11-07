@@ -16,6 +16,9 @@ config file.
 | `src/browse-tools.ts` | one table: all 18 tools, their MCP annotations, class and default effect. No runtime imports, so the drift script loads it |
 | `src/permissions.ts` | the rule block, insertion after the base allow, guarded detection |
 | `src/engine.ts` | the binary: resolution, digest verification, `--version`, `status --json`, the scoped session |
+| `bin/mcp.mjs` | the MCP entry: re-verifies the pinned binary at every spawn, then serves it with supervision and auto-update off |
+| `src/managed/` | managed mode: Chrome for Testing (`chromium.ts`), the pinned extension (`extension.ts`), and the browser's lifecycle and pairing (`browser.ts`) |
+| `manifest/chromium.json`, `manifest/extension.json` | the CfT pin and the extension's per-file digests |
 | `src/options.ts` | options, `OPTIONS_INVALID` |
 | `src/status.ts` | the one status model, `/browse-status`, the status RPC |
 | `src/doctor.ts` | `/browse-doctor`: the vendor doctor, the binary checks, scope repair |
@@ -34,16 +37,36 @@ config file.
    `allowUntestedHost` is true.
 3. The skills are read from `../skills/`.
 4. `resolveBinary` finds the platform package, verifies the binary's SHA-256 against its manifest, and returns it. No
-   PATH lookup: a project dependency named `browse` never gets the browser. A missing or tampered binary registers
-   nothing and becomes a status problem.
-5. `ctx.mcp.transform` sets `mcp.servers.browse = { type: "local", command: [<binary>, "mcp"], environment }`, or
+   PATH lookup: a project dependency named `browse` never gets the browser, and the `OPENCODE_BROWSE_BIN` seam is
+   ignored unless `OPENCODE_BROWSE_TEST=1`. A missing or tampered binary registers nothing and becomes a status
+   problem.
+5. `ctx.mcp.transform` sets `mcp.servers.browse = { type: "local", command: [<package>/bin/mcp.mjs, "mcp"], environment: { OPENCODE_BROWSER_MCP_DIRECT: "1", OPENCODE_BROWSER_AUTO_UPDATE: "off", session? } }`, or
    adopts the user's own browse entry from the vendor's installer by replacing only its command. Any other entry under
    the name is a conflict. A legacy `opencode-browser` entry is reported.
 6. `ctx.tool.transform` names the Code Mode namespace, unless the name is in conflict.
 7. `ctx.agent.transform` inserts the default rules after each agent's base `* * allow`; the scoped profile applies
    when `scope` is set.
 8. With `scope`, `ensureScope` lists, creates or repairs the pinned session with the vendor CLI.
-9. `ctx.skill.transform`, `/browse-status`, `/browse-doctor`, the status RPC and the tools RPC are registered.
+9. `ctx.skill.transform`, `/browse-status`, `/browse-doctor`, `/browse-install-browser`, the status RPC and the tools
+   RPC are registered.
+10. With `"browser": "managed"`, a `ManagedBrowser` prepares the extension copy, mints a code through `browse pair`,
+    writes it for the unpacked extension, launches Chrome for Testing and waits for the relay to report the extension
+    connected. It is stopped on dispose. With invalid options or an untested host the plugin still loads: status only,
+    with the deny nets in place.
+
+## Managed mode's pairing
+
+browse's unpacked build reads `relay-pairing.json` from its own folder (`chrome.runtime.getURL`) and exchanges that
+one-time code for a per-browser key. The plugin uses exactly that: `browse pair --wait-seconds 120` starts the relay
+and mints a code, the plugin writes `{ code }` to the managed extension copy (mode 0600) and launches Chrome for
+Testing with `--load-extension` and `--disable-extensions-except`; the extension redeems the code, and the pair
+command's own confirmation ends the attempt. The file is removed afterwards. Nothing is minted, guessed or bypassed by
+the plugin, and the code never reaches status, a log or a transcript.
+
+The store zip carries no manifest `key`, so Chrome would derive an extension id from the folder path and the relay
+would reject its WebSocket origin. The pinned copy adds browse's public manifest key, which derives the id
+`afeafocngkodbmaipcngoamamfmekgfo` — the one browse's relay accepts — and `verifyExtension` refuses a copy whose key does
+not.
 
 Transforms are synchronous and never throw: a failure is kept for status and cleared when the next replay succeeds.
 

@@ -5,7 +5,9 @@ description: Drive the user's real Chromium browser with browse when the work ne
 
 # Using the real browser
 
-`browse_*` tools drive the browser the user is signed in to, through the browse extension. Logins, cookies, extensions
+`browse_*` tools drive the browser the user is signed in to, through the browse extension. In managed mode the user
+has pointed the plugin at a separate Chromium with its own profile, which starts signed out: say so if a task needs
+their accounts, because they are not there. Logins, cookies, extensions
 and open tabs are already there, and the user can watch or take over at any time. The vendor's own reference is longer
 and is not installed here: `browse skill` prints it.
 

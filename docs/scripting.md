@@ -42,6 +42,27 @@ Only `allow` runs. An `ask` is refused with `PERMISSION_DENIED` and no prompt, b
 `deny` is refused and the method is absent from the agent's tool list. A saved "Always allow" does not authorize a
 script: a script's grant is a rule in config, or a Jobs run session.
 
+**The three captures run by default, and a script can start one with no model turn and no prompt.** That is the
+owner's decision of 2026-11-07, and it is worth weighing before you grant a script a session:
+
+- `network` captures authenticated request and response **headers and bodies** from the user's logged-in session
+  (credential-bearing fields become references, the rest is in clear) and writes a redacted HAR to a path the script
+  chooses.
+- `recording` records the real tab's **pixels**, and its **audio** in tab-capture mode, to a path the script chooses.
+- `flight_recorder` keeps a rolling buffer of the tab's pixels and `save_last` writes a clip to a path the script
+  chooses.
+
+The artifacts stay where the script writes them, for as long as the file exists. To make them ask or turn them off for
+one agent, add a later rule — a script's `ask` is refused, so `deny` is the useful one:
+
+```json
+{ "agents": { "build": { "permissions": [
+  { "action": "browse_network", "resource": "*", "effect": "deny" },
+  { "action": "browse_recording", "resource": "*", "effect": "deny" },
+  { "action": "browse_flight_recorder", "resource": "*", "effect": "deny" }
+] } } }
+```
+
 So with the defaults a script can read the status, list sessions and secrets, clean up tabs and capture. It cannot
 drive a page, change a session, widen an allowlist, or run a command with your credentials. If you allow a method
 explicitly, remember that `browse_execute` gives a script the same reach the model would have had.

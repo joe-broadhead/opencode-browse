@@ -16,8 +16,9 @@ the clean SVG (`sizes: ["any"]`), a 128×128 PNG and a 256×256 PNG, each with i
 the package. `opencode.icons[0].src` equals `jelly.icon`, so the two declarations cannot drift. `exports` exposes the
 three files as `./icon.svg`, `./icon-128.png` and `./icon-256.png`, and all three ship in the tarball.
 
-`opencode.vendor` is `{ "id": "anomaly", "name": "Anomaly", "domain": "opencode.ai" }`: the service behind the plugin
-is Anomaly's browse, whose product page and installer live on `opencode.ai`. A display app that has decided to show the
+`opencode.vendor` is `{ "id": "anomaly", "name": "Anomaly", "domain": "anoma.ly" }`: the service behind the plugin is
+Anomaly's browse, and `anoma.ly` is the vendor's own release domain, which browse's installer and release service
+already use. It is deliberately not `opencode.ai`, which would put OpenCode's mark on a browse entry. A display app that has decided to show the
 vendor's official mark reads the domain and fetches it from the vendor's own site, under the vendor's terms; the
 official mark never passes through this package, its tarball or a CDN. The package carries no vendor marks, colours or
 letterforms.

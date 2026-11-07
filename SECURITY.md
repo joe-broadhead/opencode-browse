@@ -6,7 +6,7 @@
 | --- | --- |
 | 2.2.3, 2.2.4, 2.2.5 | supported and tested |
 | other 2.2.x | starts; status marks the host untested |
-| outside `>=2.2.3 <2.3.0` | refused unless `allowUntestedHost` is true |
+| outside `>=2.2.3 <2.3.0` | status only, with `HOST_UNTESTED`, unless `allowUntestedHost` is true |
 
 ## Reporting a vulnerability
 
@@ -19,10 +19,14 @@ the steps to reproduce.
 
 - **The plugin runs no browser.** It registers browse's MCP server and classifies its tools. Everything the browser
   does goes through that server, its relay and its extension.
-- **The binary is pinned and shipped.** Each platform package carries one browse release, and the plugin checks the
-  binary's SHA-256 against the package's manifest before running it. A mismatch is refused (`BINARY_UNVERIFIED`).
-  Nothing is downloaded or updated at runtime, and the plugin never runs `browse install`, `browse update` or
-  `browse pair`.
+- **The binary is pinned and shipped.** Each platform package carries one browse release. The plugin checks the
+  binary's SHA-256 against the package's manifest at startup, before it registers the server, and the MCP entry runs a
+  wrapper (`bin/mcp.mjs`) that **re-checks the digest at every spawn** and refuses a changed file with
+  `BINARY_UNVERIFIED`. browse's own supervision and auto-update are switched off for this entry
+  (`OPENCODE_BROWSER_MCP_DIRECT=1`, `OPENCODE_BROWSER_AUTO_UPDATE=off`), so it cannot hand off to another `browse` on
+  the machine or replace the pinned file. A file swapped while the plugin is running is caught at the next spawn or
+  reload. The plugin never runs `browse install` or `browse update`; managed mode starts `browse pair` to mint its own
+  one-time code.
 - **The extension is not shipped.** It is installed from the Chrome Web Store by the user, under that listing.
 - **No telemetry.** The plugin sends nothing. It reads local state: `browse status --json`, the platform package's
   manifest, and (only when `scope` is set) the vendor CLI's session commands.
@@ -30,6 +34,19 @@ the steps to reproduce.
   recordings and journals are browse's, on your computer. browse's own documentation describes them; the plugin does
   not copy, log or transmit them. A capture's artifact is real page content: credentials become references, everything
   else stays in clear.
+
+- **The three captures run without asking, by default** (owner decision, 2026-11-07). `network` records authenticated
+  request and response headers and bodies from the user's session; `recording` records the tab's pixels and, in
+  tab-capture mode, its audio; `flight_recorder` buffers the tab's pixels and saves a clip on request. Each writes to
+  a path the agent chooses and stays there until deleted. `README.md` has the recipe to make one ask or turn it off
+  for an agent; `docs/scripting.md` repeats it, because a script can start one with no prompt.
+
+- **Managed mode keeps its own profile.** With `"browser": "managed"`, Chrome for Testing runs with a profile in
+  `~/.local/share/opencode-browse/managed`, loaded with the pinned extension unpacked and paired through a one-time
+  code written to the extension copy (`relay-pairing.json`, mode 0600) and removed after pairing. Its logins are
+  separate from the user's browser: the profile starts signed out of every site. The pinned Chrome for Testing is
+  downloaded only by `/browse-install-browser`, verified against `manifest/chromium.json`, and its executable's digest
+  is recorded and re-checked on every start.
 - **Same-user processes are trusted.** Any process running as you can read the relay token in
   `~/.local/share/browse/relay-token` and drive the browser over CDP. That is inherent to a local relay and to
   `chrome.debugger`; it is not something a plugin can fix.
@@ -54,6 +71,10 @@ captures run, and they write real page content to a path the agent chooses.
 
 The scoped profile (`scope` in the options) denies the session tools that could leave the pinned session or widen it,
 and allows `execute` only when the pinned session is read-only, where the relay refuses all input.
+
+An older `opencode-browser` server, if one is still configured, is denied by an exact-name pattern rule
+(`opencode_browser_*`) before any of this, so it never runs a browser tool unguarded. A `browse` entry that is not a
+browse server is denied the same way.
 
 ## Scripts
 
