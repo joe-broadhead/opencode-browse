@@ -28,6 +28,17 @@ Register the checkout's entry in a throwaway config, or point the plugin at the 
 Never point it at your real browser for a test: the host suite uses `test/host/fake-browse.mjs`, which speaks the same
 protocol and CLI, and never starts a relay or an extension.
 
+**Never run the pinned binary with your real HOME.** `browse status` and anything that needs the relay create
+`~/.local/share/browse/relay-token` and can leave a daemonised `browse serve` behind. To probe by hand:
+
+```sh
+npm run browse:isolated -- status --json
+```
+
+It runs with a throwaway HOME, XDG dirs and a free port, and stops the relay it started. Tests use
+`test/support/relays.ts`: `assertIsolatedBrowseEnv()` before a spawn, `stopRelay()` on teardown, and
+`assertNoRelayLeft()` as a failure.
+
 ## Checks
 
 | Stage | What it does |

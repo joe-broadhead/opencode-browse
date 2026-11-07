@@ -12,6 +12,10 @@ const binary = process.argv[2] ?? join(root, ".cache", "bin", "darwin-arm64", "b
 const out = process.argv[3] ?? join(root, "test", "fixtures", "live-tools.json")
 const home = realpathSync(mkdtempSync(join(realpathSync("/tmp"), "browse-capture-")))
 mkdirSync(join(home, "tmp"), { recursive: true })
+// The guard every script that runs the binary keeps: a temp HOME, and never browse's default port 19988.
+const port = Number(process.env.OPENCODE_BROWSER_PORT)
+if (Number.isInteger(port) && port === 19988) throw new Error("refusing to run browse on its default port 19988")
+const relayPort = Number.isInteger(port) && port > 0 ? port : 20000 + (process.pid % 20000)
 
 const child = spawn(binary, ["mcp"], {
   env: {
@@ -22,6 +26,7 @@ const child = spawn(binary, ["mcp"], {
     XDG_STATE_HOME: join(home, ".local", "state"),
     XDG_CACHE_HOME: join(home, ".cache"),
     TMPDIR: join(home, "tmp"),
+    OPENCODE_BROWSER_PORT: String(relayPort),
     OPENCODE_BROWSER_MCP_DIRECT: "1",
     OPENCODE_BROWSER_UPDATE_CHECK: "0",
     OPENCODE_BROWSER_AUTO_UPDATE: "off",

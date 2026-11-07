@@ -27,3 +27,18 @@ Object.assign(process.env, {
 })
 for (const dir of [home, join(ROOT, "tmp")]) mkdirSync(dir, { recursive: true })
 process.chdir(home)
+
+/**
+ * A free port for this run's relay. Every test that runs the pinned binary uses it: browse's relay daemonises, and a
+ * test relay on browse's default 19988 would collide with a user's own relay and extension.
+ */
+export const RELAY_PORT = (() => {
+  const result = spawnSync(process.execPath, [
+    "-e",
+    'const s = require("node:net").createServer(); s.listen(0, "127.0.0.1", () => { console.log(s.address().port); s.close() })',
+  ], { encoding: "utf8" })
+  const port = Number(String(result.stdout ?? "").trim())
+  if (!Number.isInteger(port) || port <= 0 || port === 19988) throw new Error(`could not pick a free relay port, got ${String(result.stdout).trim()}`)
+  return port
+})()
+process.env.OPENCODE_BROWSER_PORT = String(RELAY_PORT)

@@ -12,7 +12,9 @@ import { ROOT } from "../host/isolate.js"
 import { installChromium, installRoot, managedPlatform, readPin } from "../../src/managed/chromium.js"
 import { ManagedBrowser } from "../../src/managed/browser.js"
 import { runBinary, resolveBinary } from "../../src/engine.js"
-import { cleanup } from "../host/harness.js"
+import { cleanup, startHost, until } from "../host/harness.js"
+import { assertNoRelayLeft, relayPidsForHome, stopRelay } from "../support/relays.js"
+import { relayVersion } from "../../src/managed/relay.js"
 
 // The one host this test may reach: Google's Chrome for Testing downloads. The harness blocks every other egress.
 process.env.HOST_TEST_EGRESS = "storage.googleapis.com"
@@ -73,7 +75,10 @@ test(
       const status = browser.status()
       console.log("managed test: status", JSON.stringify({ state: status.state, lastError: status.lastError, chromium: status.chromium, extension: status.extension, pid: status.pid }))
       try {
-        console.log("managed test: browser log", readFileSync(join(status.profile, "..", "browser.log"), "utf8").slice(-2000))
+        console.log("managed test: browser log", readFileSync(join(status.profile, "..", "browser.log"), "utf8").slice(-1000))
+      } catch {}
+      try {
+        console.log("managed test: relay log", readFileSync(join(process.env.XDG_STATE_HOME!, "browse", "logs", "relay.log"), "utf8").slice(-2000))
       } catch {}
       expect(status.state).toBe("running")
       expect(status.chromium.verified).toBe(true)
@@ -111,10 +116,36 @@ test(
       expect(alive).toBe(false)
       expect(existsSync(join(process.env.XDG_DATA_HOME!, "opencode-browse", "managed", "browser.json"))).toBe(false)
       expect(existsSync(join(status.profile, "SingletonLock"))).toBe(false)
+      // The relay the pairing started is stopped with the browser: browse's own shutdown, then nothing left at all.
+      expect(await relayVersion()).toBeUndefined()
+      expect(relayPidsForHome()).toEqual([])
+      assertNoRelayLeft()
     } finally {
       await browser.stop().catch(() => undefined)
       await new Promise((resolve) => page.close(resolve))
     }
+  },
+  900_000,
+)
+
+test(
+  "the plugin's dispose stops the managed browser and its relay",
+  async () => {
+    const host = await startHost({ packagedBinary: true, options: { browser: "managed", headless: true } })
+    try {
+      await until("the managed relay is up", async () => {
+        const response = await fetch(`http://127.0.0.1:${process.env.OPENCODE_BROWSER_PORT}/version`).catch(() => undefined)
+        return response?.ok === true
+      }, 120_000)
+      expect(relayPidsForHome().length).toBe(1)
+    } finally {
+      await host.close()
+    }
+    // The host closed: no browser, no relay, nothing for this HOME.
+    expect(await relayVersion()).toBeUndefined()
+    expect(relayPidsForHome()).toEqual([])
+    assertNoRelayLeft()
+    await stopRelay(Number(process.env.OPENCODE_BROWSER_PORT))
   },
   900_000,
 )

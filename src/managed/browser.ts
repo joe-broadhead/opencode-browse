@@ -11,6 +11,7 @@ import { browseError } from "../constants.js"
 import { shortReason } from "../redact.js"
 import { installChromium, managedPlatform, readPin, resolveChromium, type ChromiumInfo } from "./chromium.js"
 import { clearPairingCode, prepareExtension, readExtensionPin, writePairingCode, type ExtensionPin } from "./extension.js"
+import { relayVersion, stopManagedRelay } from "./relay.js"
 import { extensionDir, managedRoot, profileDir, relayPort, relayTokenPath, statePath } from "./paths.js"
 
 export type ManagedState = "stopped" | "starting" | "running" | "not_installed" | "failed"
@@ -80,6 +81,10 @@ function isOurProcess(pid: number, executable: string): Promise<boolean> {
 export class ManagedBrowser {
   private child: ReturnType<typeof spawn> | undefined
   private pairChild: ReturnType<typeof spawn> | undefined
+  /** The relay this start found already running, if any: only a relay we started is stopped on dispose. */
+  private relayBefore: Awaited<ReturnType<typeof relayVersion>>
+  /** Set by stop(): an in-flight start must not leave a browser or a relay behind. */
+  private disposed = false
   private state: ManagedState = "stopped"
   private chromium: ChromiumInfo | undefined
   private extensionVersion: string | undefined
@@ -126,6 +131,7 @@ export class ManagedBrowser {
 
   /** Idempotent: a second call joins the first. Never throws; a failure is the state and `lastError`. */
   start(): Promise<void> {
+    this.disposed = false
     if (this.starting !== undefined && this.state === "starting") return this.starting
     if (this.state === "running") return Promise.resolve()
     this.starting = this.launch().catch((error: unknown) => {
@@ -148,6 +154,14 @@ export class ManagedBrowser {
     this.lastError = shortReason(error instanceof Error ? error.message : String(error))
     this.starting = undefined
     this.stopChild()
+    void this.stopOwnRelay()
+  }
+
+  /** Stops the relay this start began, never one that was already running, and never a user's own. */
+  private async stopOwnRelay() {
+    if (this.relayBefore !== undefined) return
+    const running = await relayVersion()
+    if (running?.managed === true && running.instanceId) await stopManagedRelay(running.instanceId, running.buildId ?? "")
   }
 
   private async launch(): Promise<void> {
@@ -179,8 +193,17 @@ export class ManagedBrowser {
     this.extensionVersion = this.pin.version
     mkdirSync(profileDir(), { recursive: true })
 
+    // A relay that is already running is someone else's (the user's own, or another session's); one that is not is
+    // started by `browse pair` below, and managed mode stops it again on dispose.
+    this.relayBefore = await relayVersion()
+
     // browse's own pairing: a one-time code at the relay, handed to the unpacked extension's startup file.
     const pairing = await this.mintCode()
+    if (this.disposed) {
+      pairing?.stop()
+      await this.stopOwnRelay()
+      return
+    }
     if (pairing === undefined) return
     try {
       writePairingCode(extension, pairing.code)
@@ -191,7 +214,13 @@ export class ManagedBrowser {
     }
 
     this.launchBrowser(extension)
-    const connected = await this.waitForConnection(30_000)
+    if (this.disposed) {
+      pairing.stop()
+      this.stopChild()
+      await this.stopOwnRelay()
+      return
+    }
+    const connected = await this.waitForConnection(60_000)
     pairing.stop()
     clearPairingCode(extension)
 
@@ -341,10 +370,13 @@ export class ManagedBrowser {
 
   /** Disposes: the browser is stopped, the pairing file removed, the state file deleted. */
   async stop(): Promise<void> {
+    this.disposed = true
     this.starting = undefined
     this.stopChild()
     await new Promise((resolve) => setTimeout(resolve, 150))
     if (existsSync(extensionDir())) clearPairingCode(extensionDir())
+    // The browser is gone; the relay we started with it goes too, through browse's own shutdown.
+    await this.stopOwnRelay()
     this.state = "stopped"
   }
 

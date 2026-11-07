@@ -2,7 +2,8 @@
 // environment, config, database and project directory all live there, and any fetch that leaves loopback fails the
 // run. The plugin is given the fake browse binary through its `path` option, and a probe plugin loaded after it lends
 // its context to the tests.
-import { HOST_SDK_DIR, ROOT as root } from "./isolate.js"
+import { HOST_SDK_DIR, RELAY_PORT, ROOT as root } from "./isolate.js"
+import { assertIsolatedBrowseEnv, assertNoRelayLeft, stopRelay } from "../support/relays.js"
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -62,6 +63,8 @@ export interface HostInput {
 let hosts = 0
 
 export async function startHost(input: HostInput = {}) {
+  // The pinned binary starts a daemonising relay: only an isolated HOME and a non-default port may run it.
+  if (input.packagedBinary || input.options?.browser === "managed") assertIsolatedBrowseEnv()
   const base = join(root, `host-${++hosts}`)
   const work = join(base, "work")
   mkdirSync(work, { recursive: true })
@@ -106,6 +109,11 @@ export async function startHost(input: HostInput = {}) {
     async close() {
       await client.close()
       await model?.close()
+      // The MCP child exits, but its relay daemonises: stop the one this run started and prove nothing is left.
+      if (input.packagedBinary || input.options?.browser === "managed") {
+        await stopRelay(RELAY_PORT)
+        assertNoRelayLeft()
+      }
       if (offLoopback.length) throw new Error(`the host tried to leave loopback: ${[...new Set(offLoopback)].join(", ")}`)
     },
   }

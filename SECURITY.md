@@ -41,6 +41,11 @@ the steps to reproduce.
   a path the agent chooses and stays there until deleted. `README.md` has the recipe to make one ask or turn it off
   for an agent; `docs/scripting.md` repeats it, because a script can start one with no prompt.
 
+- **The relay outlives OpenCode in real mode, by design.** browse daemonises `browse serve` (parent pid 1) so the
+  browser stays paired between sessions; it listens on `127.0.0.1:19988` (or `OPENCODE_BROWSER_PORT`) and requires the
+  relay token. It ends with the machine or `browse uninstall`. Managed mode stops the relay it started on dispose,
+  through browse's own `/shutdown`, and never stops a relay that was already running.
+
 - **Managed mode keeps its own profile.** With `"browser": "managed"`, Chrome for Testing runs with a profile in
   `~/.local/share/opencode-browse/managed`, loaded with the pinned extension unpacked and paired through a one-time
   code written to the extension copy (`relay-pairing.json`, mode 0600) and removed after pairing. Its logins are

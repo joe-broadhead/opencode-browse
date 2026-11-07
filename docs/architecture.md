@@ -54,6 +54,19 @@ config file.
     connected. It is stopped on dispose. With invalid options or an untested host the plugin still loads: status only,
     with the deny nets in place.
 
+## The relay's lifetime
+
+The relay is a **daemon**: `browse pair`, an MCP tool call or `browse execute` starts `browse serve`, which detaches
+(its parent becomes pid 1) and keeps the browser paired after the process that started it exits. It listens on
+`127.0.0.1:19988` unless `OPENCODE_BROWSER_PORT` says otherwise.
+
+- **Real mode leaves it running.** That is browse's design: the extension stays paired, and the next OpenCode session
+  reuses the relay. It ends with the machine, or with `browse uninstall`; a user can also stop the pid `/version`
+  reports.
+- **Managed mode stops the relay it started**, together with the managed browser, on dispose. It never stops a relay
+  that was already running, and only a relay that reports `managed: true` is shut down, through browse's own
+  `/shutdown` with the relay token. The next start pairs again with a fresh one-time code.
+
 ## Managed mode's pairing
 
 browse's unpacked build reads `relay-pairing.json` from its own folder (`chrome.runtime.getURL`) and exchanges that

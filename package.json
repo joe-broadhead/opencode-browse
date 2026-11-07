@@ -219,7 +219,8 @@
     "bin:packages": "node scripts/build-bins.mjs",
     "bin:local": "node scripts/build-bins.mjs --local",
     "jelly-check": "node scripts/jelly-check.mjs",
-    "test:managed": "bun test ./test/managed"
+    "test:managed": "bun test ./test/managed",
+    "browse:isolated": "node scripts/run-isolated.mjs"
   },
   "devDependencies": {
     "@opencode/client": "2.2.3",

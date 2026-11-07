@@ -26,3 +26,10 @@ and this project uses [Semantic Versioning](https://semver.org/).
 - `bin/mcp.mjs`, the MCP entry: it re-verifies the pinned binary at every spawn and serves it with browse's
   supervision and auto-update off, so no other `browse` on the machine is ever run.
 - A deny for a legacy `opencode-browser` server and for a conflicting `browse` entry, so neither runs unguarded.
+
+### Fixed
+
+- Managed mode stops the relay it started when the plugin is disposed, through browse's own `/shutdown`, and never
+  stops a relay that was already running. Real mode leaves browse's relay running, as browse does, and the docs say so.
+- Tests and scripts run the pinned binary only with an isolated HOME, XDG dirs and a free port (never browse's default
+  19988), and fail if a `browse serve` for that HOME outlives them.
