@@ -29,6 +29,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `/browse-stop-relay` stops the relay this plugin's binary started, through browse's own `/shutdown`, and refuses a
+  relay on the port that is not ours (another browse build, or `managed` false). The docs name it, since a user of this
+  plugin has no `browse` on PATH.
 - Managed mode stops the relay it started when the plugin is disposed, through browse's own `/shutdown`, and never
   stops a relay that was already running. Real mode leaves browse's relay running, as browse does, and the docs say so.
 - Tests and scripts run the pinned binary only with an isolated HOME, XDG dirs and a free port (never browse's default

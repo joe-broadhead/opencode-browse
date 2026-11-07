@@ -1,7 +1,7 @@
 import { Plugin } from "@opencode/plugin"
 import { fileURLToPath } from "node:url"
 import { join } from "node:path"
-import { errorText, NAMESPACE_DESCRIPTION, PLUGIN_ID, SERVER_NAME, SUPPORTED_HOST } from "./constants.js"
+import { errorText, NAMESPACE_DESCRIPTION, PINNED_VERSION, PLUGIN_ID, SERVER_NAME, SUPPORTED_HOST } from "./constants.js"
 import { ensureScope, probeVersion, readStatus, resolveBinary, runBinary, type BinaryInfo, type BrowseStatus, type Probe, type ScopeResult } from "./engine.js"
 import { checkHost, isTestedHost, type HostCheck } from "./host-version.js"
 import { isScoped, parseOptions, type Options } from "./options.js"
@@ -12,6 +12,7 @@ import { buildStatus, readStatus as readStatusModel, registerStatusCommand, regi
 import { registerToolsRpc, METHODS } from "./host/tools-rpc.js"
 import { registerDoctorCommand } from "./doctor.js"
 import { ManagedBrowser } from "./managed/browser.js"
+import { formatRelayStop, stopRelaySafely } from "./managed/relay.js"
 
 /** Internal seam: tests point the plugin at their own skills and a shorter status timeout. */
 interface BrowseSeam {
@@ -299,6 +300,7 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
           return { message: `Chrome for Testing is installed; the managed browser is ${managed.status().state}.` }
         },
       })
+      await registerStopRelayCommand(ctx, { binary: () => binary })
       await ctx.command.transform((editor) =>
         editor.add({
           name: "browse-install-browser",
@@ -332,6 +334,26 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
       }
     },
   })
+}
+
+/** `/browse-stop-relay`: stops the relay this installation started, or says why it will not. */
+export function registerStopRelayCommand(
+  ctx: { readonly command: Pick<Plugin.Context["command"], "transform">; readonly session: Pick<Plugin.Context["session"], "synthetic"> },
+  deps: { readonly binary: () => BinaryInfo | undefined; readonly stop?: typeof stopRelaySafely },
+) {
+  return ctx.command.transform((editor) =>
+    editor.add({
+      name: "browse-stop-relay",
+      description: "Stop the browse relay this plugin's binary started, if it is running",
+      execute: async ({ sessionID }) => {
+        const binary = deps.binary()
+        const text = binary === undefined
+          ? "NOT_INSTALLED: There is no pinned browse binary to identify the relay. Next step: Reinstall the plugin."
+          : formatRelayStop(await (deps.stop ?? stopRelaySafely)({ expectedVersion: PINNED_VERSION, binaryPath: binary.path }))
+        await ctx.session.synthetic({ sessionID, text, description: "Browse stop relay", resume: false })
+      },
+    }),
+  )
 }
 
 export { runBinary }

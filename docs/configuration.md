@@ -104,6 +104,8 @@ Every error is `CODE: What happened. Next step: What to do.` One next step, endi
 | `SCOPE_UNREACHABLE` | the session could not be created (relay down, CLI error) | pair the browser, then run `/browse-doctor` |
 | `STATUS_UNAVAILABLE` | `browse status` did not answer | run `browse status` in a terminal, then press `r` |
 | `RELAY_FAILED` | the relay answered with an error rather than a health report | run `/browse-doctor` |
+| `RELAY_NOT_OURS` | the relay on the port was not started by this plugin's binary | leave it, or stop it with the browse install that started it |
+| `RELAY_STOP_FAILED` | the relay accepted the shutdown request but did not stop | run `/browse-doctor` |
 | `DOCTOR_FAILED` | the vendor doctor exited non-zero | read its checks, fix the first failure |
 | `HOST_UNTESTED` | OpenCode is outside the supported range | use a supported OpenCode, or set `allowUntestedHost` |
 | `OPTIONS_INVALID` | an option failed validation | fix the option the message names |

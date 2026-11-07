@@ -1,6 +1,10 @@
 import { afterAll, describe, expect, test } from "bun:test"
 import { cleanup, attempt, effect, modelReady, modelSession, modelTurn, session, startHost } from "./harness.js"
 import { NEW_TOOL, REAL_TOOLS } from "./fake-browse.js"
+import { PINNED_VERSION } from "../../src/constants.js"
+import { resolveBinary } from "../../src/engine.js"
+import { relayVersion, stopRelaySafely } from "../../src/managed/relay.js"
+import { assertNoRelayLeft, relayPidsForHome } from "../support/relays.js"
 
 afterAll(cleanup)
 
@@ -168,6 +172,32 @@ describe("Code Mode", () => {
       await host.close()
     }
   }, 120_000)
+})
+
+describe("the relay a real-mode host starts", () => {
+  test("is stopped by the plugin's own command, and another version is refused first", async () => {
+    const host = await startHost({ packagedBinary: true })
+    try {
+      const sessionID = await session(host)
+      // The first tool that needs the browser starts the relay; with no extension it still comes up.
+      const started = await attempt(host, sessionID, "build", "execute", "once", { code: "return 1" })
+      expect(started.asked).toBe("browse_execute")
+      expect(await relayVersion()).toBeDefined()
+
+      const binary = resolveBinary()
+      const refused = await stopRelaySafely({ expectedVersion: "0.0.0", binaryPath: binary.path })
+      expect(refused.state).toBe("refused")
+      expect(await relayVersion()).toBeDefined()
+
+      const stopped = await stopRelaySafely({ expectedVersion: PINNED_VERSION, binaryPath: binary.path })
+      expect(stopped.state).toBe("stopped")
+      expect(await relayVersion()).toBeUndefined()
+      expect(relayPidsForHome()).toEqual([])
+      assertNoRelayLeft()
+    } finally {
+      await host.close()
+    }
+  }, 180_000)
 })
 
 describe("the scoped profile", () => {

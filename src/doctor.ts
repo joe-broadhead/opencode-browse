@@ -61,6 +61,7 @@ export function renderDoctor(input: DoctorInput, vendor?: unknown): string {
     } · ${binary.platform}`,
   )
   lines.push(`- Relay: ${live.status ? (live.status.relay.running ? `running${live.status.relay.version ? ` · ${live.status.relay.version}` : ""}${live.status.relay.stale ? " · stale build" : ""} · auto-update off` : "stopped") : `unknown (${live.reason ?? "no answer"})`}`)
+  if (live.status?.relay.running) lines.push("- Stop relay: /browse-stop-relay")
   lines.push(
     `- Extension: ${
       live.status

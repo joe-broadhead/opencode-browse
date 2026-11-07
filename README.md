@@ -200,12 +200,15 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 | `SCOPE_UNREACHABLE` | the session could not be created (relay down, CLI error) | pair the browser, then `/browse-doctor` |
 | `STATUS_UNAVAILABLE` | `browse status` did not answer | run `browse status` yourself, then press `r` |
 | `RELAY_FAILED` | the relay answered with an error rather than a health report | run `/browse-doctor` |
+| `RELAY_NOT_OURS` | the relay on the port was not started by this plugin's binary (another build, another install) | leave it, or stop it with the browse install that started it |
+| `RELAY_STOP_FAILED` | the relay accepted the shutdown request but did not stop | run `/browse-doctor` |
 | `DOCTOR_FAILED` | the vendor doctor exited non-zero | read its checks, fix the first failure |
 | `HOST_UNTESTED` | as `host untested` above | use a supported OpenCode |
 | `OPTIONS_INVALID` | an option failed validation | fix the option the message names |
 | `SKILLS_INVALID` | a bundled skill could not load | reinstall the plugin |
 | Extension not paired | the browser has no key for this relay | run `browse pair`, enter the code on the options page |
 | Relay stopped | nothing has needed the browser yet | ask the agent to open a page, or run `browse status` |
+| Relay still running after OpenCode exits | real mode keeps it, so the browser stays paired (browse's design) | run `/browse-stop-relay`; it stops only the relay this plugin's binary started |
 | Protocol incompatible | the extension and binary are from different releases | update the extension in the browser |
 | `CHROMIUM_MISSING` / `CHROMIUM_UNSUPPORTED` | managed mode has no browser for this platform or path | run `/browse-install-browser`, or set `chromiumPath` |
 | `CHROMIUM_DOWNLOAD_FAILED` / `CHROMIUM_EXTRACT_FAILED` | the Chrome for Testing download or unzip failed | check the network and `unzip`, then run `/browse-install-browser` again |

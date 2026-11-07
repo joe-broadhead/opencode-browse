@@ -43,8 +43,9 @@ the steps to reproduce.
 
 - **The relay outlives OpenCode in real mode, by design.** browse daemonises `browse serve` (parent pid 1) so the
   browser stays paired between sessions; it listens on `127.0.0.1:19988` (or `OPENCODE_BROWSER_PORT`) and requires the
-  relay token. It ends with the machine or `browse uninstall`. Managed mode stops the relay it started on dispose,
-  through browse's own `/shutdown`, and never stops a relay that was already running.
+  relay token. Stop it with **`/browse-stop-relay`**, which uses browse's own `/shutdown` and refuses a relay on the
+  port that this plugin's binary did not start (another browse build, another install). Managed mode stops the relay
+  it started on dispose, and never stops a relay that was already running.
 
 - **Managed mode keeps its own profile.** With `"browser": "managed"`, Chrome for Testing runs with a profile in
   `~/.local/share/opencode-browse/managed`, loaded with the pinned extension unpacked and paired through a one-time

@@ -61,8 +61,9 @@ The relay is a **daemon**: `browse pair`, an MCP tool call or `browse execute` s
 `127.0.0.1:19988` unless `OPENCODE_BROWSER_PORT` says otherwise.
 
 - **Real mode leaves it running.** That is browse's design: the extension stays paired, and the next OpenCode session
-  reuses the relay. It ends with the machine, or with `browse uninstall`; a user can also stop the pid `/version`
-  reports.
+  reuses the relay. **`/browse-stop-relay`** stops it: it reads `/version`, refuses a relay that is not this plugin's
+  own (`managed` false, another browse version, or a pid whose command line is not the pinned binary), and then calls
+  browse's own `/shutdown` with the relay token. Never a kill by name, and no token in the output.
 - **Managed mode stops the relay it started**, together with the managed browser, on dispose. It never stops a relay
   that was already running, and only a relay that reports `managed: true` is shut down, through browse's own
   `/shutdown` with the relay token. The next start pairs again with a fresh one-time code.
