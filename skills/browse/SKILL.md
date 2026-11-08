@@ -14,6 +14,23 @@ and is not installed here: `browse skill` prints it.
 Not for ordinary page reading: use `webfetch`. Not for web search: use Tavily. Not for a page inside the OpenCode
 desktop app's Review pane: use the built-in `browser` tools, which have no real logins.
 
+## In Code Mode
+
+In Code Mode, Playwright code never goes straight into Code Mode's `execute`. Call
+`await tools.browse.execute({ code: "…" })`, with the browser code as a string:
+
+```js
+await tools.browse.execute({ code: "return page.url()" })
+```
+
+Code Mode's own `execute` has no `page`, so a bare `page.…` there fails with `Unknown identifier 'page'`.
+
+## Your own session
+
+Agents do not get separate browse sessions: they all share the server's one session unless an agent makes its own.
+Start a task with `browse_session_new`, named for the task, and pass its id as `session` on later calls. When the task
+is done, `browse_session_reset` it, so the next task starts clean.
+
 ## The loop
 
 1. **Inspect.** `browse_execute` with `await snapshot()` returns a compact outline; act through its refs
@@ -32,17 +49,21 @@ Mode; never guess an input name.
 
 ## Permissions
 
-- Reads run: `status`, `session_list`, `secrets_list`, `secrets_status`, `tabs_cleanup`.
-- `execute` asks on every call. That is the whole page-action surface: navigation, clicks, typing, form submits,
-  reading the DOM. Say in one sentence what the call will do before you make it; the prompt is the yes.
-- Session changes (`session_new`, `session_use`, `session_adopt`, `session_reset`, `session_delete`,
-  `session_allowlist`) and `settings` ask.
-- Captures (`network`, `recording`, `flight_recorder`) run. Their artifacts are real page content: see the
-  `browse-capture` skill.
-- `secrets_run` and `secrets_refresh` ask: they act with the user's stored credentials.
-- A tool browse adds later is **off** until this plugin classifies it. Do not try to work around that.
+Every tool runs by default, with no prompt: reads, `execute`, the session tools, `settings`, the captures,
+`secrets_run`, `secrets_refresh`, and a tool browse adds later.
 
-In an unattended run (`opencode run`) an ask is refused, so browser work happens interactively.
+Under the plugin's `access` option the default block changes shape:
+
+- `"all"` (the default): everything runs.
+- `"ask-changes"`: the four reads and `tabs_cleanup` run; `execute`, the session tools, `settings`, the captures and
+  the secrets tools ask. Say in one sentence what the call will do before you make it; the prompt is the yes.
+- `"read-only"`: those same tools are denied.
+
+An agent's own rules and the user's `permissions` still win, so an ask or a deny you meet is a rule, not a default:
+respect it and do not look for a way around it. In an unattended run (`opencode run`) an ask is refused, so browser
+work there needs the default allow or an explicit allow rule.
+
+Captures write real page content: see the `browse-capture` skill.
 
 ## Hand back, never take over
 

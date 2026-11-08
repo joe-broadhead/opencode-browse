@@ -41,11 +41,22 @@ describe("the shipped skills", () => {
 
   test("say what the prompts mean, and never advise an allow for a write", () => {
     const main = read("browse")
-    expect(main).toContain("`execute` asks")
+    expect(main).toContain("Every tool runs by default")
     expect(main).toContain("the prompt is the yes")
+    expect(main).not.toContain("`execute` asks on every call")
+    expect(main).not.toContain("off until this plugin classifies")
     expect(main).not.toContain("wait for a yes")
     expect(main).not.toMatch(/"effect":\s*"allow"/)
     expect(main).toContain("Never type a password")
+  })
+
+  // Item 16: the model-facing text states the default truth, and the two traps the live evaluation found.
+  test("tell the model to call browse_execute from Code Mode, and to make its own session", () => {
+    const main = read("browse")
+    expect(main).toContain("In Code Mode, Playwright code never goes straight into Code Mode's `execute`")
+    expect(main).toContain('await tools.browse.execute({ code: "return page.url()" })')
+    expect(main).toContain("Agents do not get separate browse sessions")
+    expect(main).toContain("`browse_session_reset` it")
   })
 
   test("the capture skill says what is captured, where it goes, and what not to do", () => {
