@@ -65,8 +65,17 @@ so that needs you; the next status read reports `SCOPE_LOST` and the doctor repa
 
 ## Permissions
 
-The block, as `/browse-status` prints it, is `src/permissions.ts` evaluated: `browse_*` deny first, then one rule per
-known tool: 8 allows, 10 asks and no denies among the 18.
+Every tool is allowed by default. The block, as `/browse-status` prints it, is `src/permissions.ts` evaluated: a
+`browse_*` allow first, so a tool browse adds later runs at once, then one `allow` per known tool.
+
+What that means in practice: `browse_execute` runs page actions with no prompt, the three captures record real page
+content to a path the agent chooses, and `browse_secrets_run` runs a local command with your stored credentials in its
+environment.
+
+`access` restricts it, and the README prints the block for each value: `"all"` (the default) as above,
+`"ask-changes"` (the four reads and tab cleanup run, everything else asks) and `"read-only"` (the reads run,
+everything else is denied). An agent's own rules and your top-level `permissions` still win, and the names are the 18
+in `src/browse-tools.ts`.
 
 To turn a capture off for one agent:
 
@@ -74,11 +83,14 @@ To turn a capture off for one agent:
 { "agents": { "build": { "permissions": [{ "action": "browse_recording", "resource": "*", "effect": "deny" }] } } }
 ```
 
-To let an agent drive a page without a prompt, in one project only, prefer the scoped read-only profile over an
-`allow` on `browse_execute`: `allow` also reaches scripts and unattended runs.
+A capture's `outputPath` is usually outside the project, so OpenCode asks for `external_directory` on that folder as
+well as for the capture's own action. Allow it once with
+`{ "action": "external_directory", "resource": "/path/to/captures/*", "effect": "allow" }`, or keep the folder inside
+the project. A refusal that names `external_directory` costs nothing, because nothing was written.
 
-A tool browse adds later matches only `browse_*` and is therefore **denied**. To allow one before this plugin
-classifies it, add an exact rule with `allow`; status keeps naming it as unknown.
+A tool browse adds later matches `browse_*`, so it runs at once under the default. Status lists it as unknown until
+this plugin classifies it: its class decides what `"ask-changes"` and `"read-only"` do with it, not whether it runs by
+default.
 
 ## Errors
 
