@@ -186,10 +186,10 @@ describe("Code Mode", () => {
       ]
       const sessionID = await modelSession(host)
       const answered = await modelTurn(host, sessionID, "Check the browser.")
-      // Every tool is allowed by default, so the inner execute runs too.
+      // Every tool is allowed by default, so the inner execute runs too. The turn is over when the model stops
+      // answering, which can be a moment before the program's last call lands, so wait for the calls themselves.
+      await until("the program's calls reach the server", async () => host.fake.tools().includes("status") && host.fake.tools().includes("execute"), 30_000)
       expect(answered).toEqual([])
-      expect(host.fake.tools()).toContain("status")
-      expect(host.fake.tools()).toContain("execute")
     } finally {
       await host.close()
     }
