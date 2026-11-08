@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { renderDoctor } from "../../src/doctor.js"
 
 const host = { version: "2.2.4", range: ">=2.2.3 <2.3.0", tested: true }
-const binary = { path: "/opt/browse", version: "0.0.14", source: "package" as const, verified: true, tested: true, supported: true, pinned: true, platform: "darwin-arm64" }
+const binary = { path: "/opt/browse", version: "0.0.15", source: "package" as const, verified: true, tested: true, supported: true, pinned: true, platform: "darwin-arm64" }
 const live = {
   status: {
     relay: { running: true, version: "0.0.14", stale: false },
@@ -18,7 +18,7 @@ describe("renderDoctor", () => {
   test("says nothing to do when everything is right", () => {
     const text = renderDoctor({ binary, host, live, problems: [] })
     expect(text).toContain("- Binary: /opt/browse")
-    expect(text).toContain("browse 0.0.14 · verified against its manifest · the pinned 0.0.14 · darwin-arm64")
+    expect(text).toContain("browse 0.0.15 · verified against its manifest · the pinned 0.0.15 · darwin-arm64")
     expect(text).toContain("- Relay: running · 0.0.14")
     expect(text).toContain("- Extension: connected · 0.0.14")
     expect(text.endsWith("- Next step: Nothing to do.")).toBe(true)
@@ -32,7 +32,7 @@ describe("renderDoctor", () => {
 
   test("an unverified or untested binary is named", () => {
     expect(renderDoctor({ binary: { ...binary, verified: false, source: "option" }, host, live, problems: [] })).toContain("your own path option")
-    expect(renderDoctor({ binary: { ...binary, tested: false, version: "0.0.13" }, host, live, problems: [] })).toContain("not the pinned 0.0.14")
+    expect(renderDoctor({ binary: { ...binary, tested: false, version: "0.0.13" }, host, live, problems: [] })).toContain("not the pinned 0.0.15")
     // DR-19: the packaged binary with verifyBinary off is not called the user's own path.
     expect(renderDoctor({ binary: { ...binary, verified: false }, host, live, problems: [] })).not.toContain("remove \"path\"")
   })

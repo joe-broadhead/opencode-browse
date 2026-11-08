@@ -77,7 +77,7 @@ describe("resolution", () => {
     writeFileSync(join(packageDir, "bin", "browse"), binary)
     writeFileSync(
       join(packageDir, "manifest", "browse.json"),
-      JSON.stringify({ version: "0.0.14", sha256: recorded ?? createHash("sha256").update(binary).digest("hex"), bytes: binary.length, target: "test", upstream: "https://github.com/anomalyco/browse", licence: "MIT" }),
+      JSON.stringify({ version: "0.0.15", sha256: recorded ?? createHash("sha256").update(binary).digest("hex"), bytes: binary.length, target: "test", upstream: "https://github.com/anomalyco/browse", licence: "MIT" }),
     )
     writeFileSync(join(packageDir, "package.json"), JSON.stringify({ name: "fake", version: "0.0.0" }))
     return packageDir
@@ -86,7 +86,7 @@ describe("resolution", () => {
   test("finds the platform package and verifies its digest", () => {
     make("binary")
     const info = resolveBinary({ packageRoot: dir })
-    expect(info).toMatchObject({ source: "package", version: "0.0.14", verified: true, pinned: true, tested: true })
+    expect(info).toMatchObject({ source: "package", version: "0.0.15", verified: true, pinned: true, tested: true })
     expect(info.path).toBe(join(dir, "node_modules", "@joe-broadhead", `opencode-browse-bin-${info.platform}`, "bin", "browse"))
   })
 

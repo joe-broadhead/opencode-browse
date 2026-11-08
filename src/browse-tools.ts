@@ -1,12 +1,12 @@
-// Every fact the plugin keeps about browse's MCP tools: the 18 the server lists at 0.0.14 (9bf2dac), each with its
+// Every fact the plugin keeps about browse's MCP tools: the 18 the server lists at 0.0.15, each with its
 // MCP annotation, its class for the tools RPC, and the default permission effect.
 // The default rules, the tools RPC's table, status's unknown tools, the Jelly declaration and the tests all derive
 // from this file, so a tool cannot drift between them. Keep it free of runtime imports: scripts/check-browse-tools.mjs
 // and the drift job load it directly.
 //
-// Effects: the reads and the tab cleanup run; the page action, the session tools, the settings and
-// the three tools that act with the user's secrets or widen reach ask; nothing known is off. A tool browse adds later
-// matches no exact name, so DEFAULT_UNKNOWN denies it until it is classified here.
+// Effects: every tool is allowed by default, and so is a tool browse adds later, because the owner's policy is that
+// everything runs unless the user restricts it. The `access` option (`all`, `ask-changes`, `read-only`) derives a
+// tighter effect from a tool's class, and scoped mode denies the session tools that could leave its pinned session.
 
 /** What a tool's worst case is, for the tools RPC and a Jelly approval. The rules, not the class, decide a call. */
 export type ToolClass = "read" | "write" | "export" | "destructive"
@@ -17,7 +17,7 @@ export type Effect = "allow" | "ask" | "deny"
 export interface ToolSpec {
   readonly name: string
   readonly class: ToolClass
-  /** The effect the default rules give it. */
+  /** The effect the default rules give it when `access` is `all`. */
   readonly effect: Effect
   /** MCP's `readOnlyHint`, as the server sends it. */
   readonly readOnly: boolean
@@ -31,11 +31,27 @@ export interface ToolSpec {
   readonly summary: string
 }
 
-/**
- * The default for a tool name this table does not classify. The first rule is `browse_*` deny, so a tool browse adds
- * later is off until a release of this plugin classifies it; a user can still allow one by name.
- */
-export const DEFAULT_UNKNOWN: Effect = "deny"
+/** The effect for a tool name this table does not classify: allowed, like everything else by default. */
+export const DEFAULT_UNKNOWN: Effect = "allow"
+
+/** How much the plugin's own tools may do without asking. A user's later rules always win. */
+export type Access = "all" | "ask-changes" | "read-only"
+
+export const ACCESS_VALUES: readonly Access[] = ["all", "ask-changes", "read-only"]
+
+/** The effect a tool's class gets under one access value. A read always runs; the rest follow the option. */
+export function accessEffect(cls: ToolClass | "unknown", access: Access = "all"): Effect {
+  if (cls === "read") return "allow"
+  if (access === "ask-changes") return "ask"
+  if (access === "read-only") return "deny"
+  return "allow"
+}
+
+/** The effect of one tool under an access value, before scoped mode. */
+export function defaultEffectOf(name: string, access: Access): Effect {
+  const spec = TOOLS.find((tool) => tool.name === name)
+  return spec === undefined ? accessEffect("unknown", access) : accessEffect(spec.class, access)
+}
 
 export const TOOLS: readonly ToolSpec[] = [
   {
@@ -91,7 +107,7 @@ export const TOOLS: readonly ToolSpec[] = [
   {
     name: "execute",
     class: "destructive",
-    effect: "ask",
+    effect: "allow",
     readOnly: false,
     destructive: true,
     idempotent: false,
@@ -101,7 +117,7 @@ export const TOOLS: readonly ToolSpec[] = [
   {
     name: "session_new",
     class: "write",
-    effect: "ask",
+    effect: "allow",
     readOnly: false,
     destructive: false,
     idempotent: false,
@@ -111,7 +127,7 @@ export const TOOLS: readonly ToolSpec[] = [
   {
     name: "session_use",
     class: "write",
-    effect: "ask",
+    effect: "allow",
     readOnly: false,
     destructive: false,
     idempotent: true,
@@ -121,7 +137,7 @@ export const TOOLS: readonly ToolSpec[] = [
   {
     name: "session_adopt",
     class: "write",
-    effect: "ask",
+    effect: "allow",
     readOnly: false,
     destructive: false,
     idempotent: false,
@@ -131,7 +147,7 @@ export const TOOLS: readonly ToolSpec[] = [
   {
     name: "session_reset",
     class: "destructive",
-    effect: "ask",
+    effect: "allow",
     readOnly: false,
     destructive: true,
     idempotent: false,
@@ -141,7 +157,7 @@ export const TOOLS: readonly ToolSpec[] = [
   {
     name: "session_delete",
     class: "destructive",
-    effect: "ask",
+    effect: "allow",
     readOnly: false,
     destructive: true,
     idempotent: true,
@@ -151,7 +167,7 @@ export const TOOLS: readonly ToolSpec[] = [
   {
     name: "settings",
     class: "write",
-    effect: "ask",
+    effect: "allow",
     readOnly: false,
     destructive: false,
     idempotent: true,
@@ -191,7 +207,7 @@ export const TOOLS: readonly ToolSpec[] = [
   {
     name: "secrets_run",
     class: "destructive",
-    effect: "ask",
+    effect: "allow",
     readOnly: false,
     destructive: true,
     idempotent: false,
@@ -201,7 +217,7 @@ export const TOOLS: readonly ToolSpec[] = [
   {
     name: "secrets_refresh",
     class: "destructive",
-    effect: "ask",
+    effect: "allow",
     readOnly: false,
     destructive: true,
     idempotent: false,
@@ -211,7 +227,7 @@ export const TOOLS: readonly ToolSpec[] = [
   {
     name: "session_allowlist",
     class: "destructive",
-    effect: "ask",
+    effect: "allow",
     readOnly: false,
     destructive: false,
     idempotent: true,
@@ -248,10 +264,11 @@ export const SCOPED_EFFECTS: Readonly<Record<string, Effect>> = {
   session_allowlist: "deny",
 }
 
-/** The effect of a tool under the scoped profile, or its default. */
+/** The effect of a tool under the scoped profile, before the access option narrows anything else. */
 export function scopedEffectOf(name: string, readOnly: boolean): Effect {
   const override = SCOPED_EFFECTS[name]
   if (override !== undefined) return override
-  if (name === "execute" && readOnly) return "allow"
+  // A pinned session decides execute: it runs when the session refuses input, and asks when input is allowed.
+  if (name === "execute") return readOnly ? "allow" : "ask"
   return effectOf(name)
 }

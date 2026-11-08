@@ -7,7 +7,7 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- The `browse` MCP server, registered at runtime with the pinned browse `0.0.14` binary and adopted from a user's own
+- The `browse` MCP server, registered at runtime with the pinned browse `0.0.15` binary and adopted from a user's own
   entry when it is a browse command.
 - Per-platform optional packages (`@joe-broadhead/opencode-browse-bin-<platform>`) carrying the binary, its
   `manifest/browse.json` digest and browse's MIT licence; the plugin verifies the digest before running it.
@@ -25,7 +25,13 @@ and this project uses [Semantic Versioning](https://semver.org/).
   downloads and verifies CfT on demand; `chromiumPath` uses a Chromium you already have.
 - `bin/mcp.mjs`, the MCP entry: it re-verifies the pinned binary at every spawn and serves it with browse's
   supervision and auto-update off, so no other `browse` on the machine is ever run.
-- A deny for a legacy `opencode-browser` server and for a conflicting `browse` entry, so neither runs unguarded.
+- The plugin runs on OpenCode `>=2.2.3 <2.3.0`, tested on 2.2.3, 2.2.4, 2.2.5 and 2.2.6.
+- A conflicting `browse` entry, which is not this plugin's server, is denied by exact name so it cannot run unguarded.
+
+### Changed
+
+- The pinned browse binary moves to `0.0.15`; the tool table is unchanged, and `npm run drift` reports `same`
+  against the new release.
 
 ### Fixed
 

@@ -28,11 +28,6 @@ export async function relayVersion(timeoutMs = 2_000): Promise<RelayVersion | un
   }
 }
 
-/**
- * Stops a managed relay through browse's own `/shutdown`, the route its uninstall uses: the instance id from
- * `/version`, a request id, and the relay token. Waits until the port no longer answers. Never throws; returns whether
- * the relay is gone.
- */
 /** The command line a pid runs, or undefined when it cannot be read (a pid we do not own, or no `ps`). */
 export function processCommand(pid: number): Promise<string | undefined> {
   return new Promise((resolve) => {
@@ -91,6 +86,11 @@ export function formatRelayStop(result: RelayStop, port = relayPort()): string {
   return `RELAY_STOP_FAILED: The relay accepted the request but did not stop. Next step: Run /browse-doctor and follow its next step.`
 }
 
+/**
+ * Stops a managed relay through browse's own `/shutdown`, the route its uninstall uses: the instance id from
+ * `/version`, a request id, and the relay token. Waits until the port no longer answers. Never throws; returns whether
+ * the relay is gone.
+ */
 export async function stopManagedRelay(instanceId: string, buildId: string): Promise<boolean> {
   try {
     const token = readFileSync(relayTokenPath(), "utf8").trim()

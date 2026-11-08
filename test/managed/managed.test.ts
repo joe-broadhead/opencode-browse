@@ -82,7 +82,7 @@ test(
       } catch {}
       expect(status.state).toBe("running")
       expect(status.chromium.verified).toBe(true)
-      expect(status.extension.version).toBe("0.0.14")
+      expect(status.extension.version).toBe("0.0.15")
       expect(status.pid).toBeGreaterThan(1)
       expect(status.profile).toBe(join(process.env.XDG_DATA_HOME!, "opencode-browse", "managed", "profile"))
 

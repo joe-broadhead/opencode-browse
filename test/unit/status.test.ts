@@ -3,10 +3,10 @@ import { buildStatus, formatStatus, registerStatusRpc, StatusRpc, type StatusFac
 import { defaultRules } from "../../src/permissions.js"
 
 const host = { version: "2.2.4", range: ">=2.2.3 <2.3.0", tested: true }
-const rules = { scoped: false, readOnly: false }
-const binary = { path: "/opt/browse", version: "0.0.14", source: "package" as const, verified: true, tested: true, supported: true }
+const rules = { access: "all" as const, scoped: false, readOnly: false }
+const binary = { path: "/opt/browse", version: "0.0.15", source: "package" as const, verified: true, tested: true, supported: true }
 
-const facts = (overrides: Partial<StatusFacts> = {}): StatusFacts => ({ host, rules, binary, mode: "real", probe: { version: "0.0.14", tested: true }, ...overrides })
+const facts = (overrides: Partial<StatusFacts> = {}): StatusFacts => ({ host, rules, binary, mode: "real", probe: { version: "0.0.15", tested: true }, ...overrides })
 
 describe("buildStatus", () => {
   test("with no binary: not configured, and its own next step", () => {
@@ -40,7 +40,7 @@ describe("buildStatus", () => {
     expect(status.tools).toBe(3)
     expect(status.unknownCount).toBe(1)
     expect(status.unknownTools).toEqual(["shiny_new_tool"])
-    expect(status.access).toEqual({ run: 8, ask: 10, off: 0 })
+    expect(status.access).toEqual({ run: 18, ask: 0, off: 0 })
     expect(status.nextStep).toContain("does not classify")
   })
 
@@ -62,13 +62,13 @@ describe("buildStatus", () => {
         extension: { connected: true, version: "0.0.13", pairingState: "paired", compatible: true, nextStep: null },
       }),
     )
-    expect(status.nextStep).toContain("not the pinned 0.0.14")
+    expect(status.nextStep).toContain("not the pinned 0.0.15")
     expect(status.binary.tested).toBe(false)
   })
 
   test("the scoped profile's counts, and a drifted scope", () => {
-    const status = buildStatus(facts({ rules: { scoped: true, readOnly: true }, server: { status: "connected" }, tools: ["status"], relay: { running: true, version: null, stale: false }, extension: { connected: true, version: null, pairingState: "paired", compatible: true, nextStep: null }, scope: { session: "opencode", readOnly: true, allowedOrigins: ["github.com"], matches: false } }))
-    expect(status.access).toEqual({ run: 9, ask: 4, off: 5 })
+    const status = buildStatus(facts({ rules: { access: "all", scoped: true, readOnly: true }, server: { status: "connected" }, tools: ["status"], relay: { running: true, version: null, stale: false }, extension: { connected: true, version: null, pairingState: "paired", compatible: true, nextStep: null }, scope: { session: "opencode", readOnly: true, allowedOrigins: ["github.com"], matches: false } }))
+    expect(status.access).toEqual({ run: 13, ask: 0, off: 5 })
     expect(status.nextStep).toContain("re-apply the configured scope")
   })
 
@@ -185,8 +185,8 @@ describe("formatStatus", () => {
 
   test("shows the access counts and the binary's provenance", () => {
     const text = formatStatus(buildStatus(facts({ server: { status: "connected" }, tools: ["status"] })))
-    expect(text).toContain("8 run · 10 ask · 0 off")
-    expect(text).toContain("browse 0.0.14 (verified at startup, pinned; the platform package)")
+    expect(text).toContain("18 run · 0 ask · 0 off")
+    expect(text).toContain("browse 0.0.15 (verified at startup, pinned; the platform package)")
   })
 })
 
@@ -213,6 +213,6 @@ describe("the status RPC", () => {
   })
 
   test("its rule set is the default one", () => {
-    expect(defaultRules(rules)[0].effect).toBe("deny")
+    expect(defaultRules(rules)[0]).toEqual({ action: "browse_*", resource: "*", effect: "allow" })
   })
 })

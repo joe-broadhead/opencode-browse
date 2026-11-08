@@ -2,13 +2,13 @@ import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { DEFAULT_UNKNOWN, TOOLS, TOOL_NAMES, classify, effectOf, scopedEffectOf } from "../../src/browse-tools.js"
+import { DEFAULT_UNKNOWN, TOOLS, TOOL_NAMES, classify, defaultEffectOf, effectOf, scopedEffectOf } from "../../src/browse-tools.js"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
 const fixture = JSON.parse(readFileSync(join(root, "test", "fixtures", "live-tools.json"), "utf8")) as { tools: { name: string; annotations: Record<string, unknown> }[] }
 
 describe("the tool table", () => {
-  test("is the 18 tools browse 0.0.14 lists, in one exact name each", () => {
+  test("is the 18 tools browse 0.0.15 lists, in one exact name each", () => {
     expect(TOOL_NAMES).toHaveLength(18)
     expect(new Set(TOOL_NAMES).size).toBe(18)
     expect([...fixture.tools.map((tool) => tool.name)].sort()).toEqual([...TOOL_NAMES].sort())
@@ -27,16 +27,19 @@ describe("the tool table", () => {
     }
   })
 
-  test("the default table: 8 run, 10 ask, none off", () => {
+  test("the default table: 18 run, none ask, none off", () => {
     const counts = TOOLS.reduce((all, tool) => ({ ...all, [tool.effect]: all[tool.effect] + 1 }), { allow: 0, ask: 0, deny: 0 })
-    expect(counts).toEqual({ allow: 8, ask: 10, deny: 0 })
-    for (const name of ["network", "recording", "flight_recorder"]) expect(effectOf(name)).toBe("allow")
-    for (const name of ["secrets_run", "secrets_refresh", "session_allowlist", "execute"]) expect(effectOf(name)).toBe("ask")
+    expect(counts).toEqual({ allow: 18, ask: 0, deny: 0 })
+    for (const name of ["network", "recording", "flight_recorder", "secrets_run", "execute"]) expect(effectOf(name)).toBe("allow")
   })
 
-  test("unknown names are off, and the scoped profile is stricter", () => {
+  test("an unknown name runs by default, and the scoped profile is stricter", () => {
     expect(effectOf("shiny_new_tool")).toBe(DEFAULT_UNKNOWN)
-    expect(DEFAULT_UNKNOWN).toBe("deny")
+    expect(DEFAULT_UNKNOWN).toBe("allow")
+    expect(defaultEffectOf("shiny_new_tool", "all")).toBe("allow")
+    expect(defaultEffectOf("shiny_new_tool", "ask-changes")).toBe("ask")
+    expect(defaultEffectOf("shiny_new_tool", "read-only")).toBe("deny")
+    expect(defaultEffectOf("status", "read-only")).toBe("allow")
     expect(classify("shiny_new_tool")).toBe("unknown")
     for (const name of ["session_new", "session_use", "session_adopt", "session_delete", "session_allowlist"]) expect(scopedEffectOf(name, false)).toBe("deny")
     expect(scopedEffectOf("execute", false)).toBe("ask")

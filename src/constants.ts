@@ -10,7 +10,7 @@ export const SUPPORTED_HOST = ">=2.2.3 <2.3.0"
 /** The OpenCode releases every check runs on: the one list. Status calls only these "tested". */
 export const TESTED_HOSTS: readonly string[] = ["2.2.3", "2.2.4", "2.2.5", "2.2.6"]
 /** The browse release this plugin pins and ships. A user's own binary is reported untested. */
-export const PINNED_VERSION = "0.0.14"
+export const PINNED_VERSION = "0.0.15"
 /** The default session name a scoped install pins the server to. */
 export const DEFAULT_SCOPE_SESSION = "opencode"
 

@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { join } from "node:path"
 import { realpathSync } from "node:fs"
 import { fileURLToPath } from "node:url"
+import { PINNED_VERSION } from "../../src/constants.js"
 import { resolveBinary } from "../../src/engine.js"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
@@ -60,6 +61,7 @@ describe("the tarball", () => {
 
   test("the managed artefacts are pinned: the extension per file, Chrome for Testing per platform", () => {
     const extension = JSON.parse(execFileSync("tar", ["-xzOf", tarball, "package/manifest/extension.json"], { encoding: "utf8" }))
+    // The extension has its own pin, separate from the CLI binary the plugin ships.
     expect(extension.version).toBe("0.0.14")
     expect(extension.zip.sha256).toMatch(/^[0-9a-f]{64}$/)
     expect(extension.files.length).toBeGreaterThan(10)
@@ -102,14 +104,14 @@ describe("the platform package", () => {
     writeFileSync(join(binDir, "package.json"), JSON.stringify({ name: `@joe-broadhead/opencode-browse-bin-${key}`, version: "0.0.0" }))
     writeFileSync(
       join(binDir, "manifest", "browse.json"),
-      JSON.stringify({ version: "0.0.14", sha256: recorded, bytes: binary.length, target: "test", upstream: "https://github.com/anomalyco/browse", licence: "MIT" }),
+      JSON.stringify({ version: PINNED_VERSION, sha256: recorded, bytes: binary.length, target: "test", upstream: "https://github.com/anomalyco/browse", licence: "MIT" }),
     )
   }
 
   test("resolves from node_modules and verifies the binary", () => {
     install(createHash("sha256").update(binary).digest("hex"))
     const info = resolveBinary({ packageRoot: join(work, "platform") })
-    expect(info).toMatchObject({ source: "package", version: "0.0.14", verified: true, tested: true })
+    expect(info).toMatchObject({ source: "package", version: PINNED_VERSION, verified: true, tested: true })
     expect(statSync(info.path).size).toBe(binary.length)
   })
 
