@@ -37,8 +37,8 @@ browse's MCP server; it never runs a browser itself.
 `npm run check` runs, in order: `typecheck`, `unit`, `build`, `icons`, `host` (every SDK in `TESTED_HOSTS`), `pack`,
 `forbidden`, `copies`, `jelly`, `whitelist` and `actionlint`. `npm run drift` compares the table with `test/fixtures/live-tools.json` (or `--bin <path>`).
 
-`node scripts/check.mjs <stage>` runs one stage. The host stage runs on 2.2.3 from the lockfile and installs 2.2.4 and
-2.2.5 into a temp folder; `HOST_SDK_DIR` runs one SDK only.
+`node scripts/check.mjs <stage>` runs one stage. The host stage runs on 2.2.3 from the lockfile and installs 2.2.4,
+2.2.5 and 2.2.6 into a temp folder; `HOST_SDK_DIR` runs one SDK only.
 
 ## Commits
 

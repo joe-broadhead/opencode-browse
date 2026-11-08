@@ -68,7 +68,8 @@ The agent opens its own background tabs in a collapsed group, works with Playwri
 you can continue: a login, 2FA, a passkey, a captcha or a payment. Only a real click on the card's **Continue**, or on
 the toolbar button, resumes the script.
 
-Every page action runs through `browse_execute`, and it asks first. Reads and tab cleanup run without asking.
+Every page action runs through `browse_execute`, and by default it runs without asking. The reads, tab cleanup and the
+captures do too; the `access` option below is how you restrict any of them.
 
 **The three captures run without asking, by default.** This is a deliberate default; read this before you rely on
 that default:
@@ -82,7 +83,17 @@ that default:
   path the agent chooses.
 
 Stored where the agent writes them, for as long as you keep the file. A recording or a HAR is real page content: write
-it outside the repository, and delete it when you are done. To make one ask, or turn it off, in one agent:
+it outside the repository, and delete it when you are done.
+
+A capture's `outputPath` is usually outside the project, so OpenCode asks for `external_directory` on that folder as
+well as for the capture's own action. Allow it once to stop the second prompt, or keep the folder inside the project:
+
+```json
+{ "permissions": [{ "action": "external_directory", "resource": "/path/to/captures/*", "effect": "allow" }] }
+```
+
+A refusal that names `external_directory` costs nothing: nothing was written. To make one capture ask, or turn it off,
+in one agent:
 
 ```json
 { "agents": { "build": { "permissions": [
@@ -96,8 +107,9 @@ A script can start a capture with no model turn and no prompt; `docs/scripting.m
 ## Permissions
 
 **Every tool is allowed by default.** The plugin adds this block to every agent, directly after the agent's base rule
-that allows everything:
+that allows everything. `access: "all"` is the default, so this is the block in force:
 
+<!-- rules:all -->
 ```json
 [
   {"action": "browse_*", "resource": "*", "effect": "allow"},
@@ -121,6 +133,63 @@ that allows everything:
   {"action": "browse_session_allowlist", "resource": "*", "effect": "allow"}
 ]
 ```
+<!-- /rules:all -->
+
+With `access: "ask-changes"`, the reads and tab cleanup still run and everything else asks. That is the block for it:
+
+<!-- rules:ask-changes -->
+```json
+[
+  {"action": "browse_*", "resource": "*", "effect": "ask"},
+  {"action": "browse_status", "resource": "*", "effect": "allow"},
+  {"action": "browse_session_list", "resource": "*", "effect": "allow"},
+  {"action": "browse_secrets_list", "resource": "*", "effect": "allow"},
+  {"action": "browse_secrets_status", "resource": "*", "effect": "allow"},
+  {"action": "browse_tabs_cleanup", "resource": "*", "effect": "ask"},
+  {"action": "browse_execute", "resource": "*", "effect": "ask"},
+  {"action": "browse_session_new", "resource": "*", "effect": "ask"},
+  {"action": "browse_session_use", "resource": "*", "effect": "ask"},
+  {"action": "browse_session_adopt", "resource": "*", "effect": "ask"},
+  {"action": "browse_session_reset", "resource": "*", "effect": "ask"},
+  {"action": "browse_session_delete", "resource": "*", "effect": "ask"},
+  {"action": "browse_settings", "resource": "*", "effect": "ask"},
+  {"action": "browse_network", "resource": "*", "effect": "ask"},
+  {"action": "browse_recording", "resource": "*", "effect": "ask"},
+  {"action": "browse_flight_recorder", "resource": "*", "effect": "ask"},
+  {"action": "browse_secrets_run", "resource": "*", "effect": "ask"},
+  {"action": "browse_secrets_refresh", "resource": "*", "effect": "ask"},
+  {"action": "browse_session_allowlist", "resource": "*", "effect": "ask"}
+]
+```
+<!-- /rules:ask-changes -->
+
+With `access: "read-only"`, the reads still run and everything else is denied:
+
+<!-- rules:read-only -->
+```json
+[
+  {"action": "browse_*", "resource": "*", "effect": "deny"},
+  {"action": "browse_status", "resource": "*", "effect": "allow"},
+  {"action": "browse_session_list", "resource": "*", "effect": "allow"},
+  {"action": "browse_secrets_list", "resource": "*", "effect": "allow"},
+  {"action": "browse_secrets_status", "resource": "*", "effect": "allow"},
+  {"action": "browse_tabs_cleanup", "resource": "*", "effect": "deny"},
+  {"action": "browse_execute", "resource": "*", "effect": "deny"},
+  {"action": "browse_session_new", "resource": "*", "effect": "deny"},
+  {"action": "browse_session_use", "resource": "*", "effect": "deny"},
+  {"action": "browse_session_adopt", "resource": "*", "effect": "deny"},
+  {"action": "browse_session_reset", "resource": "*", "effect": "deny"},
+  {"action": "browse_session_delete", "resource": "*", "effect": "deny"},
+  {"action": "browse_settings", "resource": "*", "effect": "deny"},
+  {"action": "browse_network", "resource": "*", "effect": "deny"},
+  {"action": "browse_recording", "resource": "*", "effect": "deny"},
+  {"action": "browse_flight_recorder", "resource": "*", "effect": "deny"},
+  {"action": "browse_secrets_run", "resource": "*", "effect": "deny"},
+  {"action": "browse_secrets_refresh", "resource": "*", "effect": "deny"},
+  {"action": "browse_session_allowlist", "resource": "*", "effect": "deny"}
+]
+```
+<!-- /rules:read-only -->
 
 That means page actions run in your real browser, the three captures run, and `browse_secrets_run` can run a local
 command with your stored credentials — all without a prompt. Nothing is off, and a tool browse adds later runs too.

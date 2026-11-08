@@ -62,18 +62,23 @@ the steps to reproduce.
 
 ## Permissions
 
-The plugin inserts, directly after each agent's base `* * allow`:
+Every tool is allowed by default. The plugin inserts, directly after each agent's base `* * allow`, a `browse_*` rule
+and one rule per known tool by exact name, all `allow` at `access: "all"`, which is the default.
 
-1. `{ "action": "browse_*", "resource": "*", "effect": "deny" }`, so a tool browse adds later is off until this plugin
-   classifies it;
-2. one rule per known tool, by exact name: 8 `allow`, 10 `ask`, no `deny` among the 18.
+What runs without asking at that default: `browse_execute` runs Playwright code in your signed-in browser (navigation,
+clicks, typing, form submits, reading the DOM); the three captures record real page content to a path the agent
+chooses; `browse_secrets_run` runs a local command with your stored credentials in its environment; and a tool browse
+adds later runs at once on the `browse_*` rule.
 
-A later rule of the agent's, yours in `opencode.json`, or a saved approval still wins. Agents without a base allow get
-no rules: inserting the block there would turn a default deny into an ask.
+To restrict it, set the plugin's `access` option: `"ask-changes"` runs the four reads and tab cleanup and asks for
+everything else, and `"read-only"` runs the reads and denies everything else. An agent's own rules, your `permissions`
+in `opencode.json` and a saved approval still win, and the tool names are the 18 in `src/browse-tools.ts`. Agents
+without a base allow get no rules: inserting the block there would turn a default deny into an ask.
 
-The `ask` tools are the ones that change a page, a session or your settings, or act with your stored credentials:
-`browse_execute`, the six session tools, `browse_settings`, `browse_secrets_run` and `browse_secrets_refresh`. The
-captures run, and they write real page content to a path the agent chooses.
+The four captures and their artifacts: a capture's `outputPath` is usually outside the project, so OpenCode asks for
+`external_directory` on that folder as well as for the capture's own action. Allow it with
+`{ "action": "external_directory", "resource": "/path/to/captures/*", "effect": "allow" }`. A refusal that names
+`external_directory` costs nothing, because nothing was written.
 
 The scoped profile (`scope` in the options) denies the session tools that could leave the pinned session or widen it,
 and allows `execute` only when the pinned session is read-only, where the relay refuses all input.
@@ -85,7 +90,8 @@ browse server is denied the same way.
 ## Scripts
 
 `browse.tools` runs a method only when the session's agent and session rules resolve to `allow`; an `ask` is refused
-with no prompt. Under the defaults a script can read status, sessions and secret names, clean up tabs, and capture. It
-cannot drive a page, change a session, widen an allowlist, or run a command with your credentials. A
-`PERMISSION_DENIED` names the method and the next step. Upstream error text reaches a script as its first line only,
-at most 300 characters, with tokens and signed URLs redacted.
+with no prompt. The default rules allow every method, so a script runs any of the 18 — including `execute` and the
+captures — unless `access` or a rule restricts it; at `"ask-changes"` a change is refused, and at `"read-only"` it is
+denied. A `PERMISSION_DENIED` names the method and the next step. A capture that writes outside the project also needs
+an `external_directory` allow, because the host asks for it before any file is written. Upstream error text reaches a
+script as its first line only, at most 300 characters, with tokens and signed URLs redacted.

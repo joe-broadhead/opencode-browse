@@ -54,7 +54,10 @@ deliberate default, and it is worth weighing before you grant a script a session
 - `flight_recorder` keeps a rolling buffer of the tab's pixels and `save_last` writes a clip to a path the script
   chooses.
 
-The artifacts stay where the script writes them, for as long as the file exists.
+The artifacts stay where the script writes them, for as long as the file exists. A path outside the project also needs
+an `external_directory` allow, because OpenCode asks for that as well as for the capture's own action before anything
+is written: `{ "action": "external_directory", "resource": "<the captures folder>/*", "effect": "allow" }`. A refusal
+that names `external_directory` costs nothing, because nothing was written.
 
 To restrict a script, do one of three:
 
@@ -81,7 +84,7 @@ there. The HTTP equivalents are the `location[directory]` query parameter and th
 `location` that answered and a `locationHint`.
 
 A location unloads after OpenCode's idle timeout. If a scheduled script gets `rpc.unavailable` from a location that was
-loaded before, send the call again once: the request loads the location.
+loaded before, send the call again once: the request loads the location. Jobs keeps its own location loaded.
 
 ## Refusals
 

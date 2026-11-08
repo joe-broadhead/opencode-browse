@@ -78,10 +78,14 @@ describe("the README", () => {
     }
   })
 
-  test("prints the default-rules block exactly as the code generates it", () => {
-    const block = /## Permissions\n[\s\S]*?```json\n(\[[\s\S]*?\])\n```/.exec(README)?.[1]
-    expect(block).toBeDefined()
-    expect(JSON.parse(block!)).toEqual(defaultRules({ access: "all", scoped: false, readOnly: false }).map((rule) => ({ ...rule })))
+  test("prints the generated rules block in full for each access value, exactly as the code makes it", () => {
+    const fence = "```"
+    for (const access of ["all", "ask-changes", "read-only"] as const) {
+      const marker = new RegExp(`<!-- rules:${access} -->\\n${fence}json\\n(\\[[\\s\\S]*?\\])\\n${fence}\\n<!-- /rules:${access} -->`)
+      const block = marker.exec(README)?.[1]
+      expect({ access, found: block !== undefined }).toEqual({ access, found: true })
+      expect({ access, rules: JSON.parse(block!) }).toEqual({ access, rules: defaultRules({ access, scoped: false, readOnly: false }).map((rule) => ({ ...rule })) })
+    }
   })
 
   test("every \"tested on\" list in the docs is TESTED_HOSTS", () => {
