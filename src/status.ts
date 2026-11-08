@@ -1,7 +1,7 @@
 import type { Plugin, Rpc } from "@opencode/plugin"
 import { errorText, PINNED_VERSION, PLUGIN_ID, SERVER_NAME, TESTED_HOSTS } from "./constants.js"
 import { isSupportedHost, type HostCheck } from "./host-version.js"
-import { TOOL_NAMES, type Effect } from "./browse-tools.js"
+import { TOOL_NAMES, type Access, type Effect } from "./browse-tools.js"
 import { conflictRules, defaultRules, evaluate, unguardedAgents, type Rule, type RuleSet } from "./permissions.js"
 import { shortReason } from "./redact.js"
 import type { BrowseStatus } from "./engine.js"
@@ -93,6 +93,8 @@ export interface Status {
   readonly unknownTools: readonly string[]
   readonly unguardedAgents: readonly string[]
   readonly access: { readonly run: number; readonly ask: number; readonly off: number }
+  /** The access option in force, which the dialog's Access row names. */
+  readonly accessMode: Access
   readonly problems: readonly string[]
   readonly updates: { readonly autoUpdate: string | null; readonly available: string | null }
   readonly nextStep: string
@@ -170,6 +172,7 @@ export function buildStatus(facts: StatusFacts): Status {
     unknownTools: unknown.filter((name) => SAFE_NAME.test(name)).slice(0, LISTED_UNKNOWN),
     unguardedAgents: unguardedAgents(facts.agents ?? []),
     access: accessCounts(facts.rules, conflict === true),
+    accessMode: facts.rules.access ?? "all",
     problems: [...(facts.fatal ? [facts.fatal] : []), ...(facts.binaryProblem ? [facts.binaryProblem] : []), ...(facts.scopeProblem ? [facts.scopeProblem] : []), ...(facts.problems ?? [])],
     updates: facts.updates ?? { autoUpdate: null, available: null },
   }
@@ -276,13 +279,13 @@ function managedText({ managed }: Status) {
   return `${managed.state}${running} · extension ${managed.extension.version ?? "unknown"} · ${chromium}`
 }
 
-const ACCESS_TEXT = (access: Status["access"]) => `${access.run} run · ${access.ask} ask · ${access.off} off`
+const ACCESS_TEXT = (status: Status) => `${status.access.run} run · ${status.access.ask} ask · ${status.access.off} off; option access is "${status.accessMode}"`
 
 function toolsText({ tools, unknownCount, unknownTools }: Status) {
   if (unknownCount === 0) return `${tools} available, 0 unknown`
   const more = unknownCount - unknownTools.length
   const names = unknownTools.length ? `: ${unknownTools.join(", ")}${more > 0 ? ` and ${more} more` : ""}` : ""
-  return `${tools} available, ${unknownCount} unknown${names} (unknown tools are off)`
+  return `${tools} available, ${unknownCount} unknown${names} (an unknown tool runs on the \`browse_*\` rule)`
 }
 
 export function formatStatus(status: Status) {
@@ -295,14 +298,14 @@ export function formatStatus(status: Status) {
     "Browse status",
     `- Connection: ${STATE_TEXT[status.state]}${details ? ` (${details})` : ""}`,
     `- Mode: ${status.mode === "managed" ? "managed browser" : "real browser (the Web Store extension)"}`,
-    `- Access: ${ACCESS_TEXT(status.access)}`,
+    `- Access: ${ACCESS_TEXT(status)}`,
     `- Browser: ${binaryText(status)}`,
     ...(managed ? [`- Managed: ${managed}`] : []),
     `- Relay: ${relayText(status)}`,
     `- Extension: ${extensionText(status)}`,
     ...(scope ? [`- ${scope}`] : []),
     `- Tools: ${toolsText(status)}`,
-    `- Agents without default rules: ${status.unguardedAgents.length ? `${status.unguardedAgents.join(", ")}\n${agentRules({ scoped: status.scope !== undefined, readOnly: status.scope?.readOnly === true }, status.state === "conflict")}` : "none"}`,
+    `- Agents without default rules: ${status.unguardedAgents.length ? `${status.unguardedAgents.join(", ")}\n${agentRules({ access: status.accessMode, scoped: status.scope !== undefined, readOnly: status.scope?.readOnly === true }, status.state === "conflict")}` : "none"}`,
     `- OpenCode: ${status.host.version ?? "unknown version"} (${status.host.tested ? "tested" : "untested"}; supported range ${status.host.range})${status.problems.filter((p) => !p.startsWith("RULES_NOT_ADDED")).length ? `. ${status.problems.filter((p) => !p.startsWith("RULES_NOT_ADDED")).join(" ")}` : ""}`,
     `- Next step: ${status.nextStep}`,
   ].join("\n")

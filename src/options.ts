@@ -1,3 +1,4 @@
+import { ACCESS_VALUES, type Access } from "./browse-tools.js"
 import { browseError, DEFAULT_SCOPE_SESSION } from "./constants.js"
 
 export interface ScopeOptions {
@@ -24,10 +25,12 @@ export interface Options {
   readonly verifyBinary: boolean
   /** Run on an OpenCode version outside the supported range, with a warning in status. */
   readonly allowUntestedHost: boolean
+  /** What the plugin's own tools may do without asking: everything, ask for changes, or reads only. */
+  readonly access: Access
 }
 
 const EXAMPLE = `"plugins": [{ "package": "@joe-broadhead/opencode-browse", "options": { "scope": { "allowedOrigins": ["github.com"] } } }]`
-const ACCEPTED = ["path", "browser", "chromiumPath", "headless", "scope", "verifyBinary", "allowUntestedHost"] as const
+const ACCEPTED = ["path", "browser", "chromiumPath", "headless", "scope", "verifyBinary", "allowUntestedHost", "access"] as const
 
 const invalid = (problem: string) =>
   browseError("OPTIONS_INVALID", `${problem}.`, `Fix the plugin options in opencode.json, for example ${EXAMPLE}.`)
@@ -40,7 +43,7 @@ const ORIGIN = /^(?:https?:\/\/)?(?:\*\.)?[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::\d
 
 /** Validates the plugin options from opencode.json. Every option is optional. */
 export function parseOptions(raw: unknown): Options {
-  const defaults: Options = { browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false }
+  const defaults: Options = { browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false, access: "all" }
   if (raw === undefined || raw === null) return defaults
   if (typeof raw !== "object" || Array.isArray(raw)) throw invalid(`The plugin options must be an object, found ${describe(raw)}`)
   const input = raw as Record<string, unknown>
@@ -49,7 +52,7 @@ export function parseOptions(raw: unknown): Options {
       throw invalid(`Unknown option "${key}". Accepted options: ${ACCEPTED.map((name) => `"${name}"`).join(", ")}`)
     }
   }
-  const { path, browser = "real", chromiumPath, headless = false, scope, verifyBinary = true, allowUntestedHost = false } = input
+  const { path, browser = "real", chromiumPath, headless = false, scope, verifyBinary = true, allowUntestedHost = false, access = "all" } = input
   if (path !== undefined && (typeof path !== "string" || path.trim() === "")) {
     throw invalid(`The option "path" must be a file path, found ${describe(path)}`)
   }
@@ -58,6 +61,7 @@ export function parseOptions(raw: unknown): Options {
   if (typeof headless !== "boolean") throw invalid(`The option "headless" must be true or false, found ${describe(headless)}`)
   if (typeof verifyBinary !== "boolean") throw invalid(`The option "verifyBinary" must be true or false, found ${describe(verifyBinary)}`)
   if (typeof allowUntestedHost !== "boolean") throw invalid(`The option "allowUntestedHost" must be true or false, found ${describe(allowUntestedHost)}`)
+  if (typeof access !== "string" || !(ACCESS_VALUES as readonly string[]).includes(access)) throw invalid(`The option "access" must be ${ACCESS_VALUES.map((value) => `"${value}"`).join(", ")}, found ${describe(access)}`)
   return {
     ...(typeof path === "string" ? { path: path.trim() } : {}),
     browser,
@@ -66,6 +70,7 @@ export function parseOptions(raw: unknown): Options {
     ...(scope === undefined ? {} : { scope: parseScope(scope) }),
     verifyBinary,
     allowUntestedHost,
+    access: access as Access,
   }
 }
 

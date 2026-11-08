@@ -1,11 +1,13 @@
-import { afterAll, describe, expect, test } from "bun:test"
-import { cleanup, attempt, effect, modelReady, modelSession, modelTurn, session, startHost } from "./harness.js"
+import { afterAll, describe, expect, setDefaultTimeout, test } from "bun:test"
+import { cleanup, attempt, effect, modelReady, modelSession, modelTurn, session, startHost, until } from "./harness.js"
 import { NEW_TOOL, REAL_TOOLS } from "./fake-browse.js"
 import { PINNED_VERSION } from "../../src/constants.js"
 import { resolveBinary } from "../../src/engine.js"
 import { relayVersion, stopRelaySafely } from "../../src/managed/relay.js"
 import { assertNoRelayLeft, relayPidsForHome } from "../support/relays.js"
 
+// Each test starts a real host on a stock server; a busy machine needs more than Bun's default 5 s.
+setDefaultTimeout(120_000)
 afterAll(cleanup)
 
 describe("registering the server", () => {
@@ -63,19 +65,6 @@ describe("review findings, through the host", () => {
       await host.close()
     }
   })
-
-  test("DR-5: a legacy opencode-browser server's tools are denied by exact-name pattern", async () => {
-    const host = await startHost({
-      options: { verifyBinary: false },
-      config: { mcp: { servers: { "opencode-browser": { type: "local", command: ["node", "legacy/mcp.js"] } } } },
-    })
-    try {
-      expect(await effect(host, "build", "opencode_browser_execute")).toBe("deny")
-      expect(await effect(host, "build", "opencode_browser_network")).toBe("deny")
-    } finally {
-      await host.close()
-    }
-  })
 })
 
 describe("the permission table, through the host", () => {
@@ -94,51 +83,51 @@ describe("the permission table, through the host", () => {
     }
   })
 
-  test("execute asks, and a decline runs nothing", async () => {
+  test("execute runs by default, and an agent that asks gets its prompt, whose decline runs nothing", async () => {
     const host = await startHost({ options: { verifyBinary: false } })
     try {
-      const sessionID = await session(host)
-      const declined = await attempt(host, sessionID, "build", "execute", "reject", { code: "return 1" })
+      const allowed = await session(host)
+      const ran = await attempt(host, allowed, "build", "execute", "reject", { code: "return 1" })
+      expect(ran.asked).toBeUndefined()
+      expect(ran.ok).toBe(true)
+      expect(host.fake.tools()).toContain("execute")
+
+      const asking = await host.client.session.create({ location: host.location, agent: "build", permissions: [{ action: "browse_execute", resource: "*", effect: "ask" }] })
+      const declined = await attempt(host, asking.id, "build", "execute", "reject", { code: "return 1" })
       expect(declined.asked).toBe("browse_execute")
       expect(declined.ok).toBe(false)
-      expect(host.fake.tools()).not.toContain("execute")
-
-      const accepted = await attempt(host, sessionID, "build", "execute", "once", { code: "return 1" })
-      console.log("DBG accepted", JSON.stringify(accepted))
-      expect(accepted.asked).toBe("browse_execute")
-      expect(accepted.ok).toBe(true)
-      expect(host.fake.tools()).toContain("execute")
     } finally {
       await host.close()
     }
   })
 
-  test("secrets_run and secrets_refresh ask", async () => {
+  test("secrets_run, secrets_refresh, session_allowlist and session_new run by default", async () => {
     const host = await startHost({ options: { verifyBinary: false } })
     try {
       const sessionID = await session(host)
       for (const tool of ["secrets_run", "secrets_refresh", "session_allowlist", "session_new"]) {
         const result = await attempt(host, sessionID, "build", tool, "reject")
-        expect({ tool, asked: result.asked }).toEqual({ tool, asked: `browse_${tool}` })
-        expect({ tool, ok: result.ok }).toEqual({ tool, ok: false })
+        expect({ tool, asked: result.asked }).toEqual({ tool, asked: undefined })
+        expect({ tool, ok: result.ok }).toEqual({ tool, ok: true })
       }
-      expect(host.fake.tools()).not.toContain("secrets_run")
+      expect(host.fake.tools()).toContain("secrets_run")
     } finally {
       await host.close()
     }
   })
 
-  test("every known name resolves to its effect, and no unknown name runs", async () => {
+  test("every known name resolves to allow, and an unknown name runs on the namespace rule", async () => {
     const host = await startHost({ options: { verifyBinary: false }, fake: { tools: [...REAL_TOOLS, NEW_TOOL] } })
     try {
       const { TOOLS } = await import("../../src/browse-tools.js")
-      for (const tool of TOOLS) expect({ tool: tool.name, effect: await effect(host, "build", `browse_${tool.name}`) }, tool.name).toEqual({ tool: tool.name, effect: tool.effect })
-      expect(await effect(host, "build", "browse_shiny_new_tool")).toBe("deny")
+      for (const tool of TOOLS) expect({ tool: tool.name, effect: await effect(host, "build", `browse_${tool.name}`) }, tool.name).toEqual({ tool: tool.name, effect: "allow" })
+      // The namespace pattern allows a tool the table does not know yet, so it is usable at once.
+      expect(await effect(host, "build", "browse_shiny_new_tool")).toBe("allow")
       const sessionID = await session(host)
-      const refusal = await attempt(host, sessionID, "build", "shiny_new_tool", "always")
-      expect(refusal.ok).toBe(false)
-      expect(refusal.asked).toBeUndefined()
-      expect(host.fake.tools()).not.toContain("shiny_new_tool")
+      const ran = await attempt(host, sessionID, "build", "shiny_new_tool", "reject")
+      expect(ran.asked).toBeUndefined()
+      expect(ran.ok).toBe(true)
+      expect(host.fake.tools()).toContain("shiny_new_tool")
     } finally {
       await host.close()
     }
@@ -164,10 +153,11 @@ describe("Code Mode", () => {
         },
       ]
       const sessionID = await modelSession(host)
-      const asked = await modelTurn(host, sessionID, "Check the browser.")
-      expect(asked).toContain("browse_execute")
+      const answered = await modelTurn(host, sessionID, "Check the browser.")
+      // Every tool is allowed by default, so the inner execute runs too.
+      expect(answered).toBeDefined()
       expect(host.fake.tools()).toContain("status")
-      expect(host.fake.tools()).not.toContain("execute")
+      expect(host.fake.tools()).toContain("execute")
     } finally {
       await host.close()
     }
@@ -176,13 +166,23 @@ describe("Code Mode", () => {
 
 describe("the relay a real-mode host starts", () => {
   test("is stopped by the plugin's own command, and another version is refused first", async () => {
+    // The packaged binary comes from the platform package, which `scripts/build-bins.mjs --local` installs from the
+    // pinned download. Without it the host cannot start, so say so out loud rather than fail a fresh clone.
+    if (resolveBinary().source !== "package") {
+      const message = "skip: the packaged browse binary is not installed; run node scripts/build-bins.mjs --local"
+      if (process.env.CI === "true" || process.env.CI === "1") throw new Error(message)
+      console.log(message)
+      return
+    }
     const host = await startHost({ packagedBinary: true })
     try {
       const sessionID = await session(host)
       // The first tool that needs the browser starts the relay; with no extension it still comes up.
       const started = await attempt(host, sessionID, "build", "execute", "once", { code: "return 1" })
-      expect(started.asked).toBe("browse_execute")
-      expect(await relayVersion()).toBeDefined()
+      // Every tool is allowed by default, so the call reaches the relay with no prompt. It may still fail for want of a
+      // paired extension; what this test is about is the relay the call starts.
+      expect(started.asked).toBeUndefined()
+      await until("the relay answers", async () => (await relayVersion()) !== undefined, 60_000)
 
       const binary = resolveBinary()
       const refused = await stopRelaySafely({ expectedVersion: "0.0.0", binaryPath: binary.path })
@@ -209,7 +209,7 @@ describe("the scoped profile", () => {
       expect(await effect(host, "build", "browse_session_new")).toBe("deny")
       expect(await effect(host, "build", "browse_session_allowlist")).toBe("deny")
       expect(await effect(host, "build", "browse_execute")).toBe("allow")
-      expect(await effect(host, "build", "browse_session_reset")).toBe("ask")
+      expect(await effect(host, "build", "browse_session_reset")).toBe("allow")
     } finally {
       await host.close()
     }

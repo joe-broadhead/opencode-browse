@@ -71,7 +71,7 @@ export function registerServer(
       const legacy = editor.get("opencode-browser")
       const legacyProblem = legacy === undefined
         ? undefined
-        : errorText("SERVER_LEGACY", `An older "opencode-browser" MCP server is still in your config, and its tools are denied by this plugin.`, `Remove the "opencode-browser" entry, then restart OpenCode.`)
+        : errorText("SERVER_LEGACY", `An older "opencode-browser" MCP server is still in your config, alongside this plugin.`, `Remove the "opencode-browser" entry, then restart OpenCode.`)
       const existing = editor.get(SERVER_NAME)
       if (existing === undefined) {
         if (entry === undefined) return record(undefined, legacyProblem)
@@ -150,7 +150,7 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
       const host = hostResult.host
       const hostProblem = options === undefined ? undefined : hostResult.problem
       const fatal = optionsProblem ?? hostProblem
-      const rules: RuleSet = { scoped: options !== undefined && isScoped(options), readOnly: options?.scope?.readOnly === true }
+      const rules: RuleSet = { access: options?.access ?? "all", scoped: options !== undefined && isScoped(options), readOnly: options?.scope?.readOnly === true }
 
       const { skills, problems: skillProblems } = await loadSkills(seam.skillsDir)
       const problems = new Map<string, string>(skillProblems.map((problem, index) => [`skill:${index}`, problem]))

@@ -1,7 +1,7 @@
 import type { Plugin } from "@opencode/plugin"
 import { errorText, SERVER_NAME } from "./constants.js"
 import { reasonOf } from "./redact.js"
-import { scopedEffectOf, TOOLS, type Effect } from "./browse-tools.js"
+import { ACCESS_VALUES, accessEffect, defaultEffectOf, SCOPED_EFFECTS, TOOLS, type Access, type Effect } from "./browse-tools.js"
 
 export interface Rule {
   readonly action: string
@@ -14,40 +14,53 @@ const actionOf = (tool: string) => `${SERVER_NAME}_${tool}`
 const rule = (tool: string, effect: Effect): Rule => ({ action: actionOf(tool), resource: "*", effect })
 
 export interface RuleSet {
+  /** How much the plugin's own tools may do without asking. */
+  readonly access: Access
   /** True when the scoped profile applies: a pinned session, with the tools that could leave it off. */
   readonly scoped: boolean
-  /** The pinned session's read-only flag, which decides whether `execute` runs or asks in the scoped profile. */
+  /** The pinned session's read-only flag, which decides whether `execute` runs in the scoped profile. */
   readonly readOnly: boolean
 }
 
-const DEFAULT_SET: RuleSet = { scoped: false, readOnly: false }
+const DEFAULT_SET: RuleSet = { access: "all", scoped: false, readOnly: false }
 
 /**
  * The rules, in order, because the last matching rule wins:
- *   1. an older plugin's server, if its entry is still in the user's config, is off by exact name pattern
- *      (`opencode_browser_*`), so it can never run a browser tool unguarded;
- *   2. every `browse_*` is off, so a tool browse adds later is off until a release classifies it;
- *   3. one rule per known tool, by its exact name, from src/browse-tools.ts.
- * Reads and tab cleanup run; `execute`, the session tools, the settings and the three tools that act with the user's
- * secrets or widen reach ask. Nothing known is denied.
+ *   1. `browse_*` is allowed, so a tool browse adds later runs at once (an unknown name resolves through this rule);
+ *   2. one rule per known tool, by its exact name, from src/browse-tools.ts, with the effect the `access` option gives
+ *      its class — allow under `all`, ask for the changes under `ask-changes`, deny them under `read-only`.
  *
- * The scoped profile (a pinned session) is stricter: the session tools that could leave it or widen it are off, and
- * `execute` runs only when the pinned session is read-only, where the relay refuses all input.
+ * The scoped profile (a pinned session, which the user turns on) is stricter: the session tools that could leave it or
+ * widen it are off, and `execute` runs only when the pinned session is read-only, where the relay refuses all input.
  */
 export const defaultRules = (set: RuleSet = DEFAULT_SET): Rule[] => [
-  { action: "opencode_browser_*", resource: "*", effect: "deny" },
-  rule("*", "deny"),
-  ...TOOLS.map((tool) => rule(tool.name, set.scoped ? scopedEffectOf(tool.name, set.readOnly) : tool.effect)),
+  // The namespace rule follows the access posture, so a tool browse adds later is usable at once under the default
+  // and cannot slip past a restriction the user asked for.
+  rule("*", accessEffect("unknown", set.access)),
+  ...TOOLS.map((tool) => {
+    const scoped = set.scoped ? SCOPED_EFFECTS[tool.name] : undefined
+    if (scoped !== undefined) return rule(tool.name, scoped)
+    // A pinned session decides execute: it runs when the session refuses input, and asks when input is allowed.
+    if (set.scoped && tool.name === "execute") return rule(tool.name, set.readOnly ? "allow" : "ask")
+    return rule(tool.name, defaultEffectOf(tool.name, set.access))
+  }),
 ]
 
-/** A conflicting server holding the name `browse` gets no allow: every tool of it is denied by these two rules. */
+/**
+ * A conflicting server holding the name `browse` is not ours, so its tools are denied by exact name rather than left to
+ * the default allow. This is conflict handling, not a permission posture.
+ */
 export const conflictRules = (): Rule[] => [
   { action: "opencode_browser_*", resource: "*", effect: "deny" },
   rule("*", "deny"),
 ]
 
 /** The profiles a block may be from: the default, and the two scoped variants. Upgrade removes whichever is present. */
-const PROFILE_SETS: readonly RuleSet[] = [DEFAULT_SET, { scoped: true, readOnly: false }, { scoped: true, readOnly: true }]
+const PROFILE_SETS: readonly RuleSet[] = ACCESS_VALUES.flatMap((access) => [
+  { access, scoped: false, readOnly: false },
+  { access, scoped: true, readOnly: false },
+  { access, scoped: true, readOnly: true },
+])
 const profileBlocks = (): Rule[][] => PROFILE_SETS.map((set) => defaultRules(set))
 
 const same = (a: Rule, b: Rule) => a.action === b.action && a.resource === b.resource && a.effect === b.effect

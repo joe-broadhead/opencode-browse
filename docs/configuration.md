@@ -93,7 +93,8 @@ Every error is `CODE: What happened. Next step: What to do.` One next step, endi
 | `CHROMIUM_DOWNLOAD_FAILED` | the pinned download failed | check the network, then rerun `/browse-install-browser` |
 | `CHROMIUM_EXTRACT_FAILED` | `unzip` failed or the archive was wrong | install `unzip`, then rerun |
 | `CHROMIUM_UNVERIFIED` | the installed browser changed since its digest was recorded | rerun `/browse-install-browser` |
-| `CHROMIUM_INVALID` / `CHROMIUM_BRANDED` | `chromiumPath` is not Chromium, or is branded Chrome | point it at Chrome for Testing or Chromium |
+| `CHROMIUM_INVALID` | `chromiumPath` is not a Chromium or Chrome for Testing binary | point it at one |
+| `CHROMIUM_BRANDED` | `chromiumPath` is branded Google Chrome | point it at Chrome for Testing or Chromium |
 | `EXTENSION_UNVERIFIED` | the bundled extension does not match its pin | reinstall the plugin |
 | `UNSUPPORTED_PLATFORM` | no package ships for this OS or architecture | set `path` to your own browse binary |
 | `SERVER_CONFLICT` | `mcp.servers.browse` is not a browse server | remove or rename the entry, then restart |

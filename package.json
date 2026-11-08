@@ -89,43 +89,43 @@
       {
         "name": "browse.execute",
         "permission": "browse_execute",
-        "effect": "ask",
+        "effect": "allow",
         "readOnly": false
       },
       {
         "name": "browse.session_new",
         "permission": "browse_session_new",
-        "effect": "ask",
+        "effect": "allow",
         "readOnly": false
       },
       {
         "name": "browse.session_use",
         "permission": "browse_session_use",
-        "effect": "ask",
+        "effect": "allow",
         "readOnly": false
       },
       {
         "name": "browse.session_adopt",
         "permission": "browse_session_adopt",
-        "effect": "ask",
+        "effect": "allow",
         "readOnly": false
       },
       {
         "name": "browse.session_reset",
         "permission": "browse_session_reset",
-        "effect": "ask",
+        "effect": "allow",
         "readOnly": false
       },
       {
         "name": "browse.session_delete",
         "permission": "browse_session_delete",
-        "effect": "ask",
+        "effect": "allow",
         "readOnly": false
       },
       {
         "name": "browse.settings",
         "permission": "browse_settings",
-        "effect": "ask",
+        "effect": "allow",
         "readOnly": false
       },
       {
@@ -149,19 +149,19 @@
       {
         "name": "browse.secrets_run",
         "permission": "browse_secrets_run",
-        "effect": "ask",
+        "effect": "allow",
         "readOnly": false
       },
       {
         "name": "browse.secrets_refresh",
         "permission": "browse_secrets_refresh",
-        "effect": "ask",
+        "effect": "allow",
         "readOnly": false
       },
       {
         "name": "browse.session_allowlist",
         "permission": "browse_session_allowlist",
-        "effect": "ask",
+        "effect": "allow",
         "readOnly": false
       }
     ],

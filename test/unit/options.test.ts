@@ -3,9 +3,9 @@ import { parseOptions } from "../../src/options.js"
 
 describe("parseOptions", () => {
   test("defaults: the pinned binary, verify, no scope", () => {
-    expect(parseOptions(undefined)).toEqual({ browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false })
-    expect(parseOptions(null)).toEqual({ browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false })
-    expect(parseOptions({})).toEqual({ browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false })
+    expect(parseOptions(undefined)).toEqual({ browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false, access: "all" })
+    expect(parseOptions(null)).toEqual({ browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false, access: "all" })
+    expect(parseOptions({})).toEqual({ browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false, access: "all" })
   })
 
   test("a path, and the two booleans", () => {
@@ -15,11 +15,13 @@ describe("parseOptions", () => {
       headless: false,
       verifyBinary: false,
       allowUntestedHost: true,
+      access: "all",
     })
   })
 
   test("a scope, normalised", () => {
     expect(parseOptions({ scope: { allowedOrigins: [" GitHub.com ", "*.example.com"] } })).toEqual({
+      access: "all",
       browser: "real",
       headless: false,
       verifyBinary: true,

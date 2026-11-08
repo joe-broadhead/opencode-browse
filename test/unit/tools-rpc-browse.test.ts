@@ -90,8 +90,12 @@ describe("browse.tools with the real table", () => {
     expect(executions).toEqual(["status"])
   })
 
-  test("execute is refused with PERMISSION_DENIED, no prompt, and no server call", async () => {
-    const { call, executions } = await harness(DEFAULTS)
+  test("execute runs under the default allow, and a rule the user adds refuses it with no server call", async () => {
+    const allowed = await harness(DEFAULTS)
+    expect(await allowed.call("execute", { code: "return 1" })).toMatchObject({ output: { called: "execute" } })
+    expect(allowed.executions).toContain("execute")
+
+    const { call, executions } = await harness([...DEFAULTS, rule("browse_execute", "deny")])
     const answer = await call("execute", { code: "return 1" })
     expect(answer).toMatchObject({ type: "failed", data: { code: "PERMISSION_DENIED" } })
     expect(executions).not.toContain("execute")
