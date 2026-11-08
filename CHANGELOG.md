@@ -11,8 +11,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
   entry when it is a browse command.
 - Per-platform optional packages (`@joe-broadhead/opencode-browse-bin-<platform>`) carrying the binary, its
   `manifest/browse.json` digest and browse's MIT licence; the plugin verifies the digest before running it.
-- Default permission rules by exact tool name: 8 run, 10 ask, and a tool browse adds later denied until classified.
-  Switching a project into or out of the scoped profile replaces the previous block in the deciding position.
+- Default permission rules by exact tool name: every one of the 18 allows, and so does the `browse_*` pattern, so a tool
+  browse adds later runs at once. Switching a project into or out of the scoped profile replaces the previous block in
+  the deciding position.
 - An opt-in scoped profile that pins the server to one browse session, read-only and/or limited to allowed origins,
   and denies the session tools that could leave it.
 - `/browse-status`, the `/browse` dialog, the `browse/status` RPC and `/browse-doctor`, with the family's shared status
@@ -30,6 +31,13 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Every tool is now allowed by default: the plugin inserts one `allow` rule for each of the 18 tools and one for the
+  `browse_*` pattern, directly after each agent's base rule, so page actions, session changes, settings, the captures
+  and `secrets_run` run without a prompt, and a tool browse adds later runs at once. An agent's own rules, your
+  `permissions` and a saved approval still win.
+- The `access` option restricts that in one line: `"all"` (the default), `"ask-changes"` (the reads and tab cleanup
+  run, everything else asks) and `"read-only"` (the reads run, everything else is denied). The README prints the block
+  for each value, and `/browse-status` shows the one in force.
 - The pinned browse binary moves to `0.0.15`; the tool table is unchanged, and `npm run drift` reports `same`
   against the new release.
 
