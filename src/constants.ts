@@ -14,9 +14,72 @@ export const PINNED_VERSION = "0.0.15"
 /** The default session name a scoped install pins the server to. */
 export const DEFAULT_SCOPE_SESSION = "opencode"
 
-/** The one error shape: `CODE: What happened. Next step: What to do.` Both parts are sentences. */
-export const errorText = (code: string, message: string, nextStep: string) => `${code}: ${message} Next step: ${nextStep}`
+/**
+ * Every code this plugin's own code raises or prints. The README's and docs/configuration.md's tables name each one,
+ * and a test fails when the two differ either way, or when a `"CODE: message"` string is written outside this table.
+ */
+export type PluginCode =
+  | "HOST_UNTESTED"
+  | "OPTIONS_INVALID"
+  | "RULES_NOT_ADDED"
+  | "SERVER_NOT_REGISTERED"
+  | "SERVER_LEGACY"
+  | "BINARY_MISSING"
+  | "BINARY_UNVERIFIED"
+  | "UNSUPPORTED_PLATFORM"
+  | "SCOPE_LOST"
+  | "SCOPE_UNREACHABLE"
+  | "RELAY_FAILED"
+  | "RELAY_NOT_OURS"
+  | "RELAY_STOP_FAILED"
+  | "STATUS_UNAVAILABLE"
+  | "DOCTOR_FAILED"
+  | "NOT_INSTALLED"
+  | "SKILLS_INVALID"
+  | "CHROMIUM_MISSING"
+  | "CHROMIUM_INVALID"
+  | "CHROMIUM_BRANDED"
+  | "CHROMIUM_UNSUPPORTED"
+  | "CHROMIUM_DOWNLOAD_FAILED"
+  | "CHROMIUM_EXTRACT_FAILED"
+  | "CHROMIUM_UNVERIFIED"
+  | "CHROMIUM_INSTALL_FAILED"
+  | "EXTENSION_UNVERIFIED"
 
-export function browseError(code: string, message: string, nextStep: string) {
+export const PLUGIN_CODES: readonly PluginCode[] = [
+  "HOST_UNTESTED",
+  "OPTIONS_INVALID",
+  "RULES_NOT_ADDED",
+  "SERVER_NOT_REGISTERED",
+  "SERVER_LEGACY",
+  "BINARY_MISSING",
+  "BINARY_UNVERIFIED",
+  "UNSUPPORTED_PLATFORM",
+  "SCOPE_LOST",
+  "SCOPE_UNREACHABLE",
+  "RELAY_FAILED",
+  "RELAY_NOT_OURS",
+  "RELAY_STOP_FAILED",
+  "STATUS_UNAVAILABLE",
+  "DOCTOR_FAILED",
+  "NOT_INSTALLED",
+  "SKILLS_INVALID",
+  "CHROMIUM_MISSING",
+  "CHROMIUM_INVALID",
+  "CHROMIUM_BRANDED",
+  "CHROMIUM_UNSUPPORTED",
+  "CHROMIUM_DOWNLOAD_FAILED",
+  "CHROMIUM_EXTRACT_FAILED",
+  "CHROMIUM_UNVERIFIED",
+  "CHROMIUM_INSTALL_FAILED",
+  "EXTENSION_UNVERIFIED",
+]
+
+export const isPluginCode = (value: unknown): value is PluginCode => typeof value === "string" && (PLUGIN_CODES as readonly string[]).includes(value)
+
+/** The one error shape: `CODE: What happened. Next step: What to do.` Both parts are sentences. */
+export const errorText = (code: PluginCode, message: string, nextStep: string) => `${code}: ${message} Next step: ${nextStep}`
+
+export function browseError(code: PluginCode, message: string, nextStep: string) {
   return Object.assign(new Error(errorText(code, message, nextStep)), { code, nextStep })
 }

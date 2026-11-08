@@ -5,7 +5,7 @@
 // It reports tools added, removed, or with different annotations, and exits 1 on any drift: a tool the table lacks is
 // denied by the default rules until this plugin classifies it.
 import { execFileSync } from "node:child_process"
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { TOOLS } from "../src/browse-tools.ts"
@@ -15,6 +15,27 @@ const [table] = [TOOLS]
 const fail = (message) => {
   console.error(message)
   process.exitCode = 1
+}
+
+/** The pinned binary the probe runs: `.cache/bin` (the manifest's build output), which is git-ignored. */
+function platformKey() {
+  if (process.platform === "darwin" && process.arch === "arm64") return "darwin-arm64"
+  if (process.platform === "darwin" && process.arch === "x64") return "darwin-x64"
+  if (process.platform === "linux" && process.arch === "x64") return "linux-x64-gnu"
+  if (process.platform === "linux" && process.arch === "arm64") return "linux-arm64-gnu"
+  return undefined
+}
+
+/**
+ * The caller-isolation probe, after the table: two `_meta` session ids must give two sessions. It reports and never
+ * fails the drift check, because isolation lands in a later browse release and this plugin's pin cannot provide it.
+ */
+function probeIsolation(binary) {
+  try {
+    execFileSync(process.execPath, [join(root, "scripts", "check-caller-isolation.mjs"), binary], { stdio: "inherit", timeout: 120_000 })
+  } catch {
+    console.log("caller isolation: isolates: unknown (the probe did not finish)")
+  }
 }
 
 /** A capture is either the fixture's shape or a bare `{ tools }`. */
@@ -60,9 +81,14 @@ if (binIndex !== -1) {
   try {
     execFileSync(process.execPath, [join(root, "test", "fixtures", "capture-tools.mjs"), binary, out], { stdio: "inherit" })
     compare(binary, toolsOf(JSON.parse(readFileSync(out, "utf8"))))
+    probeIsolation(binary)
   } finally {
     rmSync(home, { recursive: true, force: true })
   }
 } else {
   compare("the pinned fixture", toolsOf(JSON.parse(readFileSync(join(root, "test", "fixtures", "live-tools.json"), "utf8"))))
+  const key = platformKey()
+  const pinned = key === undefined ? undefined : join(root, ".cache", "bin", key, "browse")
+  if (pinned !== undefined && existsSync(pinned)) probeIsolation(pinned)
+  else console.log("caller isolation: isolates: unknown (the pinned binary is not in .cache/bin)")
 }

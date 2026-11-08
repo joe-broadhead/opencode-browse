@@ -19,8 +19,10 @@ Get the exact inputs from `search()` in Code Mode before the first call; never g
 ## Recording the tab
 
 `browse_recording` with `action: "start"` needs `outputPath` (`.webm` or `.mp4`). `mode` is `auto` (tab capture for a
-tab the user lent, CDP for an agent tab), `tab-capture` or `cdp`. Audio exists only in tab-capture mode; CDP mode needs
-`ffmpeg` on the relay's machine. Then `action: "stop"` finalizes it; `action: "cancel"` discards it.
+tab the user lent, CDP for an agent tab), `tab-capture` or `cdp`. Audio exists only in tab-capture mode; **CDP mode, the
+one agent-opened tabs use, needs `ffmpeg` on PATH**. If it is missing, `/browse-status` says so: ask the user to install
+it (`brew install ffmpeg` on macOS) or to click the toolbar button on the tab, which records through the tab-capture
+backend with no ffmpeg. Do not start a CDP recording you know will fail. Then `action: "stop"` finalizes it; `action: "cancel"` discards it.
 
 Recordings show only the page by default. A handoff during a recording shows a system notification instead of the card.
 For a demo video ask for `cursor: true`, and tell the user the cursor appears in the frame — a page can detect it.

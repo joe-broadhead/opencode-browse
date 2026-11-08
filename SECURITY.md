@@ -47,6 +47,10 @@ the steps to reproduce.
   port that this plugin's binary did not start (another browse build, another install). Managed mode stops the relay
   it started on dispose, and never stops a relay that was already running.
 
+- **Recording an agent-opened tab runs ffmpeg.** browse's CDP recorder writes the video through `ffmpeg` on PATH; the
+  plugin only checks for it (and reports its version) and never runs it. A lent tab records through the extension's
+  tab-capture backend instead, with no external process.
+
 - **Managed mode keeps its own profile.** With `"browser": "managed"`, Chrome for Testing runs with a profile in
   `~/.local/share/opencode-browse/managed`, loaded with the pinned extension unpacked and paired through a one-time
   code written to the extension copy (`relay-pairing.json`, mode 0600) and removed after pairing. Its logins are

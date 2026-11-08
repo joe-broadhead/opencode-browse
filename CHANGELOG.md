@@ -28,6 +28,12 @@ and this project uses [Semantic Versioning](https://semver.org/).
   supervision and auto-update off, so no other `browse` on the machine is ever run.
 - The plugin runs on OpenCode `>=2.2.3 <2.3.0`, tested on 2.2.3, 2.2.4, 2.2.5 and 2.2.6.
 - A conflicting `browse` entry, which is not this plugin's server, is denied by exact name so it cannot run unguarded.
+- Recording readiness in `/browse-status`, `/browse-doctor` and the status RPC: `ffmpeg` on PATH with its version for
+  agent-opened tabs, the toolbar-click backend for a lent tab, and one next step when `ffmpeg` is missing.
+- A caller-isolation probe in `npm run drift`: two `_meta` session ids against the pinned binary, reported as
+  `isolates: yes|no` and never a failure.
+- One typed code table in `src/constants.ts`, with a test that checks every raise site against it, both docs tables
+  against it, and rejects a hand-written `"CODE: message"` string.
 
 ### Changed
 
@@ -50,3 +56,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
   stops a relay that was already running. Real mode leaves browse's relay running, as browse does, and the docs say so.
 - Tests and scripts run the pinned binary only with an isolated HOME, XDG dirs and a free port (never browse's default
   19988), and fail if a `browse serve` for that HOME outlives them.
+- `bin/mcp.mjs` caches the verified digest by file identity (device, inode, size, mtime and ctime) in the plugin data
+  directory, mode 0600, and re-hashes in full on any difference; the pin's digest stays the reference. A warm spawn
+  skips about 107 ms of hashing on the 110 MiB binary, and a changed byte is still refused with `BINARY_UNVERIFIED` and
+  exit 78, even after the mtime is put back.
+- The README states the 0.0.15 limitation: parallel agents share one browse session until each task creates its own,
+  and browse `0.0.16` will isolate callers when the plugin re-pins to it.

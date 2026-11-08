@@ -99,6 +99,7 @@ Every error is `CODE: What happened. Next step: What to do.` One next step, endi
 | Code | When | Next step |
 | --- | --- | --- |
 | `BINARY_MISSING` | the platform package has no binary, or `path` names a missing file | reinstall the plugin, or fix `path` |
+| `NOT_INSTALLED` | `/browse-stop-relay` has no pinned binary to identify the relay | reinstall the plugin |
 | `BINARY_UNVERIFIED` | the binary's SHA-256 differs from its manifest, at startup or at an MCP spawn | reinstall; set `verifyBinary: false` only if you trust the file |
 | `CHROMIUM_MISSING` | `chromiumPath` does not exist | fix it, or run `/browse-install-browser` |
 | `CHROMIUM_UNSUPPORTED` | no Chrome for Testing build for this platform | set `chromiumPath` |
@@ -107,9 +108,9 @@ Every error is `CODE: What happened. Next step: What to do.` One next step, endi
 | `CHROMIUM_UNVERIFIED` | the installed browser changed since its digest was recorded | rerun `/browse-install-browser` |
 | `CHROMIUM_INVALID` | `chromiumPath` is not a Chromium or Chrome for Testing binary | point it at one |
 | `CHROMIUM_BRANDED` | `chromiumPath` is branded Google Chrome | point it at Chrome for Testing or Chromium |
+| `CHROMIUM_INSTALL_FAILED` | `/browse-install-browser` failed before or during the install | run `/browse-doctor` and fix the first failed check |
 | `EXTENSION_UNVERIFIED` | the bundled extension does not match its pin | reinstall the plugin |
 | `UNSUPPORTED_PLATFORM` | no package ships for this OS or architecture | set `path` to your own browse binary |
-| `SERVER_CONFLICT` | `mcp.servers.browse` is not a browse server | remove or rename the entry, then restart |
 | `SERVER_LEGACY` | an `opencode-browser` entry remains | remove it, then restart |
 | `SERVER_NOT_REGISTERED` | the server transform failed | restart OpenCode |
 | `RULES_NOT_ADDED` | the rules could not be inserted | restart OpenCode |

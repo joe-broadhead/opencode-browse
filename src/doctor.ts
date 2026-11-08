@@ -1,14 +1,16 @@
 import type { Plugin } from "@opencode/plugin"
-import { PINNED_VERSION, SERVER_NAME } from "./constants.js"
+import { errorText, PINNED_VERSION, SERVER_NAME } from "./constants.js"
 import { parseJsonOutput, runBinary, type BinaryInfo, type BrowseStatus, type ScopeResult } from "./engine.js"
 import type { ScopeOptions } from "./options.js"
 import type { ManagedStatus } from "./managed/browser.js"
+import { formatRecording, recordingNextStep, type RecordingReadiness } from "./recording.js"
 import { shortReason } from "./redact.js"
 import type { HostCheck } from "./host-version.js"
 
 export interface DoctorInput {
   readonly binary?: BinaryInfo
   readonly managed?: ManagedStatus
+  readonly recording?: RecordingReadiness
   readonly host: HostCheck
   readonly live: { readonly status?: BrowseStatus; readonly reason?: string }
   readonly scope?: ScopeOptions
@@ -60,6 +62,7 @@ export function renderDoctor(input: DoctorInput, vendor?: unknown): string {
       binary.tested ? `the pinned ${PINNED_VERSION}` : `not the pinned ${PINNED_VERSION}`
     } · ${binary.platform}`,
   )
+  if (input.recording !== undefined) lines.push(`- Recording: ${formatRecording(input.recording)}`)
   lines.push(`- Relay: ${live.status ? (live.status.relay.running ? `running${live.status.relay.version ? ` · ${live.status.relay.version}` : ""}${live.status.relay.stale ? " · stale build" : ""} · auto-update off` : "stopped") : `unknown (${live.reason ?? "no answer"})`}`)
   if (live.status?.relay.running) lines.push("- Stop relay: /browse-stop-relay")
   lines.push(
@@ -101,6 +104,8 @@ function nextStep(input: DoctorInput, live: DoctorInput["live"], scopeResult: Sc
   if (input.binary.source === "option") return "The binary is your own path option, not the packaged one; remove \"path\" to use the pinned release."
   if (!input.binary.tested) return `The binary is not the pinned ${PINNED_VERSION}; update the plugin.`
   if (scopeResult?.changed) return scopeResult.action[0]?.toUpperCase() + scopeResult.action.slice(1) + "."
+  const recording = recordingNextStep(input.recording)
+  if (recording) return recording
   if (input.managed?.state === "not_installed") return "Run /browse-install-browser to download and verify the pinned Chrome for Testing."
   if (input.managed?.state === "failed") return `The managed browser failed: ${input.managed.lastError ?? "see the browser log"}. Run /browse-doctor again after fixing it.`
   if (input.managed?.state === "starting") return "The managed browser is starting; run /browse-doctor again in a few seconds."
@@ -117,6 +122,7 @@ function nextStep(input: DoctorInput, live: DoctorInput["live"], scopeResult: Sc
 export interface DoctorDeps {
   readonly binary: () => BinaryInfo | undefined
   readonly managed: () => ManagedStatus | undefined
+  readonly recording: () => RecordingReadiness | undefined
   readonly installBrowser: () => Promise<{ message: string }>
   readonly live: () => Promise<{ status?: BrowseStatus; reason?: string }>
   readonly scope: () => ScopeOptions | undefined
@@ -141,7 +147,7 @@ export function registerDoctorCommand(
         if (binary !== undefined) {
           const result = await runBinary(binary.path, ["doctor", "--json"], { timeoutMs: 30_000 })
           vendor = parseJsonOutput(result.stdout)
-          if (result.code !== 0) problems.push("DOCTOR_FAILED: the vendor doctor exited non-zero. Next step: Read its checks above, fix the first failing one, then run /browse-doctor again.")
+          if (result.code !== 0) problems.push(errorText("DOCTOR_FAILED", "The vendor doctor exited non-zero.", "Read its checks above, fix the first failing one, then run /browse-doctor again."))
         }
         let scopeResult: ScopeResult | undefined
         if (deps.scope() !== undefined) scopeResult = await deps.applyScope(true).catch(() => undefined)
@@ -152,6 +158,7 @@ export function registerDoctorCommand(
             live: await deps.live(),
             ...(deps.scope() ? { scope: deps.scope() } : {}),
             ...(deps.managed() ? { managed: deps.managed() } : {}),
+            ...(deps.recording() ? { recording: deps.recording() } : {}),
             ...(scopeResult ? { scopeResult } : {}),
             problems,
           },

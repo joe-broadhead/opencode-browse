@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { TESTED_HOSTS } from "../../src/constants.js"
 import { TOOLS } from "../../src/browse-tools.js"
+import { PLUGIN_CODES } from "../../src/constants.js"
 import { defaultRules } from "../../src/permissions.js"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
@@ -21,33 +22,7 @@ const SCRIPTING = read("docs/scripting.md")
 const JELLY = read("docs/jelly.md")
 const SECURITY = read("SECURITY.md")
 
-const CODES = [
-  "BINARY_MISSING",
-  "BINARY_UNVERIFIED",
-  "UNSUPPORTED_PLATFORM",
-  "SERVER_CONFLICT",
-  "SERVER_LEGACY",
-  "SERVER_NOT_REGISTERED",
-  "RULES_NOT_ADDED",
-  "SCOPE_LOST",
-  "SCOPE_UNREACHABLE",
-  "STATUS_UNAVAILABLE",
-  "RELAY_FAILED",
-  "RELAY_NOT_OURS",
-  "RELAY_STOP_FAILED",
-  "DOCTOR_FAILED",
-  "HOST_UNTESTED",
-  "OPTIONS_INVALID",
-  "SKILLS_INVALID",
-  "CHROMIUM_MISSING",
-  "CHROMIUM_UNSUPPORTED",
-  "CHROMIUM_DOWNLOAD_FAILED",
-  "CHROMIUM_EXTRACT_FAILED",
-  "CHROMIUM_UNVERIFIED",
-  "CHROMIUM_INVALID",
-  "CHROMIUM_BRANDED",
-  "EXTENSION_UNVERIFIED",
-]
+const CODES = PLUGIN_CODES
 
 describe("the README", () => {
   test("follows the family order", () => {

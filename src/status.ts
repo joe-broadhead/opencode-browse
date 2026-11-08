@@ -6,6 +6,7 @@ import { conflictRules, defaultRules, evaluate, unguardedAgents, type Rule, type
 import { shortReason } from "./redact.js"
 import type { BrowseStatus } from "./engine.js"
 import type { ManagedStatus } from "./managed/browser.js"
+import { formatRecording, recordingNextStep, type RecordingReadiness } from "./recording.js"
 import { VERSION } from "./version.js"
 
 export { shortReason }
@@ -68,6 +69,7 @@ export interface StatusFacts {
   readonly legacy?: boolean
   readonly mode: "real" | "managed"
   readonly managed?: ManagedStatus
+  readonly recording?: RecordingReadiness
   readonly tools?: readonly string[]
   readonly settling?: boolean
   readonly agents?: readonly { readonly id: string; readonly permissions: readonly Rule[] }[]
@@ -87,6 +89,7 @@ export interface Status {
   readonly scope?: ScopeFacts
   readonly mode: "real" | "managed"
   readonly managed?: ManagedStatus
+  readonly recording?: RecordingReadiness
   readonly legacy: boolean
   readonly tools: number
   readonly unknownCount: number
@@ -166,6 +169,7 @@ export function buildStatus(facts: StatusFacts): Status {
     ...(facts.scope ? { scope: facts.scope } : {}),
     mode: facts.mode,
     ...(facts.managed ? { managed: facts.managed } : {}),
+    ...(facts.recording ? { recording: facts.recording } : {}),
     legacy: facts.legacy === true,
     tools: listed.length,
     unknownCount: unknown.length,
@@ -229,6 +233,8 @@ function nextStepOf(status: Omit<Status, "nextStep">, extra: { known: boolean; s
   if (status.unguardedAgents.length) {
     return `Put the default rules shown by /browse-status first in each listed agent's own permissions, in opencode.json or the agent's Markdown file, followed by your top-level rules for Browse tools.`
   }
+  const recording = recordingNextStep(status.recording)
+  if (recording) return recording
   if (status.updates.available) return `browse ${status.updates.available} is available. Update this plugin to move to it; the pinned binary does not update itself.`
   if (extra.statusProblem) return `\`browse status\` did not answer: ${extra.statusProblem}. Run /browse-doctor.`
   return NOTHING_TO_DO
@@ -303,6 +309,7 @@ export function formatStatus(status: Status) {
     ...(managed ? [`- Managed: ${managed}`] : []),
     `- Relay: ${relayText(status)}`,
     `- Extension: ${extensionText(status)}`,
+    `- Recording: ${formatRecording(status.recording)}`,
     ...(scope ? [`- ${scope}`] : []),
     `- Tools: ${toolsText(status)}`,
     `- Agents without default rules: ${status.unguardedAgents.length ? `${status.unguardedAgents.join(", ")}\n${agentRules({ access: status.accessMode, scoped: status.scope !== undefined, readOnly: status.scope?.readOnly === true }, status.state === "conflict")}` : "none"}`,
@@ -444,6 +451,18 @@ export const StatusRpc = {
             type: "object",
             required: ["connected", "version", "pairingState", "compatible", "nextStep"],
             properties: { connected: { type: "boolean" }, version: nullableString, pairingState: nullableString, compatible: nullableBoolean, nextStep: nullableString },
+          },
+          recording: {
+            type: "object",
+            required: ["ffmpeg", "toolbar"],
+            properties: {
+              ffmpeg: {
+                type: "object",
+                required: ["found", "path", "version"],
+                properties: { found: { type: "boolean" }, path: nullableString, version: nullableString },
+              },
+              toolbar: { type: "object", required: ["ready"], properties: { ready: { type: "boolean" } } },
+            },
           },
           managed: {
             type: "object",

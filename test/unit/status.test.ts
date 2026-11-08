@@ -179,7 +179,7 @@ describe("formatStatus", () => {
   test("has the S9 rows, in order, with the one next step last", () => {
     const text = formatStatus(buildStatus(facts({ server: { status: "connected" }, tools: ["status"], relay: { running: true, version: "0.0.14", stale: false }, extension: { connected: true, version: "0.0.14", pairingState: "paired", compatible: true, nextStep: null } })))
     const labels = text.split("\n").filter((line) => line.startsWith("- ")).map((line) => line.slice(2, line.indexOf(":")))
-    expect(labels).toEqual(["Connection", "Mode", "Access", "Browser", "Relay", "Extension", "Tools", "Agents without default rules", "OpenCode", "Next step"])
+    expect(labels).toEqual(["Connection", "Mode", "Access", "Browser", "Relay", "Extension", "Recording", "Tools", "Agents without default rules", "OpenCode", "Next step"])
     expect(text).not.toContain("Account")
   })
 

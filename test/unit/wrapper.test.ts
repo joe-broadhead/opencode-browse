@@ -4,7 +4,7 @@
 import { describe, expect, test } from "bun:test"
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -65,6 +65,64 @@ describe("bin/mcp.mjs", () => {
     const fake = tree('#!/bin/sh\necho SERVED\n')
     try {
       writeFileSync(fake.binary, '#!/bin/sh\necho TAMPERED\n')
+      const result = run(fake.dir, fake.home)
+      expect(result.status).toBe(78)
+      expect(result.stderr).toContain("BINARY_UNVERIFIED:")
+      expect(result.stdout).not.toContain("TAMPERED")
+    } finally {
+      rmSync(fake.dir, { recursive: true, force: true })
+    }
+  })
+
+  test("caches the verified digest by file identity, and neither hashes nor rewrites it on a hit", () => {
+    const fake = tree('#!/bin/sh\necho SERVED\n')
+    try {
+      const cacheFile = join(fake.home, ".local", "share", "opencode-browse", "cache", "binary-integrity.json")
+      expect(run(fake.dir, fake.home).status).toBe(0)
+      expect(existsSync(cacheFile)).toBe(true)
+      expect(statSync(cacheFile).mode & 0o777).toBe(0o600)
+      const manifest = JSON.parse(readFileSync(join(fake.binDir, "manifest", "browse.json"), "utf8"))
+      const first = readFileSync(cacheFile, "utf8")
+      expect(JSON.parse(first)[fake.binary]).toMatchObject({ sha256: manifest.sha256, size: String(manifest.bytes) })
+
+      // The wrapper writes the cache only on a miss, so an unchanged file proves the hit branch ran: no hash.
+      const before = statSync(cacheFile)
+      expect(run(fake.dir, fake.home).status).toBe(0)
+      const after = statSync(cacheFile)
+      expect(after.ino).toBe(before.ino)
+      expect(after.mtimeMs).toBe(before.mtimeMs)
+      expect(readFileSync(cacheFile, "utf8")).toBe(first)
+    } finally {
+      rmSync(fake.dir, { recursive: true, force: true })
+    }
+  })
+
+  test("a metadata change alone is a miss: it re-hashes, rewrites the cache, and still runs", () => {
+    const fake = tree('#!/bin/sh\necho SERVED\n')
+    try {
+      const cacheFile = join(fake.home, ".local", "share", "opencode-browse", "cache", "binary-integrity.json")
+      expect(run(fake.dir, fake.home).status).toBe(0)
+      const before = statSync(cacheFile)
+      chmodSync(fake.binary, 0o777)
+      const result = run(fake.dir, fake.home)
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain("SERVED")
+      const after = statSync(cacheFile)
+      expect({ ino: after.ino, mtimeMs: after.mtimeMs }).not.toEqual({ ino: before.ino, mtimeMs: before.mtimeMs })
+    } finally {
+      rmSync(fake.dir, { recursive: true, force: true })
+    }
+  })
+
+  test("a changed byte misses the cache and is refused, even after the mtime is put back", () => {
+    const fake = tree('#!/bin/sh\necho SERVED\n')
+    try {
+      const original = statSync(fake.binary)
+      expect(run(fake.dir, fake.home).status).toBe(0)
+      writeFileSync(fake.binary, '#!/bin/sh\necho TAMPERED\n')
+      chmodSync(fake.binary, 0o755)
+      // Put the mtime back: only ctime (and the content) still differ, and the wrapper must notice.
+      utimesSync(fake.binary, original.atime, original.mtime)
       const result = run(fake.dir, fake.home)
       expect(result.status).toBe(78)
       expect(result.stderr).toContain("BINARY_UNVERIFIED:")

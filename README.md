@@ -104,6 +104,25 @@ in one agent:
 
 A script can start a capture with no model turn and no prompt; `docs/scripting.md` repeats this.
 
+**Recording readiness.** `browse_recording` and `browse_flight_recorder` record an agent-opened tab through CDP, which
+needs `ffmpeg` on PATH. A tab you lend with the toolbar button records through the extension's tab-capture backend and
+needs nothing. `/browse-status`, `/browse-doctor` and the status RPC show both backends; when `ffmpeg` is missing the
+next step is `brew install ffmpeg` (or your package manager's), or lend a tab and record that.
+
+### Known limitation: parallel agents share one browse session
+
+This plugin pins browse `0.0.15`, whose build predates per-caller sessions (browse commit `f66dce2`). OpenCode does send
+each agent's session id with every browse call, and the wrapper forwards it, but `0.0.15` uses one current session for
+all of them: two agents working at the same time share one session and its tab set. Each task must start its own:
+
+- call `browse_session_new` with a name for the task at the start, and pass its id as `session` on later calls;
+- call `browse_session_delete` when the task is done.
+
+`skills/browse/SKILL.md` tells the agent this, and the mitigation is worth keeping after the re-pin for multi-agent
+work. browse `0.0.16` keeps a session per caller, and this plugin will re-pin to it when it is released.
+`npm run drift` runs a caller-isolation probe and prints `isolates: no` until then; that line is information, not a
+failure.
+
 ## Permissions
 
 **Every tool is allowed by default.** The plugin adds this block to every agent, directly after the agent's base rule
@@ -284,9 +303,9 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 | `disabled` | the `browse` server is disabled in `/mcps` | enable it, or remove `"disabled": true` |
 | `host untested` | OpenCode is outside the supported range | use `>=2.2.3 <2.3.0`, or set `allowUntestedHost` |
 | `BINARY_MISSING` | the platform package is not installed | reinstall the plugin |
+| `NOT_INSTALLED` | `/browse-stop-relay` has no pinned binary to identify the relay | reinstall the plugin |
 | `BINARY_UNVERIFIED` | the binary does not match its pinned SHA-256 | reinstall; set `verifyBinary: false` only if you trust the file |
 | `UNSUPPORTED_PLATFORM` | no package ships for this OS or architecture | set `path` to a browse binary you built or installed |
-| `SERVER_CONFLICT` | as `conflict` above | remove the entry |
 | `SERVER_LEGACY` | an older `opencode-browser` entry is in your config; its tools are denied | remove it; this plugin registers `browse` |
 | `SERVER_NOT_REGISTERED` | the server transform failed | restart OpenCode |
 | `RULES_NOT_ADDED` | the default rules could not be inserted | restart OpenCode |
@@ -311,7 +330,9 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 | `CHROMIUM_UNVERIFIED` | the managed browser changed since it was installed | run `/browse-install-browser` again |
 | `CHROMIUM_INVALID` | `chromiumPath` is not a Chromium or Chrome for Testing binary | point it at one |
 | `CHROMIUM_BRANDED` | `chromiumPath` is branded Google Chrome, which will not load the unpacked extension | point it at Chromium or Chrome for Testing |
+| `CHROMIUM_INSTALL_FAILED` | `/browse-install-browser` failed before or during the install | run `/browse-doctor` and fix the first failed check |
 | `EXTENSION_UNVERIFIED` | the bundled extension does not match its pin | reinstall the plugin |
+| Recording needs ffmpeg | an agent-opened tab records through CDP, which needs `ffmpeg` on PATH | `brew install ffmpeg`, or click the toolbar button on a tab and record that |
 
 ## Uninstall
 

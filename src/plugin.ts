@@ -1,7 +1,7 @@
 import { Plugin } from "@opencode/plugin"
 import { fileURLToPath } from "node:url"
 import { join } from "node:path"
-import { errorText, NAMESPACE_DESCRIPTION, PINNED_VERSION, PLUGIN_ID, SERVER_NAME, SUPPORTED_HOST } from "./constants.js"
+import { errorText, isPluginCode, NAMESPACE_DESCRIPTION, PINNED_VERSION, PLUGIN_ID, SERVER_NAME, SUPPORTED_HOST } from "./constants.js"
 import { ensureScope, probeVersion, readStatus, resolveBinary, runBinary, type BinaryInfo, type BrowseStatus, type Probe, type ScopeResult } from "./engine.js"
 import { checkHost, isTestedHost, type HostCheck } from "./host-version.js"
 import { isScoped, parseOptions, type Options } from "./options.js"
@@ -13,6 +13,7 @@ import { registerToolsRpc, METHODS } from "./host/tools-rpc.js"
 import { registerDoctorCommand } from "./doctor.js"
 import { ManagedBrowser } from "./managed/browser.js"
 import { formatRelayStop, stopRelaySafely } from "./managed/relay.js"
+import { detectRecording, type RecordingReadiness } from "./recording.js"
 
 /** Internal seam: tests point the plugin at their own skills and a shorter status timeout. */
 interface BrowseSeam {
@@ -181,6 +182,7 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
           problems: () => [...problems.values()],
           host,
           managed: () => undefined,
+          recording: () => undefined,
           installBrowser: async () => ({ message: "Managed mode is not set up: fix the plugin options first." }),
         })
         return async () => undefined
@@ -196,7 +198,8 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
       try {
         verifyBinary()
       } catch (error) {
-        const code = (error as { code?: string }).code ?? "BINARY_MISSING"
+        const caught = (error as { code?: unknown }).code
+        const code = isPluginCode(caught) ? caught : "BINARY_MISSING"
         const message = (error as Error).message.replace(/^[A-Z_]+: /, "").split(" Next step: ")[0] ?? "the browse binary could not be resolved."
         const next = (error as { nextStep?: string }).nextStep ?? "Reinstall the plugin."
         binaryProblem = errorText(code, message, next)
@@ -228,7 +231,8 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
           scopeProblem = undefined
           return scopeResult
         } catch (error) {
-          const code = (error as { code?: string }).code ?? "SCOPE_UNREACHABLE"
+          const caught = (error as { code?: unknown }).code
+          const code = isPluginCode(caught) ? caught : "SCOPE_UNREACHABLE"
           const reason = shortReason((error as Error).message.replace(/^[A-Z_]+: /, "").split(" Next step: ")[0] ?? "") ?? "the pinned session could not be prepared"
           scopeProblem = errorText(code, reason, (error as { nextStep?: string }).nextStep ?? "Run /browse-doctor.")
           throw error
@@ -251,6 +255,9 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
 
       let probe: Probe | null = null
       if (binary !== undefined) void probeVersion(binary.path).then((result) => (probe = result))
+      // Recording readiness: ffmpeg for agent-opened tabs, and the toolbar-click backend that needs nothing.
+      let recording: RecordingReadiness | undefined
+      void detectRecording().then((result) => (recording = result))
       const live = cachedLive(binary?.path, seam.statusTimeoutMs ?? 10_000)
 
       const read = async (): Promise<Status> => {
@@ -263,6 +270,7 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
             ...(source ? { source } : {}),
             ...(scopeProblem ? { scopeProblem } : {}),
             problems: [...problems.values()],
+            ...(recording ? { recording } : {}),
             binary: { path: null, version: null, source: null, verified: false, tested: false, supported: false },
           })
         }
@@ -278,6 +286,7 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
             : {}),
           ...(scopeProblem ? { scopeProblem } : {}),
           problems: [...problems.values()],
+          ...(recording ? { recording } : {}),
           live: () => live(),
           managed: () => managed?.status(),
         })
@@ -294,6 +303,7 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
         problems: () => [...problems.values()],
         host,
         managed: () => managed?.status(),
+        recording: () => recording,
         installBrowser: async () => {
           if (managed === undefined) return { message: "Set \"browser\": \"managed\" in this plugin's options first." }
           await managed.installAndStart()
@@ -348,7 +358,7 @@ export function registerStopRelayCommand(
       execute: async ({ sessionID }) => {
         const binary = deps.binary()
         const text = binary === undefined
-          ? "NOT_INSTALLED: There is no pinned browse binary to identify the relay. Next step: Reinstall the plugin."
+          ? errorText("NOT_INSTALLED", "There is no pinned browse binary to identify the relay.", "Reinstall the plugin.")
           : formatRelayStop(await (deps.stop ?? stopRelaySafely)({ expectedVersion: PINNED_VERSION, binaryPath: binary.path }))
         await ctx.session.synthetic({ sessionID, text, description: "Browse stop relay", resume: false })
       },
