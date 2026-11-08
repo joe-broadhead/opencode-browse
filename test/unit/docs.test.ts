@@ -1,11 +1,20 @@
 import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
+import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { TESTED_HOSTS } from "../../src/constants.js"
 import { TOOLS } from "../../src/browse-tools.js"
+import { defaultRules } from "../../src/permissions.js"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
 const read = (path: string) => readFileSync(join(root, path), "utf8")
+/** Every file under a folder, relative to the repository. */
+function files(folder: string): string[] {
+  return readdirSync(join(root, folder), { withFileTypes: true }).flatMap((entry) => {
+    const path = `${folder}/${entry.name}`
+    return entry.isDirectory() ? files(path) : [path]
+  })
+}
 const README = read("README.md")
 const CONFIG = read("docs/configuration.md")
 const SCRIPTING = read("docs/scripting.md")
@@ -53,14 +62,47 @@ describe("the README", () => {
     expect(README).toContain("`/etc/opencode/opencode.json` on Linux and `/Library/Application Support/opencode/opencode.json` on")
   })
 
-  test("has a row for every error code", () => {
+  test("has a row for every code the code raises, and the scripting refusals", () => {
+    // The shared tools-RPC module raises its own codes (SESSION_UNKNOWN and the rest); docs/scripting.md lists them.
+    const raised = [...new Set(files("src").filter((path) => path !== "src/host/tools-rpc.ts").flatMap((path) => [...read(path).matchAll(/\b(?:browseError|errorText|fail)\(\s*"([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)"/g)].map((match) => match[1]!)))]
+    expect(raised.length).toBeGreaterThan(10)
+    for (const code of raised) expect({ code, row: README.includes(`| \`${code}\``) }).toEqual({ code, row: true })
+    for (const code of raised) expect({ code, doc: CONFIG.includes(`| \`${code}\``) }).toEqual({ code, doc: true })
     for (const code of CODES) expect(README, code).toContain(code)
     for (const code of CODES) expect(CONFIG, code).toContain(code)
+    // A code a JSON string carries (the binary entry prints one and exits) is still a code.
+    expect(README).toContain("BINARY_UNVERIFIED")
+    // The RPC's own refusals are in the scripting guide, which is where a script looks.
+    for (const code of ["PERMISSION_DENIED", "SESSION_UNKNOWN", "SESSION_AGENT_REQUIRED", "TOOL_UNAVAILABLE", "CANCELLED", "UPSTREAM_ERROR"]) {
+      expect({ code, listed: SCRIPTING.includes(`\`${code}\``) }).toEqual({ code, listed: true })
+    }
   })
 
-  test("names every tool and the counts", () => {
+  test("prints the default-rules block exactly as the code generates it", () => {
+    const block = /## Permissions\n[\s\S]*?```json\n(\[[\s\S]*?\])\n```/.exec(README)?.[1]
+    expect(block).toBeDefined()
+    expect(JSON.parse(block!)).toEqual(defaultRules({ access: "all", scoped: false, readOnly: false }).map((rule) => ({ ...rule })))
+  })
+
+  test("every \"tested on\" list in the docs is TESTED_HOSTS", () => {
+    const expected = `${TESTED_HOSTS.slice(0, -1).join(", ")} and ${TESTED_HOSTS.at(-1)}`
+    let found = 0
+    for (const document of ["README.md", "AGENTS.md", "SECURITY.md", "docs/configuration.md", "CHANGELOG.md"]) {
+      const text = read(document).replace(/\s+/g, " ")
+      for (const phrase of ["tested on "]) {
+        for (let at = text.indexOf(phrase); at !== -1; at = text.indexOf(phrase, at + 1)) {
+          found += 1
+          expect({ document, after: text.slice(at + phrase.length, at + phrase.length + expected.length) }).toEqual({ document, after: expected })
+        }
+      }
+    }
+    expect(found).toBeGreaterThan(2)
+  })
+
+  test("names every tool, says every tool is allowed by default, and names the three ways to restrict", () => {
     for (const tool of TOOLS) expect(README, tool.name).toContain(`browse_${tool.name}`)
-    expect(README).toContain("8 run, 10 ask")
+    expect(README).toContain("**Every tool is allowed by default.**")
+    for (const value of ["\"all\"", "\"ask-changes\"", "\"read-only\""]) expect(README).toContain(value)
     expect(README).toContain("The three captures run without asking, by default.")
     expect(README).not.toMatch(/owner('s)? (decision|ruling)/i)
     expect(README).toContain("Managed browser (optional)")
@@ -76,6 +118,22 @@ describe("the README", () => {
 })
 
 describe("the docs", () => {
+  test("every scripting example is a body the RPC accepts, with the header and the envelope", () => {
+    const examples = [...SCRIPTING.matchAll(/opencode api post \/api\/rpc\/browse\.tools\/(\w+)([^\n]*-d '(\{[\s\S]*?\})')/g)]
+    expect(examples.length).toBeGreaterThan(1)
+    for (const [, method, , body] of examples) {
+      expect({ method, known: method === "describe" || TOOLS.some((tool) => tool.name === method) }).toEqual({ method, known: true })
+      const envelope = JSON.parse(body!) as { input?: { sessionID?: string; input?: unknown } }
+      expect({ method, keys: Object.keys(envelope) }).toEqual({ method, keys: ["input"] })
+      expect(typeof envelope.input?.sessionID).toBe("string")
+    }
+    for (const [, call] of SCRIPTING.matchAll(/^opencode api post([^\n]*)/gm)) expect(call).toContain("x-opencode-directory:$PWD")
+    // No example may point at a port: the RPC is served by OpenCode, not the relay.
+    expect(SCRIPTING).not.toMatch(/127\.0\.0\.1:\d+/)
+    expect(SCRIPTING).toContain("## The location")
+    expect(SCRIPTING).toContain("A `browse` result comes back as `{ output?, text }`")
+  })
+
   test("scripting lists exactly the 18 methods with a class", () => {
     for (const tool of TOOLS) expect(SCRIPTING, tool.name).toContain(`\`${tool.name}\``)
     expect(SCRIPTING).toContain("Only `allow` runs")

@@ -95,32 +95,57 @@ A script can start a capture with no model turn and no prompt; `docs/scripting.m
 
 ## Permissions
 
-The plugin adds these rules to every agent, directly after the agent's base rule that allows everything:
+**Every tool is allowed by default.** The plugin adds this block to every agent, directly after the agent's base rule
+that allows everything:
 
-1. `{ "action": "opencode_browser_*", "resource": "*", "effect": "deny" }`: an older browse server, if one is still
-   configured, is off by exact-name pattern.
-2. `{ "action": "browse_*", "resource": "*", "effect": "deny" }`: a tool browse adds later is **off** until this plugin
-   classifies it. A `browse` entry that is not a browse server is denied the same way.
-3. One rule per known tool, by exact name, from [`src/browse-tools.ts`](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/src/browse-tools.ts).
+```json
+[
+  {"action": "browse_*", "resource": "*", "effect": "allow"},
+  {"action": "browse_status", "resource": "*", "effect": "allow"},
+  {"action": "browse_session_list", "resource": "*", "effect": "allow"},
+  {"action": "browse_secrets_list", "resource": "*", "effect": "allow"},
+  {"action": "browse_secrets_status", "resource": "*", "effect": "allow"},
+  {"action": "browse_tabs_cleanup", "resource": "*", "effect": "allow"},
+  {"action": "browse_execute", "resource": "*", "effect": "allow"},
+  {"action": "browse_session_new", "resource": "*", "effect": "allow"},
+  {"action": "browse_session_use", "resource": "*", "effect": "allow"},
+  {"action": "browse_session_adopt", "resource": "*", "effect": "allow"},
+  {"action": "browse_session_reset", "resource": "*", "effect": "allow"},
+  {"action": "browse_session_delete", "resource": "*", "effect": "allow"},
+  {"action": "browse_settings", "resource": "*", "effect": "allow"},
+  {"action": "browse_network", "resource": "*", "effect": "allow"},
+  {"action": "browse_recording", "resource": "*", "effect": "allow"},
+  {"action": "browse_flight_recorder", "resource": "*", "effect": "allow"},
+  {"action": "browse_secrets_run", "resource": "*", "effect": "allow"},
+  {"action": "browse_secrets_refresh", "resource": "*", "effect": "allow"},
+  {"action": "browse_session_allowlist", "resource": "*", "effect": "allow"}
+]
+```
 
-| Runs without asking | Asks first | Off |
-| --- | --- | --- |
-| `browse_status`, `browse_session_list`, `browse_secrets_list`, `browse_secrets_status`, `browse_tabs_cleanup` | `browse_execute`, `browse_session_new`, `browse_session_use`, `browse_session_adopt`, `browse_session_reset`, `browse_session_delete`, `browse_session_allowlist`, `browse_settings` | none of the 18; any tool browse adds later |
-| `browse_network`, `browse_recording`, `browse_flight_recorder` (captures) | `browse_secrets_run`, `browse_secrets_refresh` (act with your stored credentials) | |
+That means page actions run in your real browser, the three captures run, and `browse_secrets_run` can run a local
+command with your stored credentials — all without a prompt. Nothing is off, and a tool browse adds later runs too.
 
-So **8 run, 10 ask, and a tool this plugin does not know is refused**.
+To restrict, choose one of three:
+
+1. **`access`**, one option for the plugin: `"all"` (the default), `"ask-changes"` (the four reads run, everything else
+   asks) or `"read-only"` (the four reads run, everything else is denied).
+2. **An agent's own rules**, such as a read-only agent:
+   `"permissions": [{ "action": "browse_*", "resource": "*", "effect": "deny" }, { "action": "browse_status", "resource": "*", "effect": "allow" }]`.
+3. **A per-tool rule** in your `opencode.json`: `{ "action": "browse_execute", "resource": "*", "effect": "ask" }`, or
+   `"deny"` to turn one tool off. The tool names are the 18 in
+   [`src/browse-tools.ts`](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/src/browse-tools.ts).
 
 Everything later than these rules still wins: an agent's own stricter rules (Plan and Explore cannot drive the
-browser), your `permissions` in `opencode.json`, and your saved "Always allow" answers. In an unattended run such as
-`opencode run`, a tool that asks is refused, so browser work happens interactively.
+browser), your `permissions` in `opencode.json`, and your saved "Always allow" answers.
 
 To keep one agent to one site, or to inspect only, use the scoped profile below: it denies the session tools that
-could leave the pinned session, and `execute` runs only when the session is read-only.
+could leave the pinned session, and `execute` runs only when the session is read-only. That is a restriction you turn
+on, so it stays a deny whatever `access` says.
 
 Agents that exist only in your own config, and agents added by plugins that load later, are created after the plugin
-adds its rules, so Browse tools run there without asking. `/browse-status` names those agents and shows the default
-rules to put first in each one's own `permissions`. Do not put them in the top-level `permissions`, which would loosen
-Explore.
+adds its rules, so Browse tools run there without asking. `/browse-status` names those agents and shows the block for
+the access value in force to put first in each one's own `permissions`. Do not put it in the top-level `permissions`,
+which would loosen Explore.
 
 ## Configure
 
@@ -210,10 +235,13 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 | Relay stopped | nothing has needed the browser yet | ask the agent to open a page, or run `browse status` |
 | Relay still running after OpenCode exits | real mode keeps it, so the browser stays paired (browse's design) | run `/browse-stop-relay`; it stops only the relay this plugin's binary started |
 | Protocol incompatible | the extension and binary are from different releases | update the extension in the browser |
-| `CHROMIUM_MISSING` / `CHROMIUM_UNSUPPORTED` | managed mode has no browser for this platform or path | run `/browse-install-browser`, or set `chromiumPath` |
-| `CHROMIUM_DOWNLOAD_FAILED` / `CHROMIUM_EXTRACT_FAILED` | the Chrome for Testing download or unzip failed | check the network and `unzip`, then run `/browse-install-browser` again |
+| `CHROMIUM_MISSING` | managed mode has no browser for this platform or path | run `/browse-install-browser`, or set `chromiumPath` |
+| `CHROMIUM_UNSUPPORTED` | managed mode has no Chrome for Testing build for this platform | set `chromiumPath`, or use the real browser |
+| `CHROMIUM_DOWNLOAD_FAILED` | the Chrome for Testing download failed | check the network, then run `/browse-install-browser` again |
+| `CHROMIUM_EXTRACT_FAILED` | the Chrome for Testing download did not unzip | check `unzip`, then run `/browse-install-browser` again |
 | `CHROMIUM_UNVERIFIED` | the managed browser changed since it was installed | run `/browse-install-browser` again |
-| `CHROMIUM_INVALID` / `CHROMIUM_BRANDED` | `chromiumPath` is not a Chromium, or is branded Chrome | point it at Chromium or Chrome for Testing |
+| `CHROMIUM_INVALID` | `chromiumPath` is not a Chromium or Chrome for Testing binary | point it at one |
+| `CHROMIUM_BRANDED` | `chromiumPath` is branded Google Chrome, which will not load the unpacked extension | point it at Chromium or Chrome for Testing |
 | `EXTENSION_UNVERIFIED` | the bundled extension does not match its pin | reinstall the plugin |
 
 ## Uninstall
