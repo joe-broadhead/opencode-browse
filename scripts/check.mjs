@@ -39,6 +39,7 @@ const stages = {
   copies: () => run("node", ["scripts/check-copies.mjs"]),
   jelly: () => run("node", ["scripts/jelly-check.mjs"]),
   whitelist: whitelist,
+  actionlint,
 }
 
 const selected = process.argv.slice(2)
@@ -74,11 +75,13 @@ function run(command, args, options = {}) {
  */
 function host() {
   if (process.env.HOST_SDK_DIR) return run("bun", ["test", "./test/host"])
+  let ran = 0
   for (const version of TESTED_HOSTS) {
     console.log(`\n[check] host on @opencode/sdk ${version}`)
     if (version === HOST_DEV_PIN) {
       const code = run("bun", ["test", "./test/host"])
       if (code !== 0) return code
+      ran += 1
       continue
     }
     const dir = mkdtempSync(join(realpathSync("/tmp"), `browse-sdk-${version}-`))
@@ -87,11 +90,31 @@ function host() {
       const code = run("npm", ["install", `@opencode/sdk@${version}`, "--ignore-scripts", "--no-audit", "--no-fund", "--prefer-offline"], { cwd: dir })
         || run("bun", ["test", "./test/host"], { env: { HOST_SDK_DIR: dir } })
       if (code !== 0) return code
+      ran += 1
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   }
+  // R11: every tested release must really run. In CI a gap is a failure; locally the line says which one.
+  if (ran !== TESTED_HOSTS.length) {
+    const message = `[check] host: ${ran} of ${TESTED_HOSTS.length} tested releases ran`
+    if (process.env.CI === "true" || process.env.CI === "1") {
+      console.error(message)
+      return 1
+    }
+    console.log(`${message}; set HOST_SDK_DIR or the network to run them all`)
+  }
   return 0
+}
+
+/** R13: the workflows are linted as workflows, by actionlint when it is installed; a notice when it is not. */
+function actionlint() {
+  const probe = spawnSync("actionlint", ["-version"], { encoding: "utf8" })
+  if (probe.error?.code === "ENOENT") {
+    console.log("[check] actionlint: not installed; skipped (install it to lint the workflows)")
+    return 0
+  }
+  return run("actionlint", [".github/workflows/ci.yml", ".github/workflows/release.yml"])
 }
 
 function whitelist() {
