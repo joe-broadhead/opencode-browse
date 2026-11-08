@@ -197,10 +197,10 @@ export const modelReady = async (host: Host) => {
   return until("the scripted model is listed", async () => (await models.model.list({ location: host.location })).data.find((model) => model.providerID === "lmstudio" && model.id === MODEL_ID))
 }
 
-/** A session on the scripted model. */
-export const modelSession = async (host: Host, agent = "build") => {
+/** A session on the scripted model, optionally with rules of its own on top of the agent's. */
+export const modelSession = async (host: Host, agent = "build", permissions?: readonly { action: string; resource: string; effect: string }[]) => {
   const sessions = host.client.sessions as unknown as { create: (input: object) => Promise<{ id: string }> }
-  return (await sessions.create({ agent, location: host.location, model: { providerID: "lmstudio", id: MODEL_ID } })).id
+  return (await sessions.create({ agent, location: host.location, model: { providerID: "lmstudio", id: MODEL_ID }, ...(permissions === undefined ? {} : { permissions }) })).id
 }
 
 /**

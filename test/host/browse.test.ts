@@ -132,10 +132,42 @@ describe("the permission table, through the host", () => {
       await host.close()
     }
   })
+
+  // R18: one host case per restricting value. `all` is the default and is proved above.
+  test("access ask-changes makes execute ask and runs nothing when declined", async () => {
+    const host = await startHost({ options: { verifyBinary: false, access: "ask-changes" } })
+    try {
+      const sessionID = await session(host)
+      const read = await attempt(host, sessionID, "build", "status", "reject")
+      expect(read).toMatchObject({ asked: undefined, ok: true })
+      const before = host.fake.tools().length
+      const asked = await attempt(host, sessionID, "build", "execute", "reject", { code: "return 1" })
+      expect(asked.asked).toBe("browse_execute")
+      expect(asked.ok).toBe(false)
+      expect(host.fake.tools()).toHaveLength(before)
+    } finally {
+      await host.close()
+    }
+  })
+
+  test("access read-only denies execute with no prompt and no server call", async () => {
+    const host = await startHost({ options: { verifyBinary: false, access: "read-only" } })
+    try {
+      const sessionID = await session(host)
+      expect(await effect(host, "build", "browse_execute")).toBe("deny")
+      const before = host.fake.tools().length
+      const denied = await attempt(host, sessionID, "build", "execute", "reject", { code: "return 1" })
+      expect(denied.asked).toBeUndefined()
+      expect(denied.ok).toBe(false)
+      expect(host.fake.tools()).toHaveLength(before)
+    } finally {
+      await host.close()
+    }
+  })
 })
 
 describe("Code Mode", () => {
-  test("a tools.browse read runs inside the program, and an inner execute asks and never reaches the server", async () => {
+  test("a tools.browse read runs inside the program, and execute runs under the default allow", async () => {
     const host = await startHost({ options: { verifyBinary: false }, model: true })
     try {
       await modelReady(host)
@@ -155,20 +187,60 @@ describe("Code Mode", () => {
       const sessionID = await modelSession(host)
       const answered = await modelTurn(host, sessionID, "Check the browser.")
       // Every tool is allowed by default, so the inner execute runs too.
-      expect(answered).toBeDefined()
+      expect(answered).toEqual([])
       expect(host.fake.tools()).toContain("status")
       expect(host.fake.tools()).toContain("execute")
     } finally {
       await host.close()
     }
   }, 120_000)
+
+  // R2 on the Code Mode path: a rule that asks is refused, and a rule that denies is refused, with no server call.
+  test("R2: an ask and a deny inside execute are refused, and the server is never called", async () => {
+    const host = await startHost({ options: { verifyBinary: false }, model: true })
+    try {
+      await modelReady(host)
+      host.model!.script = [
+        {
+          tool: "execute",
+          arguments: {
+            code: [
+              "const results = []",
+              "try { await tools.browse.status({}); results.push('ran') } catch (error) { results.push('refused') }",
+              "return results",
+            ].join("\n"),
+          },
+        },
+      ]
+      const asking = await modelSession(host, "build", [{ action: "browse_status", resource: "*", effect: "ask" }])
+      const before = host.fake.tools().length
+      const prompts = await modelTurn(host, asking, "Check the browser.")
+      expect(prompts).toContain("browse_status")
+      expect(host.fake.tools()).toHaveLength(before)
+
+      const denying = await modelSession(host, "build", [{ action: "browse_status", resource: "*", effect: "deny" }])
+      const promptsDenied = await modelTurn(host, denying, "Check the browser.")
+      expect(promptsDenied).toEqual([])
+      expect(host.fake.tools()).toHaveLength(before)
+    } finally {
+      await host.close()
+    }
+  }, 180_000)
 })
 
 describe("the relay a real-mode host starts", () => {
   test("is stopped by the plugin's own command, and another version is refused first", async () => {
     // The packaged binary comes from the platform package, which `scripts/build-bins.mjs --local` installs from the
-    // pinned download. Without it the host cannot start, so say so out loud rather than fail a fresh clone.
-    if (resolveBinary().source !== "package") {
+    // pinned download. Without it the host cannot start, so say so out loud rather than fail a fresh clone: a fresh
+    // clone's `npm ci` skips the optional platform package, and `resolveBinary` throws BINARY_MISSING there.
+    const packaged = (() => {
+      try {
+        return resolveBinary()
+      } catch {
+        return undefined
+      }
+    })()
+    if (packaged?.source !== "package") {
       const message = "skip: the packaged browse binary is not installed; run node scripts/build-bins.mjs --local"
       if (process.env.CI === "true" || process.env.CI === "1") throw new Error(message)
       console.log(message)
