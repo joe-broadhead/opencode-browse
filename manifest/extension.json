@@ -1,18 +1,18 @@
 {
   "app": "browse",
   "artifact": "extension",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "channel": "stable",
   "manifest": "https://anoma.ly/release/browse/extension/stable.json",
   "upstream": "https://github.com/anomalyco/browse",
   "licence": "MIT",
   "copyright": "Copyright (c) 2025 opencode",
   "zip": {
-    "url": "https://anoma.ly/release/browse/files/8b33e8ce8c96446dfd267c5343c30e0c88058ecfe7fec749d1c3c7c4b4d2b68a/opencode-browser-0.0.14.zip",
-    "sha256": "8b33e8ce8c96446dfd267c5343c30e0c88058ecfe7fec749d1c3c7c4b4d2b68a",
-    "bytes": 182081
+    "url": "https://anoma.ly/release/browse/files/17cc49e658ccf09eb2ad6931b6ac0f6a54d3d442d6d9478c37437cadd6bda59c/browse-extension-0.0.15.zip",
+    "sha256": "17cc49e658ccf09eb2ad6931b6ac0f6a54d3d442d6d9478c37437cadd6bda59c",
+    "bytes": 182690
   },
-  "totalBytes": 600735,
+  "totalBytes": 602849,
   "files": [
     {
       "path": "assets/offscreen-DVZCkEfv.js",
@@ -66,8 +66,8 @@
     },
     {
       "path": "background.js",
-      "sha256": "b720158766d1622068c1ae82d08c1c5281deb92b39ce7727d7009948b7caee78",
-      "bytes": 50711
+      "sha256": "0c0f1865bb499f35d6265afd1b596206cc1185fc6394f8d440951c880e0784bf",
+      "bytes": 52825
     },
     {
       "path": "content.js",
@@ -101,7 +101,7 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "e897b0939f500f5d56ebaa3f8c9d6ba54eb41123352707a45f8cf41f7c11ec29",
+      "sha256": "c4cb66df3abee34e8085c264ed5217fd6c06018898941d820b9788cfc10ffad4",
       "bytes": 1354
     },
     {
@@ -125,5 +125,5 @@
       "bytes": 217
     }
   ],
-  "pinnedAt": "2026-11-07T20:31:38.360Z"
+  "pinnedAt": "2026-11-08T11:59:28.087Z"
 }

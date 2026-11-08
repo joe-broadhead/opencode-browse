@@ -1,5 +1,5 @@
 // Pins the two artefacts managed mode needs:
-//   managed-extension/      browse's built extension, unpacked from the release service's stable zip (MIT, 0.0.14)
+//   managed-extension/      browse's built extension, unpacked from the release service's stable zip (MIT)
 //   manifest/extension.json the zip's SHA-256 and size, and every shipped file's SHA-256 and size
 //   manifest/chromium.json  a Chrome for Testing version, and for each platform the download URL, size and SHA-256 we
 //                           measured ourselves (CfT publishes no hashes)
@@ -29,7 +29,7 @@ export const CFT_PLATFORMS = {
   "linux-arm64": "linux-arm64-gnu",
 }
 
-/** browse's public unpacked-extension key (public/manifest.json at 0.0.14); Chrome derives the pinned id from it. */
+/** browse's public unpacked-extension key (public/manifest.json, unchanged from 0.0.14 to 0.0.15); Chrome derives the pinned id from it. */
 const EXTENSION_KEY =
   "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjWdgsBDUPCHO2u5bq3/Us1sLm+kiehLZBL0HIu3stwivGW+bgCDsD8KAEMFJcY04u3iudffTeEGdEe8pQfL7BSNRvyslszmvJrsoP7bVUKXrnRTw3CUsRjnwbqMoMElwegiCFUXPnqQ9ZeA2NGEhmWMyDXqqZxOo0z2q66GTgz9McbXOBK2QXYBPjUWxud814wSrE1lIQ2G58nQVeZenI3/PXZ4f1SACn6SdkiCR44NZwz89I1ISxftongLDED/1dlnivqJBzAtN1s2i+jWplLtOmLJJkh1LQ2jP3gWvYY1zT2RHJIw874SSrrhFt4Hguvo/L0Ge7ixvGp5tDAP2wwIDAQAB"
 

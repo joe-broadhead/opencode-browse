@@ -61,8 +61,8 @@ describe("the tarball", () => {
 
   test("the managed artefacts are pinned: the extension per file, Chrome for Testing per platform", () => {
     const extension = JSON.parse(execFileSync("tar", ["-xzOf", tarball, "package/manifest/extension.json"], { encoding: "utf8" }))
-    // The extension has its own pin, separate from the CLI binary the plugin ships.
-    expect(extension.version).toBe("0.0.14")
+    // The extension moves with the CLI binary: the two pins name the same release.
+    expect(extension.version).toBe(PINNED_VERSION)
     expect(extension.zip.sha256).toMatch(/^[0-9a-f]{64}$/)
     expect(extension.files.length).toBeGreaterThan(10)
     for (const file of extension.files) expect(file.sha256).toMatch(/^[0-9a-f]{64}$/)

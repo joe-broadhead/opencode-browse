@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { createHash } from "node:crypto"
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { PINNED_VERSION } from "../../src/constants.js"
 import { tmpdir } from "node:os"
 import { fileURLToPath } from "node:url"
 import { executableIn, installRoot, installedChromium, managedPlatform, parseChromiumVersion, readPin, resolveChromium } from "../../src/managed/chromium.js"
@@ -78,11 +79,12 @@ describe("the Chromium pin", () => {
 describe("the pinned extension", () => {
   const pin = readExtensionPin(join(root, "manifest"))
 
-  test("is 0.0.14, and every shipped file matches its digest", () => {
-    expect(pin.version).toBe("0.0.14")
+  test("is the pinned release, and every shipped file matches its digest", () => {
+    // The extension moves with the CLI binary, so the two pins name the same release.
+    expect(pin.version).toBe(PINNED_VERSION)
     expect(pin.files.length).toBeGreaterThan(10)
     expect(verifyExtension(join(root, "managed-extension"), pin)).toBeUndefined()
-    expect(extensionVersion(join(root, "managed-extension"))).toBe("0.0.14")
+    expect(extensionVersion(join(root, "managed-extension"))).toBe(PINNED_VERSION)
   })
 
   test("carries the key the relay accepts, so its origin matches", () => {
