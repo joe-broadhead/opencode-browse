@@ -13,7 +13,7 @@ describe("the dialog's open and close path", () => {
     const commands: { id: string; bind?: string; run: () => void; enabled?: () => boolean }[] = []
     const context = {
       location: undefined,
-      client: { rpc: () => ({ status: async () => buildStatus({ host, rules: { scoped: false, readOnly: false }, mode: "real", binary, server: { status: "connected" }, tools: ["status"] }) }) },
+      client: { rpc: () => ({ status: async () => buildStatus({ host, rules: { access: "all" as const, scoped: false, readOnly: false }, mode: "real", binary, server: { status: "connected" }, tools: ["status"] }) }) },
       data: {
         on: (_event: string, _handler: () => void) => {
           listeners += 1
@@ -61,7 +61,7 @@ describe("the dialog's open and close path", () => {
 
 describe("the dialog", () => {
   test("carries the status report without its heading, and the key hint", () => {
-    const status = buildStatus({ host, rules: { scoped: false, readOnly: false }, mode: "real", binary, server: { status: "connected" }, tools: ["status"] })
+    const status = buildStatus({ host, rules: { access: "all" as const, scoped: false, readOnly: false }, mode: "real", binary, server: { status: "connected" }, tools: ["status"] })
     const message = viewMessage({ status })
     expect(message).toStartWith("- Connection: connected")
     expect(message).not.toContain("Browse status")
