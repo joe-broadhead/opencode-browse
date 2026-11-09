@@ -12,6 +12,7 @@
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
     "resolveJsonModule": true,
+    "allowJs": true,
     "skipLibCheck": true,
     "types": ["node", "bun"],
     "noEmit": true
