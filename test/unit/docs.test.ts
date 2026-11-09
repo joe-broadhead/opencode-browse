@@ -141,7 +141,7 @@ describe("the docs", () => {
   test("the changelog is the family's shape", () => {
     const changelog = read("CHANGELOG.md")
     expect(changelog.startsWith("# Changelog\n")).toBe(true)
-    expect(changelog).toContain("## [0.0.0] - Unreleased")
+    expect(changelog).toContain("## [Unreleased]")
     expect(changelog).toContain("### Added")
   })
 })

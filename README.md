@@ -109,20 +109,6 @@ needs `ffmpeg` on PATH. A tab you lend with the toolbar button records through t
 needs nothing. `/browse-status`, `/browse-doctor` and the status RPC show both backends; when `ffmpeg` is missing the
 next step is `brew install ffmpeg` (or your package manager's), or lend a tab and record that.
 
-### Known limitation: parallel agents share one browse session
-
-This plugin pins browse `0.0.15`, whose build predates per-caller sessions (browse commit `f66dce2`). OpenCode does send
-each agent's session id with every browse call, and the wrapper forwards it, but `0.0.15` uses one current session for
-all of them: two agents working at the same time share one session and its tab set. Each task must start its own:
-
-- call `browse_session_new` with a name for the task at the start, and pass its id as `session` on later calls;
-- call `browse_session_delete` when the task is done.
-
-`skills/browse/SKILL.md` tells the agent this, and the mitigation is worth keeping after the re-pin for multi-agent
-work. browse `0.0.16` keeps a session per caller, and this plugin will re-pin to it when it is released.
-`npm run drift` runs a caller-isolation probe and prints `isolates: no` until then; that line is information, not a
-failure.
-
 ## Permissions
 
 **Every tool is allowed by default.** The plugin adds this block to every agent, directly after the agent's base rule
@@ -266,7 +252,7 @@ tab. `execute` runs without asking when `readOnly` is true, because the relay re
 session, and asks otherwise. `/browse-doctor` re-applies the scope if the session is deleted or widened.
 
 **Your own binary.** `path` bypasses the platform package. It is reported as unverified (no digest to compare) and
-untested (unless it is exactly the pinned version), and a tool it lists that this plugin does not classify stays off.
+untested (unless it is exactly the pinned version). A tool it lists that this plugin does not classify follows the `access` option, like every other tool.
 
 [Configuration](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/docs/configuration.md) has worked examples,
 every error code and the status RPC.
@@ -289,6 +275,16 @@ ID or secret to distribute.
 
 The paths are `/etc/opencode/opencode.json` on Linux and `/Library/Application Support/opencode/opencode.json` on
 macOS.
+
+## Known limits
+
+- **Parallel agents share one browse session.** This plugin pins browse `0.0.15`, whose build predates per-caller sessions
+  (browse commit `f66dce2`). OpenCode does send each agent's session id with every browse call, and the wrapper forwards
+  it, but `0.0.15` uses one current session for all of them: two agents working at the same time share one session and
+  its tab set. Each task must start its own: call `browse_session_new` with a name for the task at the start, pass its id
+  as `session` on later calls, and call `browse_session_delete` when the task is done. `skills/browse/SKILL.md` tells the
+  agent this. browse `0.0.16` keeps a session per caller, and this plugin will re-pin to it when it is released. Until
+  then, `npm run drift` prints `isolates: no`; that line is information, not a failure.
 
 ## Troubleshooting
 
