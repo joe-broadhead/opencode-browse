@@ -217,7 +217,7 @@
     "drift": "node scripts/check-browse-tools.mjs",
     "bin:pin": "node scripts/pin.mjs",
     "bin:packages": "node scripts/build-bins.mjs",
-    "bin:local": "node scripts/build-bins.mjs --local",
+    "bin:local": "node scripts/build-bins.mjs --current --local",
     "jelly-check": "node scripts/jelly-check.mjs",
     "test:managed": "bun test ./test/managed",
     "browse:isolated": "node scripts/run-isolated.mjs"
