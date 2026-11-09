@@ -43,5 +43,7 @@ browse's MCP server; it never runs a browser itself.
 ## Commits
 
 Conventional commits, one logical change each, signed, authored as
-`Joe Broadhead <91376460+joe-broadhead@users.noreply.github.com>`. Never push this repository: it has no remote until
-hand-over.
+`joe-broadhead <91376460+joe-broadhead@users.noreply.github.com>`. No personal email in anything we publish. Before
+committing or tagging, check that `git config user.email` is that address: a fresh clone inherits the machine's global
+identity, which is not that address. Never commit, tag or publish with a work or personal address, or with a local
+hostname. Never push this repository: it has no remote until hand-over.
