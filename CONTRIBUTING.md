@@ -6,14 +6,13 @@
 git clone https://github.com/joe-broadhead/opencode-browse.git
 cd opencode-browse
 npm ci
-node scripts/pin.mjs        # downloads the pinned binaries into .cache/bin (about 460 MB)
-node scripts/build-bins.mjs --local
+node scripts/build-bins.mjs --current --local   # fetches and verifies this computer's pinned binary, then installs its package
 npm run build
 ```
 
-`npm ci` with no `.cache/bin` works; the platform package the tests need is built by `build-bins.mjs --local`. The
-host and pack tests use a fake binary, so a checkout without the pin still passes everything except the pin checks in
-`test/pack`.
+`build-bins.mjs` reads the pin in `manifest/browse.json` and fetches only what it names, checking each tarball and binary
+against the pin's size and SHA-256 before it packages anything. Without `--local` the packaged-binary host test prints a
+skip notice (and fails in CI). Most host tests use a fake binary, so they run without it.
 
 ## Running a checkout
 
@@ -52,13 +51,15 @@ It runs with a throwaway HOME, XDG dirs and a free port, and stops the relay it 
 | `forbidden` | the list in `AGENTS.md` |
 | `copies` | the shared tools RPC outside its plugin block |
 | `whitelist` | `package.json` and `dist/` shape |
+| `jelly` | the Jelly declaration against `package.json` |
+| `actionlint` | the two workflows, linted as workflows when `actionlint` is installed |
 
 `npm run test:managed` is separate from `npm run check`, because it downloads Chrome for Testing (about 200 MB) into
 an isolated cache and starts a real browser headless. It pairs automatically, opens a page this test serves, takes a
 screenshot and stops; it never touches your browser, your Chrome or your profile.
 
-Run one with `node scripts/check.mjs <stage>`. On a loaded machine, run heavy stages through
-`bash ~/opencode-release/review/tools/with-slot.sh npm run check`, which allows three hosts at once.
+Run one with `node scripts/check.mjs <stage>`. On a loaded machine, run one heavy stage at a time rather than the whole
+`npm run check` in parallel with other checks.
 
 ## The pin
 
@@ -86,9 +87,10 @@ Move either with `node scripts/pin-managed.mjs --refresh`, and commit `managed-e
 
 1. Remove `"private": true` from `package.json`, set the version, and move the CHANGELOG's Unreleased section to that
    version.
-2. Publish the four platform packages first (`dist-packages/*.tgz`). This is the approved bootstrap and it is by hand:
-   CI cannot rebuild them from the git-ignored cache. Then tag `v<version>`; the release workflow runs the checks,
-   packs, runs the pack test on that tarball, downloads each published platform package and **compares its
-   `manifest/browse.json` digest with this repo's pin** (`scripts/verify-platform-packages.mjs`), and publishes with
-   provenance.
+2. Tag `v<version>`. The release workflow's `platform-packages` job fetches and verifies the four pinned binaries
+   (`scripts/build-bins.mjs`) and publishes each platform package with provenance, unless its version is already on npm.
+   The `publish` job then runs the checks, packs, runs the pack test on that tarball, **compares each published platform
+   package's `manifest/browse.json` digest with this repo's pin** (`scripts/verify-platform-packages.mjs`), and publishes
+   the plugin with provenance. Each package name needs a trusted-publishing config for `release.yml` in the `release`
+   environment before its first publish.
 3. A rerun skips a version already on npm.
