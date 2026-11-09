@@ -35,7 +35,7 @@ jobs:
         # Public GitHub-hosted runners: Linux x64 and arm64, macOS arm64 and x64.
         os: [ubuntu-24.04, ubuntu-24.04-arm, macos-26, macos-26-intel]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,4 +51,6 @@ jobs:
         with:
           bun-version: 1.4.4 # the Bun inside stock OpenCode 2.2.3, 2.2.4, 2.2.5 and 2.2.6
       - run: npm ci --ignore-scripts
+      - name: Build this runner's packaged browse, for the packaged-binary host test
+        run: node scripts/build-bins.mjs --current --local
       - run: npm run check
