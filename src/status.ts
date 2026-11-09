@@ -227,7 +227,7 @@ function nextStepOf(status: Omit<Status, "nextStep">, extra: { known: boolean; s
   if (status.scope && !status.scope.matches) return "Run /browse-doctor to re-apply the configured scope to the pinned session."
   if (extra.settling) return "Browse is still listing its tools. Run /browse-status again in a few seconds."
   if (status.unknownCount > 0) {
-    return `Browse lists ${status.unknownCount} tool(s) this plugin does not classify, so they are off. Update ${PLUGIN_NAME} to a release that knows them, or allow one by exact name.`
+    return `Browse lists ${status.unknownCount} tool(s) this plugin does not classify. They follow the access option, like every tool. Update ${PLUGIN_NAME} to a release that knows them, or set a rule for one by exact name.`
   }
   if (status.problems.some((problem) => problem.startsWith(RULES_NOT_ADDED))) return status.problems.find((problem) => problem.startsWith(RULES_NOT_ADDED))!.split(" Next step: ")[1] ?? "Restart OpenCode."
   if (status.unguardedAgents.length) {

@@ -4,8 +4,8 @@
 // from this file, so a tool cannot drift between them. Keep it free of runtime imports: scripts/check-browse-tools.mjs
 // and the drift job load it directly.
 //
-// Effects: every tool is allowed by default, and so is a tool browse adds later, because the owner's policy is that
-// everything runs unless the user restricts it. The `access` option (`all`, `ask-changes`, `read-only`) derives a
+// Effects: every tool is allowed by default, and so is a tool browse adds later, because everything runs unless the
+// user restricts it. The `access` option (`all`, `ask-changes`, `read-only`) derives a
 // tighter effect from a tool's class, and scoped mode denies the session tools that could leave its pinned session.
 
 /** What a tool's worst case is, for the tools RPC and a Jelly approval. The rules, not the class, decide a call. */
