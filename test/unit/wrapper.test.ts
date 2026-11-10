@@ -46,7 +46,15 @@ const run = (dir: string, home: string) =>
   })
 
 describe("bin/mcp.mjs", () => {
-  if (platform === undefined) test.skip("no platform package for this machine", () => undefined)
+  // A machine with no pinned browse build cannot run the wrapper. Say so with a notice, and fail in CI, where every
+  // pinned platform has a runner, so the wrapper is never silently untested.
+  test("this machine has a pinned browse build to run the wrapper with", () => {
+    if (platform !== undefined) return
+    const message = `no pinned browse build for ${process.platform}-${process.arch}; bin/mcp.mjs was not exercised`
+    if (process.env.CI === "true" || process.env.CI === "1") throw new Error(message)
+    console.log(`skip: ${message}`)
+  })
+  if (platform === undefined) return
 
   test("runs the pinned binary and never the user's ~/.local/bin/browse", () => {
     const fake = tree('#!/bin/sh\necho SERVED-BY-PINNED\n')
