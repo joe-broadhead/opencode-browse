@@ -11,6 +11,7 @@ and this project uses [Semantic Versioning](https://semver.org/).
   entry when it is a browse command.
 - Per-platform optional packages (`@joe-broadhead/opencode-browse-bin-<platform>`) carrying the binary, its
   `manifest/browse.json` digest and browse's MIT licence; the plugin verifies the digest before running it.
+- A Jelly `access` setting, with `all`, `ask-changes` and `read-only`, as the other plugins declare it.
 - Default permission rules by exact tool name: every one of the 18 allows, and so does the `browse_*` pattern, so a tool
   browse adds later runs at once. Switching a project into or out of the scoped profile replaces the previous block in
   the deciding position.

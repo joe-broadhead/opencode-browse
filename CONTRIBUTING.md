@@ -83,6 +83,9 @@ by SHA-256 and unpacked into `managed-extension/`, with every file's digest in `
 for Testing version (its four downloads measured here, in `manifest/chromium.json`, because CfT publishes no hashes).
 Move either with `node scripts/pin-managed.mjs --refresh`, and commit `managed-extension/` with the manifest.
 
+`managed-extension/` is the vendor's built output, unpacked from the pinned zip and checked file by file against
+`manifest/extension.json`. Nobody edits it by hand, so the 600-line rule does not apply to its bundles.
+
 ## Releasing
 
 1. Remove `"private": true` from `package.json`, set the version, and move the CHANGELOG's Unreleased section to that
