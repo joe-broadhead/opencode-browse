@@ -176,7 +176,15 @@
       "homeFeeds": [],
       "homeWidgets": [],
       "workKinds": [],
-      "settings": []
+      "settings": [
+        {
+          "key": "access",
+          "label": "Access",
+          "type": "string",
+          "default": "all",
+          "description": "all, ask-changes or read-only. Generates default rules for agents with a base allow rule; under ask-changes the four reads and tab cleanup run and everything else asks; under read-only the reads run and everything else is denied."
+        }
+      ]
     }
   },
   "exports": {
