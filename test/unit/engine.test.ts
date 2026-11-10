@@ -87,7 +87,8 @@ describe("resolution", () => {
     make("binary")
     const info = resolveBinary({ packageRoot: dir })
     expect(info).toMatchObject({ source: "package", version: "0.0.15", verified: true, pinned: true, tested: true })
-    expect(info.path).toBe(join(dir, "node_modules", "@joe-broadhead", `opencode-browse-bin-${info.platform}`, "bin", "browse"))
+    // The package is named by the platform key (linux-arm64-gnu), not by the label the info carries (linux-arm64).
+    expect(info.path).toBe(join(dir, "node_modules", "@joe-broadhead", `opencode-browse-bin-${platformKey(process.platform, process.arch)}`, "bin", "browse"))
   })
 
   test("refuses a packaged binary whose digest differs, before anything runs", () => {
