@@ -3,6 +3,7 @@ import { cleanup, attempt, effect, modelReady, modelSession, modelTurn, session,
 import { NEW_TOOL, REAL_TOOLS } from "./fake-browse.js"
 import { PINNED_VERSION } from "../../src/constants.js"
 import { resolveBinary } from "../../src/engine.js"
+import { pinnedBinary } from "../support/pinned.js"
 import { relayVersion, stopRelaySafely } from "../../src/managed/relay.js"
 import { assertNoRelayLeft, relayPidsForHome } from "../support/relays.js"
 
@@ -230,18 +231,11 @@ describe("Code Mode", () => {
 
 describe("the relay a real-mode host starts", () => {
   test("is stopped by the plugin's own command, and another version is refused first", async () => {
-    // The packaged binary comes from the platform package, which `scripts/build-bins.mjs --local` installs from the
-    // pinned download. Without it the host cannot start, so say so out loud rather than fail a fresh clone: a fresh
-    // clone's `npm ci` skips the optional platform package, and `resolveBinary` throws BINARY_MISSING there.
-    const packaged = (() => {
-      try {
-        return resolveBinary()
-      } catch {
-        return undefined
-      }
-    })()
-    if (packaged?.source !== "package") {
-      const message = "skip: the packaged browse binary is not installed; run node scripts/build-bins.mjs --local"
+    // The pinned binary is fetched and verified into .cache/bin by `npm run bin:ensure`. Without it the host cannot start:
+    // say so out loud rather than fail a fresh clone (CI runs bin:ensure first, so there it fails instead of skipping).
+    const pinned = pinnedBinary()
+    if (pinned === undefined) {
+      const message = "skip: the pinned browse binary is not in .cache/bin; run npm run bin:ensure"
       if (process.env.CI === "true" || process.env.CI === "1") throw new Error(message)
       console.log(message)
       return
@@ -256,7 +250,7 @@ describe("the relay a real-mode host starts", () => {
       expect(started.asked).toBeUndefined()
       await until("the relay answers", async () => (await relayVersion()) !== undefined, 60_000)
 
-      const binary = resolveBinary()
+      const binary = await resolveBinary({ optionPath: pinned })
       const refused = await stopRelaySafely({ expectedVersion: "0.0.0", binaryPath: binary.path })
       expect(refused.state).toBe("refused")
       expect(await relayVersion()).toBeDefined()

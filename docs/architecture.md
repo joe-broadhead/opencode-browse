@@ -27,7 +27,7 @@ config file.
 | `src/host/tools-rpc.ts` | the shared tools RPC v2.1, with this plugin's block between the markers |
 | `manifest/browse.json` | the pin: version, channel, and each target's tarball URL, SHA-256, size, binary SHA-256 and size |
 | `scripts/pin.mjs` | downloads and verifies the pinned targets into `.cache/bin` |
-| `scripts/build-bins.mjs` | builds `dist-packages/opencode-browse-bin-<platform>` from the pin |
+| `scripts/build-native.mjs` | `--ensure` fetches and verifies this computer's pinned binary into `.cache/bin`; `--release` writes the release files and the candidate manifest |
 | `scripts/check-browse-tools.mjs` | the drift check against the fixture or a binary |
 
 ## Setup
@@ -36,7 +36,7 @@ config file.
 2. `checkHost` compares `ctx.app.version` with `>=2.2.3 <2.3.0`; outside it nothing is set up unless
    `allowUntestedHost` is true.
 3. The skills are read from `../skills/`.
-4. `resolveBinary` finds the platform package, verifies the binary's SHA-256 against its manifest, and returns it. No
+4. `resolveBinary` finds the released binary in the cache (a first-use download runs only at access `all`), verifies its SHA-256 against the pin, and returns it. No
    PATH lookup: a project dependency named `browse` never gets the browser, and the `OPENCODE_BROWSE_BIN` seam is
    ignored unless `OPENCODE_BROWSE_TEST=1`. A missing or tampered binary registers nothing and becomes a status
    problem.

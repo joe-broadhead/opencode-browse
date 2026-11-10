@@ -1,24 +1,22 @@
 // The pinned browse binary: where it is, whether it is the one we ship, what version it answers, and the few CLI
-// calls status and the scoped session need. No installer, no update, no pairing, no PATH lookup: a dependency named
-// `browse` in a project must never drive the user's browser. The only binary this plugin runs is the one in its
-// platform package, or a path the user set explicitly.
+// calls status and the scoped session need. No installer for browse itself, no update, no pairing, no PATH lookup: a
+// dependency named `browse` in a project must never drive the user's browser. The only binary this plugin runs is the
+// one its release pins (downloaded on first use and checked, NATIVE-DESIGN.md), or a path the user set explicitly.
 import { execFile } from "node:child_process"
 import { createHash } from "node:crypto"
-import { existsSync, readFileSync, statSync } from "node:fs"
-import { createRequire } from "node:module"
+import { existsSync, lstatSync, readFileSync, statSync } from "node:fs"
+import { homedir } from "node:os"
 import { dirname, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { browseError, PINNED_VERSION } from "./constants.js"
+import { cachedNative, cachePath, installNative, NativeError, readNativeManifest, type NativeManifest } from "./native/install.js"
 import type { ScopeOptions } from "./options.js"
 
 export type PlatformKey = "darwin-arm64" | "darwin-x64" | "linux-x64-gnu" | "linux-arm64-gnu"
 
-/** The platform packages the release publishes, and the key each is built for. */
-export const PACKAGE_FOR: Readonly<Record<PlatformKey, string>> = {
-  "darwin-arm64": "@joe-broadhead/opencode-browse-bin-darwin-arm64",
-  "darwin-x64": "@joe-broadhead/opencode-browse-bin-darwin-x64",
-  "linux-x64-gnu": "@joe-broadhead/opencode-browse-bin-linux-x64-gnu",
-  "linux-arm64-gnu": "@joe-broadhead/opencode-browse-bin-linux-arm64-gnu",
-}
+/** The release module that carries the browse binary, and the command that downloads it on request. */
+export const NATIVE_MODULE = "browse"
+export const INSTALL_COMMAND = "/browse-install"
 
 export function platformKey(platform: string = process.platform, arch: string = process.arch): PlatformKey | undefined {
   if (platform === "darwin" && arch === "arm64") return "darwin-arm64"
@@ -30,10 +28,10 @@ export function platformKey(platform: string = process.platform, arch: string = 
 
 export const platformLabel = (platform: string = process.platform, arch: string = process.arch) => `${platform}-${arch}`
 
-/** The binary's name inside a platform package. */
+/** The binary's name in a release file, and the name it has once it is cached. */
 export const BINARY_NAME = process.platform === "win32" ? "browse.exe" : "browse"
 
-/** What a platform package's manifest/browse.json records about the binary it ships. */
+/** What the pin records about the binary a platform ships: the upstream version, licence and binary digest. */
 export interface BinaryManifest {
   readonly version: string
   readonly sha256: string
@@ -41,6 +39,14 @@ export interface BinaryManifest {
   readonly target: string
   readonly upstream: string
   readonly licence: string
+}
+
+/** manifest/browse.json, the upstream pin: `scripts/pin.mjs` writes it, `scripts/build-native.mjs` reads it. */
+interface PinFile {
+  readonly version: string
+  readonly upstream: string
+  readonly licence: string
+  readonly targets: Readonly<Partial<Record<PlatformKey, { readonly target: string; readonly sha256: string; readonly bytes: number }>>>
 }
 
 export type Source = "package" | "option" | "environment"
@@ -56,6 +62,8 @@ export interface BinaryInfo {
   readonly pinned: boolean
   /** True when the version is the pinned one (known for a packaged binary without running it). */
   readonly tested: boolean
+  /** The SHA-256 the released binary is pinned to, when the binary is the packaged one; the wrapper re-checks it. */
+  readonly pinnedSha256?: string
 }
 
 export interface ResolveInput {
@@ -64,8 +72,25 @@ export interface ResolveInput {
   readonly env?: Readonly<Record<string, string | undefined>>
   readonly platform?: string
   readonly arch?: string
-  /** Where to resolve the platform packages from; the installed package by default, a test's folder in a unit test. */
+  /** The installed package's folder by default: manifest/native.json and manifest/browse.json are read from here. */
   readonly packageRoot?: string
+  /** Where a downloaded binary is cached. Default: the plugin's cache folder (see `defaultCacheRoot`). */
+  readonly cacheRoot?: string
+  /**
+   * Called before a first-use download. Throw to refuse it; the caller decides from the `access` value. Without it, a
+   * missing binary is refused with the command that downloads it.
+   */
+  readonly mayDownload?: () => void | Promise<void>
+  readonly signal?: AbortSignal
+}
+
+/** The folder the installed package is in: this file is src/engine.ts or dist/index.js, one level below it. */
+export const packageRootDefault = (): string => join(dirname(fileURLToPath(import.meta.url)), "..")
+
+/** The plugin's cache folder: $XDG_CACHE_HOME/opencode-browse, or ~/Library/Caches/opencode-browse on macOS. */
+export function defaultCacheRoot(env: Readonly<Record<string, string | undefined>> = process.env, home: string = homedir(), platform: string = process.platform): string {
+  const base = env.XDG_CACHE_HOME ?? (platform === "darwin" ? join(home, "Library", "Caches") : join(home, ".cache"))
+  return join(base, "opencode-browse")
 }
 
 const sha256 = (path: string) => createHash("sha256").update(readFileSync(path)).digest("hex")
@@ -82,29 +107,88 @@ function fileDigest(path: string): string {
   return digest
 }
 
-function packageBinary(key: PlatformKey, packageRoot?: string): { path: string; manifest: BinaryManifest } | undefined {
+/** Turns a native-installer refusal into this plugin's refusal, with its own code and next step. */
+function refusal(error: unknown): Error {
+  if (!(error instanceof NativeError)) return error as Error
+  const code =
+    error.code === "NATIVE_HASH_MISMATCH" || error.code === "NATIVE_SIZE_MISMATCH" ? "BINARY_UNVERIFIED"
+    : error.code === "NATIVE_UNSUPPORTED_PLATFORM" ? "UNSUPPORTED_PLATFORM"
+    : "BINARY_MISSING"
+  return browseError(code, error.message.replace(/^NATIVE_[A-Z_]+: /, ""), error.next)
+}
+
+/**
+ * The cached executable must be a regular file, not a link, owner read and execute, and no permission outside 0755.
+ * Its bytes were checked against the pin's SHA-256 when it was installed or found by `cachedNative`.
+ */
+function checkExecutable(path: string): string {
+  const stat = lstatSync(path)
+  const mode = stat.mode & 0o7777
+  if (!stat.isFile() || (mode & 0o500) !== 0o500 || (mode & ~0o755) !== 0) {
+    throw browseError("BINARY_UNVERIFIED", "The cached browse binary must be a regular file, not a link, with owner read and execute and no permission outside 0755.", `Remove ${path}, then run ${INSTALL_COMMAND}.`)
+  }
+  return path
+}
+
+function readPin(root: string): PinFile {
   try {
-    const dir = packageRoot === undefined
-      ? dirname(createRequire(import.meta.url).resolve(`${PACKAGE_FOR[key]}/package.json`))
-      : join(packageRoot, "node_modules", "@joe-broadhead", `opencode-browse-bin-${key}`)
-    return { path: join(dir, "bin", BINARY_NAME), manifest: JSON.parse(readFileSync(join(dir, "manifest", "browse.json"), "utf8")) as BinaryManifest }
+    return JSON.parse(readFileSync(join(root, "manifest", "browse.json"), "utf8")) as PinFile
   } catch {
-    return undefined
+    throw browseError("BINARY_MISSING", "This copy of the plugin has no browse pin (manifest/browse.json).", "Reinstall the plugin from a release.")
   }
 }
 
 /**
- * Finds the binary, in order: the `path` option (the user's own), the platform package the release pins, then the
- * `OPENCODE_BROWSE_BIN` test seam. There is deliberately no PATH fallback. A packaged binary whose SHA-256 differs
- * from its manifest is refused with BINARY_UNVERIFIED before anything runs.
+ * The released binary for this platform: the cached copy when it verifies, otherwise a first-use download, which
+ * `mayDownload` must allow first. The release manifest must pin the same executable as the upstream pin, so a release
+ * cannot ship a different binary than the one this plugin was pinned to.
  */
-export function resolveBinary(input: ResolveInput = {}): BinaryInfo {
+async function packagedBinary(key: PlatformKey, input: ResolveInput): Promise<{ path: string; manifest: BinaryManifest }> {
+  const root = input.packageRoot ?? packageRootDefault()
+  const pin = readPin(root)
+  const target = pin.targets[key]
+  if (target === undefined) throw browseError("UNSUPPORTED_PLATFORM", `This plugin ships no browse binary for ${key}.`, "Use macOS (arm64 or x64) or Linux (x64 or arm64), or set the \"path\" option to your own browse binary.")
+  const manifest: BinaryManifest = { version: pin.version, sha256: target.sha256, bytes: target.bytes, target: target.target, upstream: pin.upstream, licence: pin.licence }
+  const release: NativeManifest | undefined = await readNativeManifest(root).catch((error) => {
+    throw refusal(error)
+  })
+  if (release === undefined) {
+    throw browseError("BINARY_MISSING", "This copy of the plugin has no release manifest, so it names no browse binary.", "Reinstall the plugin from a release, or set \"path\" to a browse binary.")
+  }
+  const entry = release.modules[NATIVE_MODULE]?.[key]
+  if (entry === undefined || entry.executable.sha256 !== target.sha256 || entry.executable.bytes !== target.bytes) {
+    throw browseError("BINARY_UNVERIFIED", "The release manifest does not pin the upstream browse binary for this platform.", "Reinstall the plugin from a valid release.")
+  }
+  const options = { manifest: release, module: NATIVE_MODULE, key, cacheRoot: input.cacheRoot ?? defaultCacheRoot(), installCommand: INSTALL_COMMAND, signal: input.signal }
+  // verifyBinary: false trusts a cached file without hashing it again; it is still downloaded only when absent.
+  const cached = input.verify === false ? (existsSync(cachePath(options)) ? cachePath(options) : undefined) : await cachedNative(options).catch((error) => { throw refusal(error) })
+  let path = cached
+  if (path === undefined) {
+    if (input.mayDownload === undefined) {
+      throw browseError("BINARY_MISSING", "The browse binary is not installed yet.", `Run ${INSTALL_COMMAND}, which downloads and verifies it.`)
+    }
+    await input.mayDownload()
+    try {
+      path = (await installNative({ ...options, signal: input.signal })).path
+    } catch (error) {
+      throw refusal(error)
+    }
+  }
+  return { path: checkExecutable(path), manifest }
+}
+
+/**
+ * Finds the binary, in order: the `path` option (the user's own), the released binary for this platform, then the
+ * `OPENCODE_BROWSE_BIN` test seam. There is deliberately no PATH fallback. A cached binary that is not the pinned bytes
+ * is never run: a download replaces it, after `mayDownload`.
+ */
+export async function resolveBinary(input: ResolveInput = {}): Promise<BinaryInfo> {
   const platform = input.platform ?? process.platform
   const arch = input.arch ?? process.arch
   const key = platformKey(platform, arch)
   const env = input.env ?? process.env
   const verify = input.verify ?? true
-  const candidate = (path: string, source: Source, version: string | null, verified: boolean): BinaryInfo => ({
+  const candidate = (path: string, source: Source, version: string | null, verified: boolean, pinnedSha256?: string): BinaryInfo => ({
     path,
     version,
     source,
@@ -113,6 +197,7 @@ export function resolveBinary(input: ResolveInput = {}): BinaryInfo {
     supported: key !== undefined,
     pinned: version === PINNED_VERSION && source === "package",
     tested: version === PINNED_VERSION,
+    ...pinnedSha256 === undefined ? {} : { pinnedSha256 },
   })
 
   if (input.optionPath !== undefined) {
@@ -123,17 +208,14 @@ export function resolveBinary(input: ResolveInput = {}): BinaryInfo {
     return candidate(path, "option", null, false)
   }
 
+  let packagedError: unknown
   if (key !== undefined) {
-    const found = packageBinary(key, input.packageRoot)
-    if (found !== undefined && existsSync(found.path)) {
-      if (verify && fileDigest(found.path) !== found.manifest.sha256) {
-        throw browseError(
-          "BINARY_UNVERIFIED",
-          "The browse binary does not match the SHA-256 its platform package records, so it was not run.",
-          "Reinstall the plugin; if it still fails, set \"verifyBinary\": false only if you trust that file.",
-        )
-      }
-      return candidate(found.path, "package", found.manifest.version, verify)
+    try {
+      const found = await packagedBinary(key, input)
+      return candidate(found.path, "package", found.manifest.version, verify, found.manifest.sha256)
+    } catch (error) {
+      if ((error as { code?: unknown }).code !== "BINARY_MISSING") throw error
+      packagedError = error
     }
   }
 
@@ -145,14 +227,11 @@ export function resolveBinary(input: ResolveInput = {}): BinaryInfo {
     return candidate(path, "environment", null, false)
   }
 
+  if (packagedError !== undefined) throw packagedError
   throw browseError(
-    key === undefined ? "UNSUPPORTED_PLATFORM" : "BINARY_MISSING",
-    key === undefined
-      ? `This plugin ships no browse binary for ${platformLabel(platform, arch)}.`
-      : "The pinned browse binary is missing from its platform package.",
-    key === undefined
-      ? "Use macOS (arm64 or x64) or Linux (x64 or arm64), or set the \"path\" option to your own browse binary."
-      : "Reinstall the plugin, so the platform package for this computer is installed.",
+    "UNSUPPORTED_PLATFORM",
+    `This plugin ships no browse binary for ${platformLabel(platform, arch)}.`,
+    "Use macOS (arm64 or x64) or Linux (x64 or arm64), or set the \"path\" option to your own browse binary.",
   )
 }
 
@@ -341,4 +420,17 @@ export async function ensureScope(bin: string, scope: ScopeOptions, timeoutMs = 
 function scopeFailure(step: string, stderr: string) {
   const reason = stderr.trim().split("\n")[0]
   return browseError("SCOPE_UNREACHABLE", `browse could not ${step} the pinned session${reason ? ` (${reason})` : ""}.`, "Open the browser, make sure browse is paired, then run /browse-doctor and try again.")
+}
+
+/**
+ * Re-checks a resolved binary at the moment it is used, not only at setup: a released binary must still be a regular
+ * file with its pinned mode and still hash to its pin. A user's own path and the test seam are returned as they are.
+ */
+export function verifyBinaryNow(info: BinaryInfo, verify = true): BinaryInfo {
+  if (info.source !== "package" || info.pinnedSha256 === undefined) return info
+  checkExecutable(info.path)
+  if (verify && fileDigest(info.path) !== info.pinnedSha256) {
+    throw browseError("BINARY_UNVERIFIED", "The browse binary no longer matches the SHA-256 its release pins, so it was not run.", `Run ${INSTALL_COMMAND} to download it again, or restart OpenCode.`)
+  }
+  return info
 }

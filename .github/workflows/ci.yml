@@ -51,6 +51,6 @@ jobs:
         with:
           bun-version: 1.4.4 # the Bun inside stock OpenCode 2.2.3, 2.2.4, 2.2.5 and 2.2.6
       - run: npm ci --ignore-scripts
-      - name: Build this runner's packaged browse, for the packaged-binary host test
-        run: node scripts/build-bins.mjs --current --local
+      - name: Fetch and verify this runner's pinned browse binary, for the host and managed tests
+        run: npm run bin:ensure
       - run: npm run check

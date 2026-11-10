@@ -1,7 +1,7 @@
 // Pins the browse binary this plugin ships. One run downloads the channel manifest, fetches each target's npm
 // tarball from Anomaly's release service, checks the tarball's size and SHA-256 against the manifest, extracts
 // package/bin/browse, checks the binary's own SHA-256 and byte size, and writes manifest/browse.json. The binaries
-// stay in .cache/bin (git-ignored); scripts/build-bins.mjs turns them into the platform packages.
+// stay in .cache/bin (git-ignored); scripts/build-native.mjs turns them into the release files.
 //
 //   node scripts/pin.mjs            pin the current version on the stable channel (refuses a change without --refresh)
 //   node scripts/pin.mjs --refresh  re-pin whatever the channel serves now, after a drift check

@@ -5,7 +5,7 @@ import { formatRelayStop, relayOwnership, type RelayVersion, type RelayStop } fr
 import { registerStopRelayCommand } from "../../src/plugin.js"
 
 const version: RelayVersion = { version: "0.0.14", instanceId: "inst-1", pid: 42, managed: true, buildId: "build-1", shutdownProtocol: 2 }
-const binary = "/package/node_modules/@joe-broadhead/opencode-browse-bin-darwin-arm64/bin/browse"
+const binary = "/cache/native/v0.0.0/browse/darwin-arm64/browse"
 const command = `/${binary.replace(/^\//, "")} serve`
 
 describe("relayOwnership", () => {

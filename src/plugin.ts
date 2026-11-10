@@ -1,8 +1,8 @@
 import { Plugin } from "@opencode/plugin"
 import { fileURLToPath } from "node:url"
 import { join } from "node:path"
-import { errorText, isPluginCode, NAMESPACE_DESCRIPTION, PINNED_VERSION, PLUGIN_ID, SERVER_NAME, SUPPORTED_HOST } from "./constants.js"
-import { ensureScope, probeVersion, readStatus, resolveBinary, runBinary, type BinaryInfo, type BrowseStatus, type Probe, type ScopeResult } from "./engine.js"
+import { browseError, errorText, isPluginCode, NAMESPACE_DESCRIPTION, PINNED_VERSION, PLUGIN_ID, SERVER_NAME, SUPPORTED_HOST } from "./constants.js"
+import { ensureScope, INSTALL_COMMAND, probeVersion, readStatus, resolveBinary, runBinary, type BinaryInfo, type BrowseStatus, type Probe, type ScopeResult, verifyBinaryNow } from "./engine.js"
 import { checkHost, isTestedHost, type HostCheck } from "./host-version.js"
 import { isScoped, parseOptions, type Options } from "./options.js"
 import { conflictRules, defaultRules, registerDefaultRules, type RuleSet } from "./permissions.js"
@@ -25,6 +25,8 @@ interface BrowseSeam {
 const packageRoot = fileURLToPath(new URL("..", import.meta.url))
 /** The MCP entry: a wrapper that re-verifies the pinned binary at every spawn. */
 export const wrapperPath = () => join(packageRoot, "bin", "mcp.mjs")
+/** The MCP command for a resolved binary: the wrapper, the pin it must match, the binary and `mcp`. */
+export const serverCommand = (info: BinaryInfo): string[] => [wrapperPath(), ...info.pinnedSha256 === undefined ? [] : ["--pinned", info.pinnedSha256], info.path, "mcp"]
 
 /**
  * The entry's environment. browse's own two switches are always set: `MCP_DIRECT=1` makes the binary serve instead
@@ -49,10 +51,9 @@ export function owned(command: unknown): boolean {
   if (!Array.isArray(command) || command.length < 2) return false
   const parts = command.filter((part): part is string => typeof part === "string")
   if (parts.length !== command.length || parts.at(-1) !== "mcp") return false
-  // Our wrapper: [wrapperPath, binary, "mcp"]; the program is two from the end.
+  // Our wrapper: [wrapperPath, ("--pinned", sha256)?, binary, "mcp"]; the program is the entry before "mcp".
   const program = parts.at(-2) ?? ""
-  const before = parts.at(-3) ?? ""
-  if (/[/\\]opencode-browse[/\\]bin[/\\]mcp\.mjs$/.test(before)) return true
+  if (parts.some((part) => /[/\\]opencode-browse[/\\]bin[/\\]mcp\.mjs$/.test(part))) return true
   return /(^|[/\\])browse(\.exe)?$/.test(program) || /[/\\]@opencode[/\\]browse[/\\]dist[/\\]cli\.m?js$/.test(program)
 }
 
@@ -188,15 +189,24 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
         return async () => undefined
       }
 
-      // The binary: resolved once, synchronously, so the transform can register the server in this same tick.
+      // The binary: the pinned release, downloaded on first use, or the path the person set. Resolved before the server
+      // is registered. A first-use download runs only at access "all"; the other values refuse it and name
+      // /browse-install, which downloads at any access value (NATIVE-DESIGN.md section 3).
       let binary: BinaryInfo | undefined
       let binaryProblem: string | undefined
-      const verifyBinary = () => {
-        binary = resolveBinary({ ...(options.path ? { optionPath: options.path } : {}), verify: options.verifyBinary })
+      const firstUse = (): void => {
+        if (options.access !== "all") {
+          throw browseError("BINARY_MISSING", "The browse binary is not installed, and access does not allow a first-use download.", `Run ${INSTALL_COMMAND}, then restart OpenCode.`)
+        }
+      }
+      // Re-checks the resolved binary at each use: a released binary must still hash to its pin.
+      const verifyBinary = (): BinaryInfo => {
+        if (binary === undefined) throw browseError("BINARY_MISSING", "The browse binary is not resolved.", `Run ${INSTALL_COMMAND}, then restart OpenCode.`)
+        binary = verifyBinaryNow(binary, options.verifyBinary)
         return binary
       }
       try {
-        verifyBinary()
+        binary = await resolveBinary({ ...(options.path ? { optionPath: options.path } : {}), verify: options.verifyBinary, mayDownload: firstUse })
       } catch (error) {
         const caught = (error as { code?: unknown }).code
         const code = isPluginCode(caught) ? caught : "BINARY_MISSING"
@@ -208,7 +218,7 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
       let source: ServerSource | undefined
       await registerServer(
         ctx.mcp,
-        binary === undefined ? undefined : { command: [wrapperPath(), binary.path, "mcp"], environment: serverEnvironment(options) },
+        binary === undefined ? undefined : { command: serverCommand(binary), environment: serverEnvironment(options) },
         (next, problem) => {
           source = next
           report("server")(problem)
@@ -311,6 +321,28 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
         },
       })
       await registerStopRelayCommand(ctx, { binary: () => binary })
+      await ctx.command.transform((editor) =>
+        editor.add({
+          name: "browse-install",
+          description: "Download and verify the pinned browse binary (about 115-135 MB), then restart OpenCode",
+          execute: async ({ sessionID }) => {
+            let text: string
+            if (options.path) {
+              text = "This plugin uses the browse binary named by the path option, so there is nothing to download. Remove the path option to use the pinned release."
+            } else {
+              try {
+                const info = await resolveBinary({ verify: options.verifyBinary, mayDownload: () => undefined })
+                text = `browse ${info.version ?? PINNED_VERSION} is installed and verified. Restart OpenCode, or run opencode reload, so the browse tools register.`
+              } catch (error) {
+                const code = (error as { code?: string }).code ?? "BINARY_MISSING"
+                const next = (error as { nextStep?: string }).nextStep ?? "Run /browse-doctor."
+                text = `${code}: ${shortReason((error as Error).message.replace(/^[A-Z_]+: /, "").split(" Next step: ")[0] ?? "") ?? "the binary could not be installed"}. Next step: ${next}`
+              }
+            }
+            await ctx.session.synthetic({ sessionID, text, description: "Browse install", resume: false })
+          },
+        }),
+      )
       await ctx.command.transform((editor) =>
         editor.add({
           name: "browse-install-browser",

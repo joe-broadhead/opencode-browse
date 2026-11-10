@@ -208,12 +208,6 @@
     "LICENSE",
     "CHANGELOG.md"
   ],
-  "optionalDependencies": {
-    "@joe-broadhead/opencode-browse-bin-darwin-arm64": "0.0.0",
-    "@joe-broadhead/opencode-browse-bin-darwin-x64": "0.0.0",
-    "@joe-broadhead/opencode-browse-bin-linux-x64-gnu": "0.0.0",
-    "@joe-broadhead/opencode-browse-bin-linux-arm64-gnu": "0.0.0"
-  },
   "scripts": {
     "check": "node scripts/check.mjs",
     "typecheck": "node scripts/check.mjs typecheck",
@@ -224,11 +218,11 @@
     "lint": "node scripts/check.mjs forbidden",
     "drift": "node scripts/check-browse-tools.mjs",
     "bin:pin": "node scripts/pin.mjs",
-    "bin:packages": "node scripts/build-bins.mjs",
-    "bin:local": "node scripts/build-bins.mjs --current --local",
     "jelly-check": "node scripts/jelly-check.mjs",
     "test:managed": "bun test ./test/managed",
-    "browse:isolated": "node scripts/run-isolated.mjs"
+    "browse:isolated": "node scripts/run-isolated.mjs",
+    "bin:native": "node scripts/build-native.mjs",
+    "bin:ensure": "node scripts/build-native.mjs --ensure"
   },
   "devDependencies": {
     "@opencode/client": "2.2.3",

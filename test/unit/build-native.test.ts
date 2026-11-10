@@ -1,16 +1,16 @@
-// The platform packages' build rules: the mapping from this computer to a pinned build, the digest check that refuses a
-// wrong binary, the table of platforms agreeing with the pin, and the download's retry of transient answers.
+// The release build's rules (scripts/build-native.mjs): a file is kept only at the pinned size and SHA-256, and the
+// download retries the transient answers the release service gives a runner, but never a wrong body.
 import { afterAll, describe, expect, test } from "bun:test"
 import { createHash } from "node:crypto"
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { createServer, type Server } from "node:http"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { currentPlatform, download, PLATFORMS, verified } from "../../scripts/build-bins.mjs"
+import { download, verified } from "../../scripts/build-native.mjs"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
 const pin = JSON.parse(readFileSync(join(root, "manifest", "browse.json"), "utf8"))
-const work = realpathSync(mkdtempSync(join(realpathSync("/tmp"), "browse-build-bins-")))
+const work = realpathSync(mkdtempSync(join(realpathSync("/tmp"), "browse-build-native-")))
 afterAll(() => rmSync(work, { recursive: true, force: true }))
 
 const BODY = Buffer.from("pinned browse bytes")
@@ -34,17 +34,9 @@ async function serve(script: { status: number; body?: Buffer }[]): Promise<{ url
   }
 }
 
-describe("build-bins", () => {
-  test("maps this computer to the pinned platform key, and refuses a platform the pin does not name", () => {
-    expect(currentPlatform("darwin", "arm64")).toBe("darwin-arm64")
-    expect(currentPlatform("darwin", "x64")).toBe("darwin-x64")
-    expect(currentPlatform("linux", "x64")).toBe("linux-x64-gnu")
-    expect(currentPlatform("linux", "arm64")).toBe("linux-arm64-gnu")
-    expect(currentPlatform("win32", "x64")).toBeUndefined()
-  })
-
-  test("every pinned target has a platform package, and no platform is packaged without a pin", () => {
-    expect(Object.keys(pin.targets).sort()).toEqual(Object.keys(PLATFORMS).sort())
+describe("build-native", () => {
+  test("the pin names exactly the four platforms the release builds", () => {
+    expect(Object.keys(pin.targets).sort()).toEqual(["darwin-arm64", "darwin-x64", "linux-arm64-gnu", "linux-x64-gnu"])
   })
 
   test("a file is verified only at the pinned size and SHA-256", () => {

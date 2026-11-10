@@ -1,0 +1,112 @@
+name: native
+
+# Builds the browse release files for a release (NATIVE-DESIGN.md, section 4). Runs on master only, so the candidate pins
+# master's commit. It fetches each platform's pinned tarball from the release service, checks it against
+# manifest/browse.json, gzips the executable, writes the candidate manifest and attests the gzips. It publishes nothing:
+# the release job downloads this run's files, checks them against the pinned hashes and attaches them.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: native (browse)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Refuse anything but master
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/master" ]; then
+            echo "::error::native builds run on master only, so the candidate pins master's commit."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false # no caches in release builds
+
+      # Every platform's pinned tarball, checked by size and SHA-256 before its binary is extracted and checked again.
+      - name: Build the release files for every platform
+        run: node scripts/build-native.mjs --release "$RUNNER_TEMP/native" --tag v0.0.0 --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" --run "$GITHUB_RUN_ID"
+
+      - name: Attest the executables
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/native/*.gz
+
+      # The artifacts the release job reads: the candidate manifest as native.json, the gzips of each platform, and the
+      # licence file the manifest names.
+      - name: Stage the artifacts
+        run: |
+          set -euo pipefail
+          staged="$RUNNER_TEMP/staged"
+          mkdir -p "$staged/native-manifest" "$staged/native-licence"
+          mv "$RUNNER_TEMP/native/native-manifest.json" "$staged/native-manifest/native.json"
+          mv "$RUNNER_TEMP/native/LICENSE.browse" "$staged/native-licence/"
+          for platform in darwin-arm64 darwin-x64 linux-arm64-gnu linux-x64-gnu; do
+            mkdir -p "$staged/native-$platform"
+            mv "$RUNNER_TEMP/native/browse-$platform.gz" "$staged/native-$platform/"
+          done
+          find "$staged" -type f | sort
+
+      - name: Upload the candidate manifest
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-manifest
+          path: ${{ runner.temp }}/staged/native-manifest
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload the licence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-licence
+          path: ${{ runner.temp }}/staged/native-licence
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload the darwin-arm64 files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-darwin-arm64
+          path: ${{ runner.temp }}/staged/native-darwin-arm64
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload the darwin-x64 files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-darwin-x64
+          path: ${{ runner.temp }}/staged/native-darwin-x64
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload the linux-arm64-gnu files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-linux-arm64-gnu
+          path: ${{ runner.temp }}/staged/native-linux-arm64-gnu
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload the linux-x64-gnu files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-linux-x64-gnu
+          path: ${{ runner.temp }}/staged/native-linux-x64-gnu
+          retention-days: 30
+          if-no-files-found: error

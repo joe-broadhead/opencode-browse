@@ -18,14 +18,7 @@ const ASSET_EXPORTS = { "./icon.svg": "assets/icon.svg", "./icon-128.png": "asse
 const DIST = Object.values(EXPORTS).map((base) => `${base}.js`).sort()
 const HOST_RANGE = ">=2.2.3 <2.3.0"
 const HOST_DEV_PIN = "2.2.3"
-const ABSENT_FIELDS = ["dependencies", "bundleDependencies", "bundledDependencies", "peerDependencies", "peerDependenciesMeta", "engines", "overrides"]
-// The platform packages the release publishes, exactly. They are optional so another platform's package is skipped.
-const OPTIONAL = {
-  "@joe-broadhead/opencode-browse-bin-darwin-arm64": "0.0.0",
-  "@joe-broadhead/opencode-browse-bin-darwin-x64": "0.0.0",
-  "@joe-broadhead/opencode-browse-bin-linux-x64-gnu": "0.0.0",
-  "@joe-broadhead/opencode-browse-bin-linux-arm64-gnu": "0.0.0",
-}
+const ABSENT_FIELDS = ["dependencies", "optionalDependencies", "bundleDependencies", "bundledDependencies", "peerDependencies", "peerDependenciesMeta", "engines", "overrides"]
 const LIFECYCLE_SCRIPTS = ["preinstall", "install", "postinstall", "preprepare", "prepare", "postprepare", "prepublish", "prepublishOnly", "prepack", "postpack", "publish", "postpublish"]
 
 const stages = {
@@ -122,7 +115,6 @@ function whitelist() {
   const problems = []
   if (JSON.stringify(pkg.files) !== JSON.stringify(FILES)) problems.push(`"files" must be exactly ${JSON.stringify(FILES)}.`)
   for (const field of ABSENT_FIELDS) if (field in pkg) problems.push(`Remove "${field}": the package ships no runtime dependencies and no host peers.`)
-  if (JSON.stringify(pkg.optionalDependencies) !== JSON.stringify(OPTIONAL)) problems.push(`"optionalDependencies" must be exactly the four pinned platform packages.`)
   for (const script of LIFECYCLE_SCRIPTS) if (pkg.scripts?.[script] !== undefined) problems.push(`Remove the "${script}" script: OpenCode installs with lifecycle scripts disabled.`)
   if (pkg.opencode?.host !== HOST_RANGE) problems.push(`"opencode.host" must be "${HOST_RANGE}", the tested OpenCode line.`)
   for (const name of ["@opencode/client", "@opencode/plugin", "@opencode/sdk"]) {

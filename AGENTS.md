@@ -10,7 +10,7 @@ browse's MCP server; it never runs a browser itself.
 - `bin/mcp.mjs` is the MCP entry; it re-verifies the pinned binary at every spawn. `src/managed/` is managed mode:
   Chrome for Testing in its own profile, the pinned extension, and browse's own pairing. Never touch the user's browser,
   Chrome or profile from managed mode or its tests.
-- `manifest/browse.json` is the pin. `scripts/pin.mjs` writes it; `scripts/build-bins.mjs` builds the platform packages.
+- `manifest/browse.json` is the pin. `scripts/pin.mjs` writes it; `scripts/build-native.mjs` builds the release files.
 - The plugin never edits a config file, never runs `browse install`, `browse update` or `browse pair`, and never adds an
   `OPENCODE_BROWSER_ALLOW_*` environment variable.
 

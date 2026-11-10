@@ -12,7 +12,7 @@
 | `scope.session` | string | `opencode` | The session's id: lowercase letters, digits, `.`, `_`, `-`. |
 | `scope.allowedOrigins` | string[] | `[]` | Hosts or origins the session's tabs may load: `example.com`, `*.example.com`, `https://app.example.com`, `http://localhost:3000`. Empty means no allowlist, browse's own default. |
 | `scope.readOnly` | boolean | `false` | Pin a read-only session, whose input the relay refuses. `execute` then runs without asking. |
-| `verifyBinary` | boolean | `true` | Check the pinned binary's SHA-256 against its platform package before running it. |
+| `verifyBinary` | boolean | `true` | Check the pinned binary's SHA-256 against the pin before running it. |
 | `allowUntestedHost` | boolean | `false` | Run on an OpenCode version outside `>=2.2.3 <2.3.0`, with a warning in status. |
 
 An unknown option, a wrong type or an unsafe session name is `OPTIONS_INVALID`: the plugin sets nothing up and status
@@ -30,6 +30,7 @@ code, and removes the file once the attempt ends.
   the real browser.
 - The browser starts with the plugin, headed by default, and stops on dispose (reload or exit). A browser a crashed
   run left behind is stopped on the next start only when its command line names the executable this plugin launched.
+- `/browse-install` downloads the pinned browse binary from this repository's release (about 115-135 MB), checks it against the pin, and asks you to restart OpenCode so the server registers. It downloads at any `access` value, since you typed it. Without it, a missing binary registers no browse tools.
 - `/browse-install-browser` downloads the pinned Chrome for Testing from Google, verifies its size and SHA-256 against
   `manifest/chromium.json`, extracts it into `$XDG_CACHE_HOME/opencode-browse/chromium/<version>`, and records the
   executable's digest; a later change is refused (`CHROMIUM_UNVERIFIED`). Nothing downloads on its own.
@@ -98,7 +99,7 @@ Every error is `CODE: What happened. Next step: What to do.` One next step, endi
 
 | Code | When | Next step |
 | --- | --- | --- |
-| `BINARY_MISSING` | the platform package has no binary, or `path` names a missing file | reinstall the plugin, or fix `path` |
+| `BINARY_MISSING` | the release binary is not installed yet, or `path` names a missing file | run `/browse-install`, then restart OpenCode, or fix `path` |
 | `NOT_INSTALLED` | `/browse-stop-relay` has no pinned binary to identify the relay | reinstall the plugin |
 | `BINARY_UNVERIFIED` | the binary's SHA-256 differs from its manifest, at startup or at an MCP spawn | reinstall; set `verifyBinary: false` only if you trust the file |
 | `CHROMIUM_MISSING` | `chromiumPath` does not exist | fix it, or run `/browse-install-browser` |

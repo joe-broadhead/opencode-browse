@@ -27,7 +27,7 @@ describe("renderDoctor", () => {
   test("no binary is a reinstall", () => {
     const text = renderDoctor({ host, live: {}, problems: [] })
     expect(text).toContain("- Binary: none")
-    expect(text).toContain("Next step: Reinstall the plugin")
+    expect(text).toContain("Next step: Run /browse-install")
   })
 
   test("an unverified or untested binary is named", () => {

@@ -6,12 +6,14 @@ import { afterAll, expect, test } from "bun:test"
 import { createServer as createHttpServer } from "node:http"
 import { createServer as createTcpServer } from "node:net"
 import { cpSync, existsSync, mkdirSync, readFileSync } from "node:fs"
+import { createHash } from "node:crypto"
 import { join } from "node:path"
 import type { AddressInfo } from "node:net"
 import { ROOT } from "../host/isolate.js"
 import { installChromium, installRoot, managedPlatform, readPin } from "../../src/managed/chromium.js"
 import { ManagedBrowser } from "../../src/managed/browser.js"
-import { runBinary, resolveBinary } from "../../src/engine.js"
+import { platformKey, runBinary, resolveBinary } from "../../src/engine.js"
+import { pinnedBinary } from "../support/pinned.js"
 import { cleanup, startHost, until } from "../host/harness.js"
 import { assertNoRelayLeft, relayPidsForHome, stopRelay } from "../support/relays.js"
 import { relayVersion } from "../../src/managed/relay.js"
@@ -58,9 +60,13 @@ test(
       cpSync(installRoot(pin.version), persistent, { recursive: true })
     }
 
-    const binary = resolveBinary()
-    expect(binary.source).toBe("package")
-    expect(binary.verified).toBe(true)
+    // The pinned binary (npm run bin:ensure): the bytes the release ships, checked here against the pin.
+    const pinnedPath = pinnedBinary()
+    if (pinnedPath === undefined) throw new Error("the pinned browse binary is not in .cache/bin: run npm run bin:ensure")
+    const binary = await resolveBinary({ optionPath: pinnedPath })
+    expect(binary.source).toBe("option")
+    const browsePin = JSON.parse(readFileSync(join(projectRoot, "manifest", "browse.json"), "utf8"))
+    expect(createHash("sha256").update(readFileSync(binary.path)).digest("hex")).toBe(browsePin.targets[platformKey()!].sha256)
 
     // A local page the managed browser will open. Nothing leaves the machine.
     const page = createHttpServer((_request, response) => {

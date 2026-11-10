@@ -11,7 +11,8 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = fileURLToPath(new URL("..", import.meta.url))
-const binary = join(root, "node_modules", "@joe-broadhead", `opencode-browse-bin-${platformKey()}`, "bin", "browse")
+// The pinned binary build-native.mjs fetched and verified into .cache/bin (the same bytes the release ships).
+const binary = join(root, ".cache", "bin", platformKey(), "browse")
 const args = process.argv.slice(2)
 if (args.length === 0) {
   console.error("usage: node scripts/run-isolated.mjs <browse args…>")

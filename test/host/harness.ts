@@ -12,6 +12,7 @@ import { Plugin } from "@opencode/plugin"
 import { createBrowsePlugin } from "../../src/plugin.js"
 import { SKILL_NAMES } from "../../src/skills.js"
 import { startFakeBinary, type FakeScenario } from "./fake-browse.js"
+import { pinnedBinary } from "../support/pinned.js"
 import { MODEL_ID, startFakeModel } from "./fake-model.js"
 
 export type Rule = { action: string; resource: string; effect: "allow" | "ask" | "deny" }
@@ -62,6 +63,13 @@ export interface HostInput {
 
 let hosts = 0
 
+/** The pinned browse binary the real-server tests run (npm run bin:ensure puts it in .cache/bin). */
+function requirePinned(): string {
+  const path = pinnedBinary()
+  if (path === undefined) throw new Error("the pinned browse binary is not in .cache/bin: run npm run bin:ensure")
+  return path
+}
+
 export async function startHost(input: HostInput = {}) {
   // The pinned binary starts a daemonising relay: only an isolated HOME and a non-default port may run it.
   if (input.packagedBinary || input.options?.browser === "managed") assertIsolatedBrowseEnv()
@@ -73,7 +81,7 @@ export async function startHost(input: HostInput = {}) {
   const browse = createBrowsePlugin({ skillsDir, statusTimeoutMs: 5_000 })
   const withOptions = Plugin.define({
     id: browse.id,
-    setup: (ctx) => browse.setup({ ...ctx, options: { ...(input.packagedBinary ? {} : { path: fake.path }), ...(input.options ?? {}) } }),
+    setup: (ctx) => browse.setup({ ...ctx, options: { ...(input.packagedBinary ? { path: requirePinned() } : { path: fake.path }), ...(input.options ?? {}) } }),
   })
   const probes = new Map<string, Plugin.Context>()
   const probe = Plugin.define({ id: "browse.host-test.probe", setup: (ctx) => void probes.set(ctx.location.directory, ctx) })

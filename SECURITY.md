@@ -19,8 +19,8 @@ the steps to reproduce.
 
 - **The plugin runs no browser.** It registers browse's MCP server and classifies its tools. Everything the browser
   does goes through that server, its relay and its extension.
-- **The binary is pinned and shipped.** Each platform package carries one browse release. The plugin checks the
-  binary's SHA-256 against the package's manifest at startup, before it registers the server, and the MCP entry runs a
+- **The binary is pinned and released.** Each release carries one browse build per platform, downloaded on first use. The
+  plugin checks the binary's SHA-256 against the pin at startup, before it registers the server, and the MCP entry runs a
   wrapper (`bin/mcp.mjs`) that **re-checks the digest at every spawn** and refuses a changed file with
   `BINARY_UNVERIFIED`. browse's own supervision and auto-update are switched off for this entry
   (`OPENCODE_BROWSER_MCP_DIRECT=1`, `OPENCODE_BROWSER_AUTO_UPDATE=off`), so it cannot hand off to another `browse` on
@@ -28,8 +28,7 @@ the steps to reproduce.
   reload. The plugin never runs `browse install` or `browse update`; managed mode starts `browse pair` to mint its own
   one-time code.
 - **The extension is not shipped.** It is installed from the Chrome Web Store by the user, under that listing.
-- **No telemetry.** The plugin sends nothing. It reads local state: `browse status --json`, the platform package's
-  manifest, and (only when `scope` is set) the vendor CLI's session commands.
+- **No telemetry.** The plugin sends nothing. It reads local state: `browse status --json`, the pinned manifest, and (only when `scope` is set) the vendor CLI's session commands.
 - **What the browser handles is the vendor's.** Page content, cookies, stored site secrets, network captures,
   recordings and journals are browse's, on your computer. browse's own documentation describes them; the plugin does
   not copy, log or transmit them. A capture's artifact is real page content: credentials become references, everything

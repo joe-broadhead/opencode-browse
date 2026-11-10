@@ -53,7 +53,7 @@ export function renderDoctor(input: DoctorInput, vendor?: unknown): string {
   const { binary, live, scope, scopeResult } = input
   const lines = ["Browse doctor"]
   if (binary === undefined) {
-    lines.push("- Binary: none", "- Next step: Reinstall the plugin so its platform package is installed.")
+    lines.push("- Binary: none", "- Next step: Run /browse-install, then restart OpenCode.")
     return lines.join("\n")
   }
   lines.push(`- Binary: ${binary.path}`)
@@ -100,7 +100,7 @@ export function renderDoctor(input: DoctorInput, vendor?: unknown): string {
 }
 
 function nextStep(input: DoctorInput, live: DoctorInput["live"], scopeResult: ScopeResult | undefined): string {
-  if (input.binary === undefined) return "Reinstall the plugin so its platform package is installed."
+  if (input.binary === undefined) return "Run /browse-install, then restart OpenCode."
   if (input.binary.source === "option") return "The binary is your own path option, not the packaged one; remove \"path\" to use the pinned release."
   if (!input.binary.tested) return `The binary is not the pinned ${PINNED_VERSION}; update the plugin.`
   if (scopeResult?.changed) return scopeResult.action[0]?.toUpperCase() + scopeResult.action.slice(1) + "."

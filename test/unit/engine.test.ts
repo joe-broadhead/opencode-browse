@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, test } from "bun:test"
 import { createHash } from "node:crypto"
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { parseJsonOutput, parseStatus, parseVersion, platformKey, resolveBinary } from "../../src/engine.js"
+import { parseJsonOutput, parseStatus, parseVersion, platformKey, resolveBinary, verifyBinaryNow } from "../../src/engine.js"
 
 describe("platform mapping", () => {
   test("names the four packages", () => {
@@ -68,49 +68,116 @@ describe("JSON from the CLI", () => {
 })
 
 describe("resolution", () => {
-  const dir = mkdtempSync(join(tmpdir(), "browse-engine-"))
-  const make = (binary: string, recorded?: string) => {
-    const packageDir = join(dir, "node_modules", "@joe-broadhead", `opencode-browse-bin-${process.platform === "darwin" ? (process.arch === "arm64" ? "darwin-arm64" : "darwin-x64") : process.arch === "arm64" ? "linux-arm64-gnu" : "linux-x64-gnu"}`)
-    rmSync(join(dir, "node_modules"), { recursive: true, force: true })
-    mkdirSync(join(packageDir, "bin"), { recursive: true })
-    mkdirSync(join(packageDir, "manifest"), { recursive: true })
-    writeFileSync(join(packageDir, "bin", "browse"), binary)
-    writeFileSync(
-      join(packageDir, "manifest", "browse.json"),
-      JSON.stringify({ version: "0.0.15", sha256: recorded ?? createHash("sha256").update(binary).digest("hex"), bytes: binary.length, target: "test", upstream: "https://github.com/anomalyco/browse", licence: "MIT" }),
-    )
-    writeFileSync(join(packageDir, "package.json"), JSON.stringify({ name: "fake", version: "0.0.0" }))
-    return packageDir
+  // A package root with the upstream pin and the release manifest, and a cache where the released binary goes.
+  const roots: string[] = []
+  const sha = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex")
+  const key = platformKey(process.platform, process.arch) ?? "darwin-arm64"
+  const cachedPath = (cacheRoot: string) => join(cacheRoot, "native", "v0.0.0", "browse", key, "browse")
+  function release(binary: string, options: { pinned?: string; manifest?: boolean } = {}) {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "browse-engine-")))
+    roots.push(root)
+    const cacheRoot = join(root, "cache")
+    mkdirSync(join(root, "manifest"), { recursive: true })
+    writeFileSync(join(root, "manifest", "browse.json"), JSON.stringify({
+      version: "0.0.15",
+      upstream: "https://github.com/anomalyco/browse",
+      licence: "MIT",
+      targets: { [key]: { target: "test", sha256: options.pinned ?? sha(binary), bytes: Buffer.byteLength(binary) } },
+    }))
+    if (options.manifest !== false) {
+      writeFileSync(join(root, "manifest", "native.json"), JSON.stringify({
+        schema: 1,
+        plugin: "opencode-browse",
+        repository: "joe-broadhead/opencode-browse",
+        tag: "v0.0.0",
+        built: { commit: "0".repeat(40), run: 1, workflow: "native" },
+        modules: {
+          browse: {
+            [key]: {
+              name: `browse-${key}.gz`,
+              url: `https://github.com/joe-broadhead/opencode-browse/releases/download/v0.0.0/browse-${key}.gz`,
+              bytes: 1,
+              sha256: "a".repeat(64),
+              executable: { name: "browse", bytes: Buffer.byteLength(binary), sha256: sha(binary) },
+            },
+          },
+        },
+      }))
+    }
+    return { root, cacheRoot, cached: cachedPath(cacheRoot) }
   }
-
-  test("finds the platform package and verifies its digest", () => {
-    make("binary")
-    const info = resolveBinary({ packageRoot: dir })
-    expect(info).toMatchObject({ source: "package", version: "0.0.15", verified: true, pinned: true, tested: true })
-    // The package is named by the platform key (linux-arm64-gnu), not by the label the info carries (linux-arm64).
-    expect(info.path).toBe(join(dir, "node_modules", "@joe-broadhead", `opencode-browse-bin-${platformKey(process.platform, process.arch)}`, "bin", "browse"))
+  const place = (path: string, bytes: string) => {
+    mkdirSync(join(path, ".."), { recursive: true })
+    writeFileSync(path, bytes)
+    chmodSync(path, 0o755)
+  }
+  afterAll(() => {
+    for (const root of roots) rmSync(root, { recursive: true, force: true })
   })
 
-  test("refuses a packaged binary whose digest differs, before anything runs", () => {
-    make("binary", "0".repeat(64))
-    expect(() => resolveBinary({ packageRoot: dir })).toThrow(/^BINARY_UNVERIFIED: /)
-    expect(resolveBinary({ packageRoot: dir, verify: false })).toMatchObject({ verified: false })
+  test("finds the cached release binary and verifies it against the pin", async () => {
+    const r = release("binary")
+    place(r.cached, "binary")
+    const info = await resolveBinary({ packageRoot: r.root, cacheRoot: r.cacheRoot })
+    expect(info).toMatchObject({ source: "package", version: "0.0.15", verified: true, pinned: true, tested: true, path: r.cached, pinnedSha256: sha("binary") })
   })
 
-  test("a missing packaged binary is BINARY_MISSING unless an option or the seam names one", () => {
-    rmSync(join(dir, "node_modules"), { recursive: true, force: true })
-    expect(() => resolveBinary({ packageRoot: dir })).toThrow(/^BINARY_MISSING: /)
-    const own = join(dir, "own-browse")
+  test("a cached binary that is not the pinned bytes is never run: without permission it is refused, and the file stays", async () => {
+    const r = release("binary")
+    place(r.cached, "tampered")
+    const error = await resolveBinary({ packageRoot: r.root, cacheRoot: r.cacheRoot }).then(() => undefined, (cause: unknown) => cause as { code?: string; nextStep?: string })
+    expect(error).toMatchObject({ code: "BINARY_MISSING" })
+    expect(error?.nextStep).toContain("/browse-install")
+    expect(readFileSync(r.cached, "utf8")).toBe("tampered")
+  })
+
+  test("a first-use download asks first: when permission is refused, nothing is fetched or written", async () => {
+    const r = release("binary")
+    let asked = 0
+    const refused = () => {
+      asked += 1
+      throw new Error("download refused by the test")
+    }
+    await expect(resolveBinary({ packageRoot: r.root, cacheRoot: r.cacheRoot, mayDownload: refused })).rejects.toThrow("download refused by the test")
+    expect(asked).toBe(1)
+    expect(existsSync(r.cached)).toBe(false)
+  })
+
+  test("a release manifest that does not pin the upstream binary is refused before anything runs", async () => {
+    const r = release("binary", { pinned: "0".repeat(64) })
+    place(r.cached, "binary")
+    await expect(resolveBinary({ packageRoot: r.root, cacheRoot: r.cacheRoot })).rejects.toMatchObject({ code: "BINARY_UNVERIFIED" })
+  })
+
+  test("a copy with no release manifest names no binary; an option path wins over it", async () => {
+    const r = release("binary", { manifest: false })
+    await expect(resolveBinary({ packageRoot: r.root, cacheRoot: r.cacheRoot })).rejects.toMatchObject({ code: "BINARY_MISSING" })
+    const own = join(r.root, "own-browse")
     writeFileSync(own, "x")
-    expect(resolveBinary({ packageRoot: dir, optionPath: own })).toMatchObject({ source: "option", verified: false, tested: false })
-    expect(() => resolveBinary({ packageRoot: dir, optionPath: join(dir, "nope") })).toThrow(/^BINARY_MISSING: /)
-    expect(resolveBinary({ packageRoot: dir, env: { OPENCODE_BROWSE_TEST: "1", OPENCODE_BROWSE_BIN: own } })).toMatchObject({ source: "environment" })
-    expect(() => resolveBinary({ packageRoot: dir, env: { OPENCODE_BROWSE_BIN: own } })).toThrow(/^BINARY_MISSING: /)
+    expect(await resolveBinary({ packageRoot: r.root, cacheRoot: r.cacheRoot, optionPath: own })).toMatchObject({ source: "option", verified: false, tested: false })
+    await expect(resolveBinary({ packageRoot: r.root, cacheRoot: r.cacheRoot, optionPath: join(r.root, "nope") })).rejects.toMatchObject({ code: "BINARY_MISSING" })
   })
 
-  test("an unsupported platform says so", () => {
-    expect(() => resolveBinary({ platform: "win32", arch: "x64" })).toThrow(/^UNSUPPORTED_PLATFORM: /)
+  test("the test seam is used only with OPENCODE_BROWSE_TEST=1, and only when no release binary is named", async () => {
+    const r = release("binary", { manifest: false })
+    const own = join(r.root, "own-browse")
+    writeFileSync(own, "x")
+    expect(await resolveBinary({ packageRoot: r.root, cacheRoot: r.cacheRoot, env: { OPENCODE_BROWSE_TEST: "1", OPENCODE_BROWSE_BIN: own } })).toMatchObject({ source: "environment" })
+    await expect(resolveBinary({ packageRoot: r.root, cacheRoot: r.cacheRoot, env: { OPENCODE_BROWSE_BIN: own } })).rejects.toMatchObject({ code: "BINARY_MISSING" })
   })
 
-  afterAll(() => rmSync(dir, { recursive: true, force: true }))
+  test("an unsupported platform says so", async () => {
+    await expect(resolveBinary({ platform: "win32", arch: "x64" })).rejects.toMatchObject({ code: "UNSUPPORTED_PLATFORM" })
+  })
+
+  test("verifyBinaryNow re-checks the released binary at each use: a changed file is refused, an untouched one is returned", async () => {
+    const r = release("binary")
+    place(r.cached, "binary")
+    const info = await resolveBinary({ packageRoot: r.root, cacheRoot: r.cacheRoot })
+    expect(verifyBinaryNow(info)).toBe(info)
+    place(r.cached, "tampered bytes, a different size")
+    expect(() => verifyBinaryNow(info)).toThrow(/^BINARY_UNVERIFIED: /)
+    // An option path is never re-hashed: the person named it.
+    expect(verifyBinaryNow({ ...info, source: "option", pinnedSha256: undefined })).toMatchObject({ source: "option" })
+  })
 })

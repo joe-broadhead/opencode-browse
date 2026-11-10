@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { execFileSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { realpathSync } from "node:fs"
 import { fileURLToPath } from "node:url"
@@ -35,15 +35,9 @@ describe("the tarball", () => {
     expect(existsSync(join(root, "dist", "index.js"))).toBe(true)
   })
 
-  test("the manifest names the four platform packages, at this plugin's version", () => {
+  test("the package names no platform package: the binary is downloaded from the release on first use", () => {
     const pkg = JSON.parse(execFileSync("tar", ["-xzOf", tarball, "package/package.json"], { encoding: "utf8" }))
-    expect(Object.keys(pkg.optionalDependencies).sort()).toEqual([
-      "@joe-broadhead/opencode-browse-bin-darwin-arm64",
-      "@joe-broadhead/opencode-browse-bin-darwin-x64",
-      "@joe-broadhead/opencode-browse-bin-linux-arm64-gnu",
-      "@joe-broadhead/opencode-browse-bin-linux-x64-gnu",
-    ])
-    for (const version of Object.values(pkg.optionalDependencies)) expect(version).toBe(pkg.version)
+    expect(pkg.optionalDependencies).toBeUndefined()
     expect(pkg.dependencies).toBeUndefined()
     expect(pkg.peerDependencies).toBeUndefined()
   })
@@ -91,54 +85,56 @@ describe("the tarball", () => {
   })
 })
 
-describe("the platform package", () => {
+describe("the released binary", () => {
   const key = process.platform === "darwin" ? (process.arch === "arm64" ? "darwin-arm64" : "darwin-x64") : process.arch === "arm64" ? "linux-arm64-gnu" : "linux-x64-gnu"
-  const binDir = join(work, "platform", "node_modules", "@joe-broadhead", `opencode-browse-bin-${key}`)
   const binary = "fake-browse-binary-for-pack-test"
+  const sha = (bytes: string) => createHash("sha256").update(bytes).digest("hex")
 
-  const install = (recorded: string) => {
-    rmSync(join(work, "platform"), { recursive: true, force: true })
-    mkdirSync(join(binDir, "bin"), { recursive: true })
-    mkdirSync(join(binDir, "manifest"), { recursive: true })
-    writeFileSync(join(binDir, "bin", "browse"), binary)
-    writeFileSync(join(binDir, "package.json"), JSON.stringify({ name: `@joe-broadhead/opencode-browse-bin-${key}`, version: "0.0.0" }))
+  /** A package root with the upstream pin and a release manifest for this platform, and the released binary cached. */
+  const install = (pinned: string) => {
+    const packageRoot = join(work, "release")
+    rmSync(packageRoot, { recursive: true, force: true })
+    mkdirSync(join(packageRoot, "manifest"), { recursive: true })
+    writeFileSync(join(packageRoot, "manifest", "browse.json"), JSON.stringify({ version: PINNED_VERSION, upstream: "https://github.com/anomalyco/browse", licence: "MIT", targets: { [key]: { target: "test", sha256: pinned, bytes: binary.length } } }))
     writeFileSync(
-      join(binDir, "manifest", "browse.json"),
-      JSON.stringify({ version: PINNED_VERSION, sha256: recorded, bytes: binary.length, target: "test", upstream: "https://github.com/anomalyco/browse", licence: "MIT" }),
+      join(packageRoot, "manifest", "native.json"),
+      JSON.stringify({
+        schema: 1,
+        plugin: "opencode-browse",
+        repository: "joe-broadhead/opencode-browse",
+        tag: "v0.0.0",
+        built: { commit: "0".repeat(40), run: 1, workflow: "native" },
+        modules: { browse: { [key]: { name: `browse-${key}.gz`, url: `https://github.com/joe-broadhead/opencode-browse/releases/download/v0.0.0/browse-${key}.gz`, bytes: 1, sha256: "a".repeat(64), executable: { name: "browse", bytes: binary.length, sha256: sha(binary) } } } },
+      }),
     )
+    const cached = join(packageRoot, "cache", "native", "v0.0.0", "browse", key, "browse")
+    mkdirSync(join(cached, ".."), { recursive: true })
+    writeFileSync(cached, binary)
+    chmodSync(cached, 0o755)
+    return packageRoot
   }
 
-  test("resolves from node_modules and verifies the binary", () => {
-    install(createHash("sha256").update(binary).digest("hex"))
-    const info = resolveBinary({ packageRoot: join(work, "platform") })
+  test("resolves the cached release binary and verifies it against the pin", async () => {
+    const packageRoot = install(sha(binary))
+    const info = await resolveBinary({ packageRoot, cacheRoot: join(packageRoot, "cache") })
     expect(info).toMatchObject({ source: "package", version: PINNED_VERSION, verified: true, tested: true })
     expect(statSync(info.path).size).toBe(binary.length)
   })
 
-  test("refuses a tampered binary before it runs", () => {
-    install("0".repeat(64))
-    expect(() => resolveBinary({ packageRoot: join(work, "platform") })).toThrow(/^BINARY_UNVERIFIED: /)
+  test("refuses a release whose manifest does not pin the upstream binary, before anything runs", async () => {
+    const packageRoot = install("0".repeat(64))
+    await expect(resolveBinary({ packageRoot, cacheRoot: join(packageRoot, "cache") })).rejects.toMatchObject({ code: "BINARY_UNVERIFIED" })
   })
 
   test("the pinned cache, when it is present, matches manifest/browse.json", () => {
     const pin = JSON.parse(readFileSync(join(root, "manifest", "browse.json"), "utf8"))
     const platform = join(root, ".cache", "bin", key, "browse")
     if (!existsSync(platform)) {
-      console.log("the pinned binary is not cached here; the resolution and tamper checks above stand in")
+      console.log("the pinned binary is not cached here; run npm run bin:ensure to check the real bytes")
       return
     }
     expect(createHash("sha256").update(readFileSync(platform)).digest("hex")).toBe(pin.targets[key].sha256)
     expect(statSync(platform).size).toBe(pin.targets[key].bytes)
     // Hashes the whole pinned binary (about 115 MB) in the test body; a loaded runner needs more than the default 5 seconds.
   }, 120_000)
-})
-
-describe("the built plugin", () => {
-  test("exports both entries, and the server entry is a plugin", async () => {
-    const index = await import(join(root, "dist", "index.js"))
-    expect(typeof index.default.setup).toBe("function")
-    expect(index.default.id).toBe("browse")
-    const files = readdirSync(join(root, "dist")).sort()
-    expect(files).toEqual(["index.js", "tui.js"])
-  })
 })

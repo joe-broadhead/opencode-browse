@@ -186,7 +186,7 @@ describe("formatStatus", () => {
   test("shows the access counts and the binary's provenance", () => {
     const text = formatStatus(buildStatus(facts({ server: { status: "connected" }, tools: ["status"] })))
     expect(text).toContain("18 run · 0 ask · 0 off")
-    expect(text).toContain("browse 0.0.15 (verified at startup, pinned; the platform package)")
+    expect(text).toContain("browse 0.0.15 (verified at startup, pinned; the release)")
   })
 })
 

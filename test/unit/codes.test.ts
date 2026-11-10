@@ -23,7 +23,9 @@ function walk(dir: string, out: string[] = []): string[] {
 const CODE = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/
 
 /** Every SCREAMING_SNAKE string literal in src, wherever it is raised or described. */
-const literals = new Set(walk("src").flatMap((file) => [...read(file).matchAll(/"([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*)"/g)].map((m) => m[1]!)))
+// src/native/ is the shared release-binary installer: its NATIVE_* codes are mapped to these plugin codes in engine.ts before any
+// tool reports them, so they are not this plugin's codes.
+const literals = new Set(walk("src").filter((file) => !file.startsWith("src/native/")).flatMap((file) => [...read(file).matchAll(/"([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*)"/g)].map((m) => m[1]!)))
 
 /** The shared tools RPC's own codes, which are not this plugin's to declare. */
 const SHARED = new Set([...Object.keys(NEXT_STEPS), "ACCOUNT_UNKNOWN"])
@@ -56,7 +58,8 @@ const CONFIG_TABLE = CONFIG.split("## Errors")[1]?.split("## Status")[0] ?? ""
 describe("the code table", () => {
   test("covers every code src raises or prints", () => {
     const known = new Set<string>([...PLUGIN_CODES, ...SHARED])
-    const unknown = [...literals].filter((value) => CODE.test(value) && !known.has(value) && !PLAIN.has(value))
+    // NATIVE_* are the installer's own codes, which engine.ts maps to these plugin codes before any tool reports them.
+    const unknown = [...literals].filter((value) => CODE.test(value) && !known.has(value) && !PLAIN.has(value) && !value.startsWith("NATIVE_"))
     expect(unknown).toEqual([])
   })
 

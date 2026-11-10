@@ -5,9 +5,8 @@ This package is MIT licensed; see LICENSE.
 ## browse
 
 The plugin ships the **browse** binary, built and published by Anomaly (https://github.com/anomalyco/browse), MIT,
-Copyright (c) 2025 opencode. It is not contained in this package: each platform package
-(`@joe-broadhead/opencode-browse-bin-<platform>`) carries the pinned binary with its own `LICENSE.browse` and
-`manifest/browse.json`, which records the release, the target, the binary's SHA-256 and its size. The pinned release
+Copyright (c) 2025 opencode. It is not contained in this package: the release carries the pinned binary (gzipped) with its own `LICENSE.browse`,
+and `manifest/browse.json` records the release, the target, the binary's SHA-256 and its size. The pinned release
 is recorded in `manifest/browse.json` in this package, with the upstream tarball's URL, SHA-256 and size.
 
 The browse browser extension is not shipped or bundled. It is installed by the user from the Chrome Web Store, under
@@ -15,5 +14,4 @@ its own listing and terms, and it is licensed MIT by the same project.
 
 ## Nothing else
 
-No other third-party code is bundled. The platform packages carry the binary and the licence text above, and nothing
-else.
+No other third-party code is bundled. The release carries the binary and the licence text above, and nothing else.

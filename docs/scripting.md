@@ -98,7 +98,7 @@ A refusal is the RPC error `failed` with `data: { code, next }`:
 | `TOOL_UNAVAILABLE` | OpenCode does not list the method's tool now | call `describe` to see the methods there are |
 | `UPSTREAM_ERROR` | browse returned an error | read the first line, and run `/browse-doctor` |
 | `CANCELLED` | the call was cancelled | call the method again if you still need the result |
-| `BINARY_MISSING`, `BINARY_UNVERIFIED` | the pinned binary is absent or does not match its digest | reinstall the plugin so its platform package is restored |
+| `BINARY_MISSING`, `BINARY_UNVERIFIED` | the pinned binary is absent or does not match its digest | run `/browse-install`, then restart OpenCode |
 | `SERVER_CONFLICT`, `SERVER_LEGACY` | another server holds the `browse` name, or an older one is configured | remove it, then run `opencode reload` |
 | `SCOPE_UNREACHABLE`, `SCOPE_LOST` | the pinned session cannot be reached, or was lost | run `/browse-doctor` and follow its next step |
 
