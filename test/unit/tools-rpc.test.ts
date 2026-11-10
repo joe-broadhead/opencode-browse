@@ -19,13 +19,6 @@ import {
   type PluginMethod,
   type ToolCall,
   type ToolsRpcOptions,
-  // The module's own types stay internal, since no plugin imports them; the typecheck checks it.
-  // @ts-expect-error Code is not exported
-  type Code as _Code,
-  // @ts-expect-error NextSteps is not exported
-  type NextSteps as _NextSteps,
-  // @ts-expect-error Failure is not exported
-  type Failure as _Failure,
 } from "../../src/host/tools-rpc.js"
 
 type Effect = "allow" | "deny" | "ask"
@@ -83,6 +76,8 @@ interface Setup {
   /** Test-only: false disables the MCP-only next-step shim below, to prove registration still requires them. */
   shim?: boolean
   lookup?: (sessionID: string) => Promise<unknown>
+  /** A host that reports a missing agent as a plain Error, as stock 2.2.3 to 2.2.6 do. */
+  plainAgentError?: boolean
   unavailableDetail?: NonNullable<ToolsRpcOptions["mcp"]>["unavailableDetail"]
   notRegistered?: NonNullable<ToolsRpcOptions["mcp"]>["notRegistered"]
 }
@@ -179,7 +174,7 @@ async function setup(options: Setup = {}): Promise<Harness> {
       // The module looks the agent up in its own location, without passing one: the session was read there.
       get: async ({ agentID }: { agentID: string }) => {
         const permissions = agents[agentID]
-        if (!permissions) throw Object.assign(new Error(`Agent not found: ${agentID}`), { _tag: "Agent.NotFoundError" })
+        if (!permissions) throw options.plainAgentError ? new Error(`Agent not found: ${agentID}`) : Object.assign(new Error(`Agent not found: ${agentID}`), { _tag: "Agent.NotFoundError" })
         return { location: { directory: LOCATION }, data: { id: agentID, permissions } }
       },
     },
@@ -276,7 +271,6 @@ describe("the contract", () => {
     const h = await setup({ methods: [...table(), ownedMethod(async () => ({}))] })
     expect(h.contract.id).toBe(TOOLS_RPC_ID)
     expect(TOOLS_RPC_ID).toBe(`${PLUGIN_ID}.tools`)
-    expect(TOOLS_RPC_ID).toBe("browse.tools")
     expect(Object.keys(h.contract.methods).sort()).toEqual(["describe", READ, WRITE, SLOW, "owned_write"].sort())
   })
 
@@ -555,6 +549,13 @@ describe("sessions", () => {
     refusedWith(await call(h, READ, {}, "ses_gone"), "SESSION_AGENT_REQUIRED")
     expect(h.calls).toEqual([])
   })
+
+  test("a host that reports a missing agent as a plain 'Agent not found' error gets SESSION_AGENT_REQUIRED, not rpc.internal", async () => {
+    const h = await setup({ sessions: { ses_gone: { agent: "gone" } }, plainAgentError: true })
+    refusedWith(await call(h, READ, {}, "ses_gone"), "SESSION_AGENT_REQUIRED")
+    expect(NEXT_STEPS.SESSION_AGENT_REQUIRED).toContain('"location"')
+    expect(h.calls).toEqual([])
+  })
 })
 
 describe("plugin-owned methods", () => {
@@ -682,6 +683,10 @@ describe("registration", () => {
 })
 
 describe("the shared copy's own block", () => {
+  test("is browse.tools, the id Browse's block gives the RPC", () => {
+    expect(TOOLS_RPC_ID).toBe("browse.tools")
+  })
+
   test("is Browse's: the 18 known tools with their classes, and the shapers are the identity", async () => {
     const { TOOLS } = await import("../../src/browse-tools.js")
     expect(METHODS).toHaveLength(18)
