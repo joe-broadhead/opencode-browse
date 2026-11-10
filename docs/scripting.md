@@ -1,8 +1,8 @@
 # Scripts
 
 The plugin exposes `browse.tools`, one method per known browse tool, so a script can call them with no model. The
-session is created for the script with an agent (`opencode api post /api/session`, with `data.id` kept), and the body is
-`{"input":{"sessionID":"<id>","input":{…}}}`: both keys are required, and no other key is allowed.
+session is created for the script with an agent (`opencode api post /api/session -d '{"title":"…","agent":"build","location":{"directory":"/path/to/project"}}'`, with `data.id` kept), and the body is
+`{"input":{"sessionID":"<id>","input":{…}}}`: both keys are required, and no other key is allowed. Give the project as the session's `location`: a session made without one belongs to the service's default location, where the project's agents may not exist, and each call then fails `Agent not found`.
 
 ```sh
 opencode api post /api/rpc/browse.tools/session_list -H "x-opencode-directory:$PWD" -d '{"input":{"sessionID":"<id>","input":{}}}'
