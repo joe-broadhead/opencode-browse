@@ -48,17 +48,47 @@ export function verified(path, expected) {
   }
 }
 
-/** Downloads one URL to `dest` and keeps it only when it has the expected size and SHA-256. */
-async function download(url, dest, expected) {
-  const response = await fetch(url, { redirect: "follow", headers: { "user-agent": "opencode-browse-build/0.0.0" }, signal: AbortSignal.timeout(15 * 60_000) })
-  if (!response.ok || response.body === null) throw new Error(`downloading ${url} failed with HTTP ${response.status}`)
+/**
+ * Statuses that are worth another attempt. The release service has answered 416 (range not satisfiable) to a plain GET
+ * from a CI runner, once, for one file that a second request served; a retry is the honest answer to that.
+ */
+const RETRY_STATUS = new Set([408, 416, 425, 429, 500, 502, 503, 504])
+
+/** Downloads one URL to `dest` and keeps it only when it has the expected size and SHA-256. Transient failures retry. */
+export async function download(url, dest, expected, { attempts = 3, retryDelayMs = 2000 } = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    const failure = await attemptDownload(url, dest, expected)
+    if (failure === undefined) return
+    if (!failure.retry || attempt >= attempts) throw new Error(`${failure.message} (after ${attempt} attempt${attempt === 1 ? "" : "s"})`)
+    await new Promise((resolve) => setTimeout(resolve, retryDelayMs * attempt))
+  }
+}
+
+async function attemptDownload(url, dest, expected) {
+  let response
+  try {
+    response = await fetch(url, { redirect: "follow", headers: { "user-agent": "opencode-browse-build/0.0.0" }, signal: AbortSignal.timeout(15 * 60_000) })
+  } catch (error) {
+    return { retry: true, message: `downloading ${url} failed: ${error instanceof Error ? error.message : String(error)}` }
+  }
+  if (!response.ok || response.body === null) {
+    await response.body?.cancel().catch(() => undefined)
+    const served = ["server", "x-cache", "content-range"].map((name) => (response.headers.get(name) ? `${name} ${response.headers.get(name)}` : "")).filter(Boolean)
+    return { retry: RETRY_STATUS.has(response.status), message: `downloading ${url} failed with HTTP ${response.status}${served.length ? ` (${served.join(", ")})` : ""}` }
+  }
   const temp = `${dest}.${process.pid}.tmp`
-  await pipeline(Readable.fromWeb(response.body), createWriteStream(temp, { mode: 0o600 }))
+  try {
+    await pipeline(Readable.fromWeb(response.body), createWriteStream(temp, { mode: 0o600 }))
+  } catch (error) {
+    rmSync(temp, { force: true })
+    return { retry: true, message: `downloading ${url} was interrupted: ${error instanceof Error ? error.message : String(error)}` }
+  }
   if (!verified(temp, expected)) {
     rmSync(temp, { force: true })
-    throw new Error(`${url} does not match the pinned size and SHA-256, so it was discarded`)
+    return { retry: true, message: `${url} does not match the pinned size and SHA-256, so it was discarded` }
   }
   renameSync(temp, dest)
+  return undefined
 }
 
 /** The pinned binary for one platform, in the cache: kept when it verifies, otherwise fetched, extracted and verified. */
