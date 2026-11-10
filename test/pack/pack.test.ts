@@ -129,7 +129,8 @@ describe("the platform package", () => {
     }
     expect(createHash("sha256").update(readFileSync(platform)).digest("hex")).toBe(pin.targets[key].sha256)
     expect(statSync(platform).size).toBe(pin.targets[key].bytes)
-  })
+    // Hashes the whole pinned binary (about 115 MB) in the test body; a loaded runner needs more than the default 5 seconds.
+  }, 120_000)
 })
 
 describe("the built plugin", () => {
