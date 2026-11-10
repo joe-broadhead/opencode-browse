@@ -32,14 +32,14 @@ describe("the README", () => {
     const positions = order.map((heading) => README.indexOf(heading))
     for (const position of positions) expect(position).toBeGreaterThan(-1)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
-    expect(README).toContain("opencode plugin add @joe-broadhead/opencode-browse")
-    expect(README).toContain("opencode plugin remove @joe-broadhead/opencode-browse")
+    expect(README).toContain("opencode plugin add github:joe-broadhead/opencode-browse#v0.0.0")
+    expect(README).toContain("opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.0")
     expect(README).toContain("`/etc/opencode/opencode.json` on Linux and `/Library/Application Support/opencode/opencode.json` on")
   })
 
   test("has a row for every code the code raises, and the scripting refusals", () => {
     // The shared tools-RPC module raises its own codes (SESSION_UNKNOWN and the rest); docs/scripting.md lists them.
-    const raised = [...new Set(files("src").filter((path) => path !== "src/host/tools-rpc.ts").flatMap((path) => [...read(path).matchAll(/\b(?:browseError|errorText|fail)\(\s*"([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)"/g)].map((match) => match[1]!)))]
+    const raised = [...new Set(files("src").filter((path) => path !== "src/host/tools-rpc.ts" && !path.startsWith("src/native/")).flatMap((path) => [...read(path).matchAll(/\b(?:browseError|errorText|fail)\(\s*"([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)"/g)].map((match) => match[1]!)))]
     expect(raised.length).toBeGreaterThan(10)
     for (const code of raised) expect({ code, row: README.includes(`| \`${code}\``) }).toEqual({ code, row: true })
     for (const code of raised) expect({ code, doc: CONFIG.includes(`| \`${code}\``) }).toEqual({ code, doc: true })
@@ -141,7 +141,9 @@ describe("the docs", () => {
   test("the changelog is the family's shape", () => {
     const changelog = read("CHANGELOG.md")
     expect(changelog.startsWith("# Changelog\n")).toBe(true)
-    expect(changelog).toContain("## [Unreleased]")
+    // One release heading: the GitHub release's own notes. browse was never on npm, so there is no npm history.
+    expect(changelog).toMatch(/^## \[0\.0\.0\] - \d{4}-\d{2}-\d{2}$/m)
+    expect(changelog).not.toContain("## [Unreleased]")
     expect(changelog).toContain("### Added")
   })
 })

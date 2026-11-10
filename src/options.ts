@@ -29,7 +29,7 @@ export interface Options {
   readonly access: Access
 }
 
-const EXAMPLE = `"plugins": [{ "package": "@joe-broadhead/opencode-browse", "options": { "scope": { "allowedOrigins": ["github.com"] } } }]`
+const EXAMPLE = `"plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.0", "options": { "scope": { "allowedOrigins": ["github.com"] } } }]`
 const ACCEPTED = ["path", "browser", "chromiumPath", "headless", "scope", "verifyBinary", "allowUntestedHost", "access"] as const
 
 const invalid = (problem: string) =>

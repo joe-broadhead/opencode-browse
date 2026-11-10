@@ -108,7 +108,7 @@ const TESTED_TEXT = `${TESTED_HOSTS.slice(0, -1).join(", ")} or ${TESTED_HOSTS.a
 const LISTED_UNKNOWN = 20
 const SAFE_NAME = /^[a-z][a-z0-9_]{0,63}$/
 const RULES_NOT_ADDED = "RULES_NOT_ADDED:"
-const PLUGIN_NAME = "@joe-broadhead/opencode-browse"
+const PLUGIN_NAME = "github:joe-broadhead/opencode-browse#v0.0.0"
 
 const STATE_OF = { connected: "connected", pending: "connecting", failed: "failed", disabled: "disabled", needs_auth: "failed" } as const
 
@@ -196,7 +196,7 @@ function nextStepOf(status: Omit<Status, "nextStep">, extra: { known: boolean; s
   }
   if (status.state === "host_untested") return `Use OpenCode ${TESTED_TEXT}, or set the plugin option "allowUntestedHost": true to run anyway.`
   if (status.state === "not_configured") {
-    return status.problems.find((problem) => problem.startsWith("BINARY_MISSING") || problem.startsWith("UNSUPPORTED_PLATFORM"))?.split(" Next step: ")[1] ?? `Reinstall ${PLUGIN_NAME} so its platform package is installed.`
+    return status.problems.find((problem) => problem.startsWith("BINARY_MISSING") || problem.startsWith("UNSUPPORTED_PLATFORM"))?.split(" Next step: ")[1] ?? "Run /browse-install, then restart OpenCode."
   }
   if (status.state === "failed") return status.problems[0]?.split(" Next step: ")[1] ?? "Run /browse-doctor and fix the first failed check."
   if (status.state === "disabled") return `The ${SERVER_NAME} MCP server is disabled. Enable it in /mcps, or remove "disabled": true from mcp.servers.${SERVER_NAME} in opencode.json.`
@@ -260,7 +260,7 @@ function binaryText({ binary }: Status) {
   const { path, version, source, verified, tested } = binary
   if (path === null) return "none"
   const flags = [verified ? "verified at startup" : "unverified", tested ? "pinned" : "untested"].join(", ")
-  const origin = source === "option" ? "your path option" : source === "environment" ? "the test seam" : "the platform package"
+  const origin = source === "option" ? "your path option" : source === "environment" ? "the test seam" : "the release"
   return `browse ${version ?? "unknown version"} (${flags}; ${origin}) · ${path}`
 }
 
