@@ -22,6 +22,8 @@ browser** of its own (below) and install nothing.
 opencode plugin add github:joe-broadhead/opencode-browse#v0.0.0
 ```
 
+The binary is downloaded from this plugin's release on first use, and only at `access: "all"`, the default. Setup downloads it, checks it against its pinned SHA-256, and then registers the server. At `"ask-changes"` or `"read-only"` setup downloads nothing: it names `/browse-install`, which downloads and verifies the binary at any `access` value. Run it, then restart OpenCode, so the server registers.
+
 Restart OpenCode. Then add the extension and pair it:
 
 Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.0`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-browse#v<version>`.
@@ -293,8 +295,7 @@ macOS.
   as `session` on later calls, and call `browse_session_delete` when the task is done. `skills/browse/SKILL.md` tells the
   agent this. browse `0.0.16` keeps a session per caller, and this plugin will re-pin to it when it is released. Until
   then, `npm run drift` prints `isolates: no`; that line is information, not a failure.
-
-Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.0`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-browse#v<version>`.
+- The browse binary downloads at setup only at `access: "all"`, because the server registers at setup and cannot ask at a tool call. At `"ask-changes"` or `"read-only"`, run `/browse-install`, then restart OpenCode.
 - Updates are not automatic for a Git install, and `opencode plugin update` and `opencode plugin check` do not work on one: to move to a newer release, remove the old entry and add the new tag.
 
 ## Troubleshooting

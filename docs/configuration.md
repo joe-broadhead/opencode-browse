@@ -30,6 +30,7 @@ code, and removes the file once the attempt ends.
   the real browser.
 - The browser starts with the plugin, headed by default, and stops on dispose (reload or exit). A browser a crashed
   run left behind is stopped on the next start only when its command line names the executable this plugin launched.
+- Setup downloads the pinned browse binary on first use only at `access: "all"` (the default), and checks it against the pin. At `"ask-changes"` or `"read-only"` setup does not download it, and registers no browse tools until `/browse-install` has run.
 - `/browse-install` downloads the pinned browse binary from this repository's release (about 115-135 MB), checks it against the pin, and asks you to restart OpenCode so the server registers. It downloads at any `access` value, since you typed it. Without it, a missing binary registers no browse tools.
 - `/browse-install-browser` downloads the pinned Chrome for Testing from Google, verifies its size and SHA-256 against
   `manifest/chromium.json`, extracts it into `$XDG_CACHE_HOME/opencode-browse/chromium/<version>`, and records the
