@@ -6,12 +6,12 @@
 git clone https://github.com/joe-broadhead/opencode-browse.git
 cd opencode-browse
 npm ci
-node scripts/build-bins.mjs --current --local   # fetches and verifies this computer's pinned binary, then installs its package
+npm run bin:ensure   # fetches and verifies this computer's pinned binary into .cache/bin
 npm run build
 ```
 
-`build-bins.mjs` reads the pin in `manifest/browse.json` and fetches only what it names, checking each tarball and binary
-against the pin's size and SHA-256 before it packages anything. Without `--local` the packaged-binary host test prints a
+`scripts/build-native.mjs` reads the pin in `manifest/browse.json` and fetches only what it names, checking each tarball and binary
+against the pin's size and SHA-256 before it uses anything. Without `npm run bin:ensure` the real-server host test prints a
 skip notice (and fails in CI). Most host tests use a fake binary, so they run without it.
 
 ## Running a checkout
@@ -47,7 +47,7 @@ It runs with a throwaway HOME, XDG dirs and a free port, and stops the relay it 
 | `build` | esbuild: two self-contained bundles, no relative imports |
 | `icons` | the family icon contract |
 | `host` | the embedded OpenCode host on 2.2.3, 2.2.4, 2.2.5 and 2.2.6, against the fake browse |
-| `pack` | the tarball, the bundles, the platform package resolution and the tamper refusal |
+| `pack` | the tarball, the bundles, the release binary resolution and the tamper refusal |
 | `forbidden` | the list in `AGENTS.md` |
 | `copies` | the shared tools RPC outside its plugin block |
 | `whitelist` | `package.json` and `dist/` shape |
@@ -86,14 +86,30 @@ Move either with `node scripts/pin-managed.mjs --refresh`, and commit `managed-e
 `managed-extension/` is the vendor's built output, unpacked from the pinned zip and checked file by file against
 `manifest/extension.json`. Nobody edits it by hand, so the 600-line rule does not apply to its bundles.
 
-## Releasing
+## Release
 
-1. Remove `"private": true` from `package.json`, set the version, and move the CHANGELOG's Unreleased section to that
-   version.
-2. Tag `v<version>`. The release workflow's `platform-packages` job fetches and verifies the four pinned binaries
-   (`scripts/build-bins.mjs`) and publishes each platform package with provenance, unless its version is already on npm.
-   The `publish` job then runs the checks, packs, runs the pack test on that tarball, **compares each published platform
-   package's `manifest/browse.json` digest with this repo's pin** (`scripts/verify-platform-packages.mjs`), and publishes
-   the plugin with provenance. Each package name needs a trusted-publishing config for `release.yml` in the `release`
-   environment before its first publish.
-3. A rerun skips a version already on npm.
+### Releasing
+
+Every plugin releases as `v0.0.0`, and it installs from that GitHub tag. The release is one commit on top of a `master`
+head that CI passed, and the tag points at it.
+
+1. Set `version` to `0.0.0` in `package.json`, date the `## [0.0.0]` entry in `CHANGELOG.md`, then run `npm run check`.
+2. Push that commit to `master`, and wait for CI to pass on it.
+3. In a clean checkout of `master` at that commit, run `node scripts/release-commit.mjs --ci-sha <its full sha>`. It builds
+   `dist/`, removes the lifecycle scripts, and creates the signed commit and the signed annotated tag `v0.0.0`. It never
+   pushes; `--dry-run` shows the change first.
+4. Push the tag only: `git push origin v0.0.0`.
+5. Approve the run in the `release` environment. The release workflow checks the tag and its commit, installs the tag on
+   each stock OpenCode host (2.2.3 to 2.2.6), packs it, and creates the GitHub Release with the notes, the tarball and
+   `SHA256SUMS`.
+
+A tag that already exists stops step 3. Delete the old tag and its Release first, then start again.
+
+
+Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.0`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-browse#v<version>`.
+
+Or add the plugin to `opencode.json` instead, with the same spec:
+
+```json
+{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.0" }] }
+```

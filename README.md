@@ -19,10 +19,18 @@ browser** of its own (below) and install nothing.
 ## Install
 
 ```sh
-opencode plugin add @joe-broadhead/opencode-browse
+opencode plugin add github:joe-broadhead/opencode-browse#v0.0.0
 ```
 
 Restart OpenCode. Then add the extension and pair it:
+
+Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.0`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-browse#v<version>`.
+
+Or add the plugin to `opencode.json` instead, with the same spec:
+
+```json
+{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.0" }] }
+```
 
 1. Install **browse** from the Chrome Web Store and open its options page.
 2. Ask OpenCode to run `/browse-doctor`; it prints the pairing command and the state of the relay, the extension and
@@ -229,7 +237,7 @@ Options go in the plugin entry in `opencode.json`:
 {
   "plugins": [
     {
-      "package": "@joe-broadhead/opencode-browse",
+      "package": "github:joe-broadhead/opencode-browse#v0.0.0",
       "options": {
         // Pin the server to one browse session on these sites. Optional.
         "scope": { "session": "opencode", "allowedOrigins": ["github.com", "*.githubusercontent.com"], "readOnly": false },
@@ -251,7 +259,7 @@ with `OPENCODE_BROWSER_SESSION`, and adds a stricter rule set: `session_new`, `s
 tab. `execute` runs without asking when `readOnly` is true, because the relay refuses all input in a read-only
 session, and asks otherwise. `/browse-doctor` re-applies the scope if the session is deleted or widened.
 
-**Your own binary.** `path` bypasses the platform package. It is reported as unverified (no digest to compare) and
+**Your own binary.** `path` bypasses the release binary. It is reported as unverified (no digest to compare) and
 untested (unless it is exactly the pinned version). A tool it lists that this plugin does not classify follows the `access` option, like every other tool.
 
 [Configuration](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/docs/configuration.md) has worked examples,
@@ -266,7 +274,7 @@ ID or secret to distribute.
 {
   "plugins": [
     {
-      "package": "@joe-broadhead/opencode-browse",
+      "package": "github:joe-broadhead/opencode-browse#v0.0.0",
       "options": { "scope": { "allowedOrigins": ["*.your-company.com"], "readOnly": true } }
     }
   ]
@@ -286,6 +294,9 @@ macOS.
   agent this. browse `0.0.16` keeps a session per caller, and this plugin will re-pin to it when it is released. Until
   then, `npm run drift` prints `isolates: no`; that line is information, not a failure.
 
+Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.0`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-browse#v<version>`.
+- Updates are not automatic for a Git install, and `opencode plugin update` and `opencode plugin check` do not work on one: to move to a newer release, remove the old entry and add the new tag.
+
 ## Troubleshooting
 
 `/browse-status` shows the binary, the relay, the extension, the scope, the tools and one next step. `/browse-doctor`
@@ -293,12 +304,12 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 
 | State or code | What it means | What to do |
 | --- | --- | --- |
-| `not configured` | no binary, or no platform package for this computer | reinstall the plugin; on another platform set `path` |
+| `not configured` | no binary yet, or no release build for this computer | run `/browse-install`, then restart OpenCode; on another platform set `path` |
 | `failed` | the binary does not match its digest, or a needed command failed | `/browse-doctor`, then reinstall |
 | `conflict` | `mcp.servers.browse` in your config is not a browse server | remove or rename that entry, then restart |
 | `disabled` | the `browse` server is disabled in `/mcps` | enable it, or remove `"disabled": true` |
 | `host untested` | OpenCode is outside the supported range | use `>=2.2.3 <2.3.0`, or set `allowUntestedHost` |
-| `BINARY_MISSING` | the platform package is not installed | reinstall the plugin |
+| `BINARY_MISSING` | the release binary is not installed yet | run `/browse-install`, then restart OpenCode |
 | `NOT_INSTALLED` | `/browse-stop-relay` has no pinned binary to identify the relay | reinstall the plugin |
 | `BINARY_UNVERIFIED` | the binary does not match its pinned SHA-256 | reinstall; set `verifyBinary: false` only if you trust the file |
 | `UNSUPPORTED_PLATFORM` | no package ships for this OS or architecture | set `path` to a browse binary you built or installed |
@@ -333,10 +344,10 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 ## Uninstall
 
 ```sh
-opencode plugin remove @joe-broadhead/opencode-browse
+opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.0
 ```
 
-That removes the plugin, its platform package and its rules; it does not touch your browser. The extension is
+That removes the plugin, its cached binary and its rules; it does not touch your browser. The extension is
 uninstalled from your browser's extensions page. Managed mode's profile and Chrome for Testing are in
 `~/.local/share/opencode-browse/managed` and `~/.cache/opencode-browse`; delete those folders to remove them. If you also ran the vendor's installer in the past, `browse uninstall`
 removes the files it left behind.

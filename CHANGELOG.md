@@ -3,14 +3,16 @@
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.0.0] - 2026-11-10
+<!-- kit-release: the GitHub release v0.0.0 -->
 
 ### Added
 
 - The `browse` MCP server, registered at runtime with the pinned browse `0.0.15` binary and adopted from a user's own
   entry when it is a browse command.
-- Per-platform optional packages (`@joe-broadhead/opencode-browse-bin-<platform>`) carrying the binary, its
-  `manifest/browse.json` digest and browse's MIT licence; the plugin verifies the digest before running it.
+- The pinned browse binary, downloaded on first use from this repository's release (`browse-<platform>.gz`), with its
+  `manifest/browse.json` digest and browse's MIT licence; the plugin verifies the digest before running it, and
+  `/browse-install` downloads it on request.
 - A Jelly `access` setting, with `all`, `ask-changes` and `read-only`, as the other plugins declare it.
 - Default permission rules by exact tool name: every one of the 18 allows, and so does the `browse_*` pattern, so a tool
   browse adds later runs at once. Switching a project into or out of the scoped profile replaces the previous block in
