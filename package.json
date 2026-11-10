@@ -2,7 +2,6 @@
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@joe-broadhead/opencode-browse",
   "version": "0.0.0",
-  "private": true,
   "type": "module",
   "description": "Drive the user's real Chromium browser from OpenCode, with the browse extension: their tabs, logins and extensions, and a hand-back for logins, 2FA and payments",
   "keywords": [
