@@ -43,10 +43,14 @@ jobs:
       - name: Build the release files for every platform
         run: node scripts/build-native.mjs --release "$RUNNER_TEMP/native" --tag v0.0.0 --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" --run "$GITHUB_RUN_ID"
 
-      - name: Attest the executables
+      # The licence file is attested with the executables: the release job's attach-native.mjs verifies an attestation for
+      # every file it attaches, licences included.
+      - name: Attest the executables and the licence file
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: ${{ runner.temp }}/native/*.gz
+          subject-path: |
+            ${{ runner.temp }}/native/*.gz
+            ${{ runner.temp }}/native/LICENSE.browse
 
       # The artifacts the release job reads: the candidate manifest as native.json, the gzips of each platform, and the
       # licence file the manifest names.
