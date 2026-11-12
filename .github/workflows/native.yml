@@ -41,7 +41,7 @@ jobs:
 
       # Every platform's pinned tarball, checked by size and SHA-256 before its binary is extracted and checked again.
       - name: Build the release files for every platform
-        run: node scripts/build-native.mjs --release "$RUNNER_TEMP/native" --tag v0.0.0 --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" --run "$GITHUB_RUN_ID"
+        run: node scripts/build-native.mjs --release "$RUNNER_TEMP/native" --tag "v$(node -p 'require("./package.json").version')" --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" --run "$GITHUB_RUN_ID"
 
       # The licence file is attested with the executables: the release job's attach-native.mjs verifies an attestation for
       # every file it attaches, licences included.
