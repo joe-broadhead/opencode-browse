@@ -316,6 +316,14 @@
     "inbox": {
       "method": "browser.inbox"
     },
+    "notices": [
+      {
+        "id": "chrome-ask",
+        "label": "Your Chrome",
+        "category": "request",
+        "preview": "line"
+      }
+    ],
     "signIns": [],
     "contributes": {
       "homeFeeds": [],

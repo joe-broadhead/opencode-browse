@@ -14,8 +14,8 @@ import { registerDoctorCommand } from "./doctor.js"
 import { ManagedBrowser } from "./managed/browser.js"
 import { formatRelayStop, stopRelaySafely } from "./managed/relay.js"
 import { detectRecording, type RecordingReadiness } from "./recording.js"
-import { ChromeGate } from "./jelly/chrome-gate.js"
-import { registerGate, registerNativeRpc, underJelly, watchSessions } from "./jelly/native.js"
+import { ChromeGate, type ChromeAsk } from "./jelly/chrome-gate.js"
+import { noticeAsk, registerGate, registerNativeRpc, underJelly, watchSessions } from "./jelly/native.js"
 import type { ActionPublicKey } from "./jelly/action-grant.js"
 
 /** Internal seam: tests point the plugin at their own skills and a shorter status timeout. */
@@ -28,6 +28,8 @@ export interface BrowseSeam {
   readonly actionKey?: () => ActionPublicKey | undefined
   /** The per-task ask's time limit. */
   readonly askTimeoutMs?: number
+  /** jelly's core request, instead of the `jelly.core` RPC, for the ask's notice. */
+  readonly coreRequest?: (input: unknown, options?: { signal?: AbortSignal }) => Promise<unknown>
 }
 
 /** The package root: `dist/`'s parent when built, the repository when loaded from `src/`. */
@@ -384,6 +386,7 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
       const personal = jelly && options.browser === "real"
       const gate = new ChromeGate({
         describe: async (sessionID) => (await ctx.session.get({ sessionID } as never)).title ?? "",
+        ...(jelly ? { asked: (ask: ChromeAsk) => noticeAsk(seam.coreRequest ? { request: seam.coreRequest } : ctx.rpc, ask) } : {}),
         ...(seam.askTimeoutMs !== undefined ? { askTimeoutMs: seam.askTimeoutMs } : {}),
       })
       let stopWatching = () => undefined as void

@@ -15,7 +15,7 @@ const jelly = pkg.jelly
 own(jelly !== undefined && typeof jelly === "object", "package.json has no jelly declaration")
 if (jelly) {
   const keys = Object.keys(jelly).sort()
-  own(JSON.stringify(keys) === JSON.stringify(["actions", "contributes", "icon", "inbox", "nativeData", "rpc", "signIns", "skills", "summary", "title", "tools", "views"]), `jelly has the keys ${keys.join(", ")}`)
+  own(JSON.stringify(keys) === JSON.stringify(["actions", "contributes", "icon", "inbox", "nativeData", "notices", "rpc", "signIns", "skills", "summary", "title", "tools", "views"]), `jelly has the keys ${keys.join(", ")}`)
   own(typeof jelly.title === "string" && jelly.title.trim() !== "", "jelly.title must be a non-empty string")
   own(typeof jelly.summary === "string" && jelly.summary.length > 0 && jelly.summary.length <= 120, `jelly.summary is ${typeof jelly.summary === "string" ? jelly.summary.length : "not a string"} characters; the cap is 120`)
   own(jelly.icon === "assets/icon.svg", "jelly.icon must be assets/icon.svg")
@@ -66,6 +66,11 @@ if (jelly) {
     }
   }
   if (jelly.inbox !== undefined) own(rpc.get(jelly.inbox.method)?.readOnly === true, "the inbox reads through a read-only method")
+  for (const notice of jelly.notices ?? []) {
+    own(["message", "mention", "request", "proposal", "commitment", "alert"].includes(notice.category), `notice ${notice.id} has the category ${notice.category}`)
+    own(["name", "line", "count"].includes(notice.preview), `notice ${notice.id} has the preview ${notice.preview}`)
+    own(typeof notice.label === "string" && notice.label.length > 0 && notice.label.length <= 40, `notice ${notice.id} needs a label of at most 40 characters`)
+  }
 }
 
 // The three icon files and their declarations, as the kit requires.

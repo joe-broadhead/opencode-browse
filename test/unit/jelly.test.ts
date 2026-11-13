@@ -8,7 +8,7 @@ const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
 
 describe("the Jelly declaration", () => {
   test("has every key Jelly reads, and no unknown ones", () => {
-    expect(Object.keys(pkg.jelly).sort()).toEqual(["actions", "contributes", "icon", "inbox", "nativeData", "rpc", "signIns", "skills", "summary", "title", "tools", "views"].sort())
+    expect(Object.keys(pkg.jelly).sort()).toEqual(["actions", "contributes", "icon", "inbox", "nativeData", "notices", "rpc", "signIns", "skills", "summary", "title", "tools", "views"].sort())
     expect(pkg.jelly.title).toBe("Browse")
     expect(pkg.jelly.summary.length).toBeLessThanOrEqual(120)
     expect(pkg.jelly.icon).toBe("assets/icon.svg")
@@ -51,6 +51,8 @@ describe("the Jelly declaration", () => {
     }
     expect(NativeRpc.id).toBe(pkg.name)
     expect(pkg.jelly.inbox).toEqual({ method: "browser.inbox" })
+    const { ASK_NOTICE } = await import("../../src/jelly/native.js")
+    expect(pkg.jelly.notices).toEqual([{ id: ASK_NOTICE, label: "Your Chrome", category: "request", preview: "line" }])
   })
 
   test("declares the vendor, because browse is not our product", () => {

@@ -1,5 +1,6 @@
 import type { Plugin } from "@opencode/plugin"
 import type { Rpc } from "@opencode/plugin/rpc"
+import { randomBytes } from "node:crypto"
 import { SERVER_NAME } from "../constants.js"
 import { actionAudience, actionGrantVerifier, ActionGrantRefused, publishedActionKey, type ActionPublicKey } from "./action-grant.js"
 import { ChromeGate, type ChromeAsk, type ChromeTask } from "./chrome-gate.js"
@@ -16,11 +17,15 @@ import { ChromeGate, type ChromeAsk, type ChromeTask } from "./chrome-gate.js"
  * - `browser.inbox` (read-only): the pending ask as an Inbox item.
  * - `act.browser.connect`: Allow for this task, with a verified jelly action grant.
  * - `act.browser.stop`: the person's Stop, with a verified jelly action grant.
+ *
+ * A new ask is also filed as jelly's `chrome-ask` notice (`jelly.core` request, kind `notice`), which reaches the
+ * person whatever the agent's access level.
  */
 
 export const PACKAGE_NAME = "@joe-broadhead/opencode-browse"
 export const NATIVE_VIEW = "browser-native"
 export const ACTIONS = { connect: "browser.connect", stop: "browser.stop" } as const
+export const ASK_NOTICE = "chrome-ask"
 
 export type BrowserState = "not-connected" | "extension-needed" | "ready" | "driving" | "needs-you" | "unavailable"
 
@@ -254,6 +259,41 @@ export function registerGate(tool: Pick<Plugin.Context["tool"], "transform">, ga
       })
     }
   })
+}
+
+/** jelly's core plugin RPC, through which a plugin files a notice for the person. */
+const JELLY_CORE = {
+  id: "jelly.core",
+  methods: { request: { input: { type: "object" }, output: { type: "object" } } },
+  events: {},
+} as const
+
+type CoreRequest = (input: unknown, options?: { signal?: AbortSignal }) => Promise<unknown>
+
+/**
+ * Files the ask as jelly's `chrome-ask` notice: jelly raises it to the agent's people whatever the agent's access
+ * level, and keeps it for the Inbox. Best effort, never waited on: outside jelly, or refused, nothing changes.
+ */
+export function noticeAsk(rpc: Plugin.Context["rpc"] | { readonly request: CoreRequest }, ask: ChromeAsk): void {
+  let request: CoreRequest
+  try {
+    request = "request" in rpc ? rpc.request : (rpc(JELLY_CORE as never) as unknown as { request: CoreRequest }).request
+  } catch {
+    return
+  }
+  void Promise.resolve()
+    .then(() =>
+      request(
+        {
+          id: `browse-${randomBytes(12).toString("hex")}`,
+          kind: "notice",
+          body: { package: PACKAGE_NAME, notice: ASK_NOTICE, key: ask.id, name: ask.agent, line: `${ask.task} (${sites(ask.origins)})` },
+          keep: false,
+        },
+        { signal: AbortSignal.timeout(10_000) },
+      ),
+    )
+    .catch(() => undefined)
 }
 
 /** Ends a session's grant when the session is deleted or archived. */

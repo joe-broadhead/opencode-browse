@@ -66,6 +66,8 @@ export interface ChromeGateOptions {
   readonly idleMs?: number
   /** Told whenever an ask or a grant starts or ends. */
   readonly changed?: () => void
+  /** Told once when an ask opens, to reach the person (jelly's notice). */
+  readonly asked?: (ask: ChromeAsk) => void
 }
 
 const ENDED: Readonly<Record<ChromeEnd, string>> = {
@@ -262,6 +264,11 @@ export class ChromeGate {
     ask.timer.unref?.()
     this.#asks.set(ask.id, ask)
     this.#changed()
+    try {
+      this.#options.asked?.(this.#publicAsk(ask))
+    } catch {
+      // Reaching the person is best effort: the ask still waits in the read and the Inbox.
+    }
     return ask
   }
 

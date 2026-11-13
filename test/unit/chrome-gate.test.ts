@@ -4,7 +4,7 @@ import { describe, expect, test } from "bun:test"
 import { createHash, generateKeyPairSync, randomBytes, sign } from "node:crypto"
 import { actionInputDigest, type ActionPublicKey } from "../../src/jelly/action-grant.js"
 import { ChromeGate } from "../../src/jelly/chrome-gate.js"
-import { browserStatus, gated, inboxItems, askText, nativeActions, PACKAGE_NAME, registerGate, underJelly, type NativeDeps } from "../../src/jelly/native.js"
+import { ASK_NOTICE, browserStatus, gated, inboxItems, askText, nativeActions, noticeAsk, PACKAGE_NAME, registerGate, underJelly, type NativeDeps } from "../../src/jelly/native.js"
 
 const { publicKey, privateKey } = generateKeyPairSync("ed25519")
 const KEY: ActionPublicKey = { kid: createHash("sha256").update("test-key").digest("base64url"), jwk: publicKey.export({ format: "jwk" }) as ActionPublicKey["jwk"] }
@@ -18,7 +18,7 @@ function grant(action: string, input: unknown, claims: Record<string, unknown> =
   return `${head}.${body}.${sign(null, Buffer.from(`${head}.${body}`), privateKey).toString("base64url")}`
 }
 
-function setup(options: { askTimeoutMs?: number; idleMs?: number; now?: () => number; available?: boolean } = {}) {
+function setup(options: { askTimeoutMs?: number; idleMs?: number; now?: () => number; available?: boolean; asked?: (ask: { id: string }) => void } = {}) {
   const gate = new ChromeGate({ describe: async (sessionID) => `Book the train for ${sessionID}`, ...options })
   const calls: { tool: string; input: unknown }[] = []
   const tool = (name: string, result: unknown = { content: [] }) =>
@@ -312,6 +312,29 @@ describe("Stop ends a call already running", () => {
     gate.end("ses_a", "session-ended")
     expect(await first).toMatchObject({ ok: false })
     expect(seen?.aborted).toBe(true)
+  })
+})
+
+describe("the ask reaches the person through jelly's notice", () => {
+  test("one notice per ask, with the declared notice, the ask as its key, and the agent and task", async () => {
+    const asked: { id: string }[] = []
+    const { tool, gate } = setup({ asked: (ask) => asked.push(ask) })
+    void settle(tool("execute")({}, ctx("ses_a")))
+    void settle(tool("status")({}, ctx("ses_a")))
+    await tick()
+    expect(asked).toHaveLength(1)
+    const filed: unknown[] = []
+    noticeAsk({ request: async (input) => filed.push(input) }, gate.asks()[0]!)
+    await tick()
+    expect(filed).toEqual([
+      { id: expect.stringMatching(/^browse-[a-f0-9]{24}$/), kind: "notice", body: { package: PACKAGE_NAME, notice: ASK_NOTICE, key: asked[0]!.id, name: "atlas", line: "Book the train for ses_a (any site)" }, keep: false },
+    ])
+    // A refusal or no jelly at all changes nothing.
+    noticeAsk({ request: async () => Promise.reject(new Error("no jelly")) }, gate.asks()[0]!)
+    noticeAsk((() => { throw new Error("no rpc") }) as never, gate.asks()[0]!)
+    await tick()
+    expect(gate.asks()).toHaveLength(1)
+    gate.dispose()
   })
 })
 
