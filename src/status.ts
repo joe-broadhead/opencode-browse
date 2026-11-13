@@ -108,7 +108,7 @@ const TESTED_TEXT = `${TESTED_HOSTS.slice(0, -1).join(", ")} or ${TESTED_HOSTS.a
 const LISTED_UNKNOWN = 20
 const SAFE_NAME = /^[a-z][a-z0-9_]{0,63}$/
 const RULES_NOT_ADDED = "RULES_NOT_ADDED:"
-const PLUGIN_NAME = "github:joe-broadhead/opencode-browse#v0.0.0"
+const PLUGIN_NAME = "github:joe-broadhead/opencode-browse#v0.0.1"
 
 const STATE_OF = { connected: "connected", pending: "connecting", failed: "failed", disabled: "disabled", needs_auth: "failed" } as const
 

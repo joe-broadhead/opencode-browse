@@ -19,7 +19,7 @@ browser** of its own (below) and install nothing.
 ## Install
 
 ```sh
-opencode plugin add github:joe-broadhead/opencode-browse#v0.0.0
+opencode plugin add github:joe-broadhead/opencode-browse#v0.0.1
 ```
 
 The binary is downloaded from this plugin's release on first use, and only at `access: "all"`, the default. Setup downloads it, checks it against its pinned SHA-256, and then registers the server. At `"ask-changes"` or `"read-only"` setup downloads nothing: it names `/browse-install`, which downloads and verifies the binary at any `access` value. Run it, then restart OpenCode, so the server registers.
@@ -31,7 +31,7 @@ Each release has its own tag, and a Git install does not update by itself. To mo
 Or add the plugin to `opencode.json` instead, with the same spec:
 
 ```json
-{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.0" }] }
+{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.1" }] }
 ```
 
 1. Install **browse** from the Chrome Web Store and open its options page.
@@ -239,7 +239,7 @@ Options go in the plugin entry in `opencode.json`:
 {
   "plugins": [
     {
-      "package": "github:joe-broadhead/opencode-browse#v0.0.0",
+      "package": "github:joe-broadhead/opencode-browse#v0.0.1",
       "options": {
         // Pin the server to one browse session on these sites. Optional.
         "scope": { "session": "opencode", "allowedOrigins": ["github.com", "*.githubusercontent.com"], "readOnly": false },
@@ -276,7 +276,7 @@ ID or secret to distribute.
 {
   "plugins": [
     {
-      "package": "github:joe-broadhead/opencode-browse#v0.0.0",
+      "package": "github:joe-broadhead/opencode-browse#v0.0.1",
       "options": { "scope": { "allowedOrigins": ["*.your-company.com"], "readOnly": true } }
     }
   ]
@@ -322,6 +322,15 @@ default (use `access` or your own rules to make them ask). [docs/jelly.md](docs/
   agent this. browse `0.0.16` keeps a session per caller, and this plugin will re-pin to it when it is released. Until
   then, `npm run drift` prints `isolates: no`; that line is information, not a failure.
 - The browse binary downloads at setup only at `access: "all"`, because the server registers at setup and cannot ask at a tool call. At `"ask-changes"` or `"read-only"`, run `/browse-install`, then restart OpenCode.
+- **In jelly, a read grant is status only.** browse opens and reads pages only through `execute`, which can also click
+  and type, so a task allowed to read can check your Chrome's status (`status`, `session_list`, `secrets_list`,
+  `secrets_status`) but cannot open or read a page; any other call asks again, to act.
+- **In jelly, `asking` and the change notice wait on jelly.** With no task holding the Chrome, a waiting ask is reported
+  as `not-connected` (or `extension-needed`) until jelly draws `asking`, and the `personal-browser` change signal is
+  built but neither raised nor declared until jelly reads it as a signal. Allow for this task and Not now are on the
+  plugin's page, the notice and the Inbox, not on jelly's own card.
+- **Jelly.** The `access` and `browser` settings declare their choices, which only a jelly that includes app#1301
+  reads; an older jelly refuses the plugin's declaration.
 - Updates are not automatic for a Git install, and `opencode plugin update` and `opencode plugin check` do not work on one: to move to a newer release, remove the old entry and add the new tag.
 
 ## Troubleshooting
@@ -375,7 +384,7 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 ## Uninstall
 
 ```sh
-opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.0
+opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.1
 ```
 
 That removes the plugin, its cached binary and its rules; it does not touch your browser. The extension is
