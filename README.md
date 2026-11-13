@@ -293,8 +293,9 @@ by default, never for good. In real mode, every browse tool waits behind a gate 
 
 1. The agent's first browse call in a conversation asks: jelly shows "<agent> wants to use your Chrome for this task",
    with the task (the conversation's title), the sites (the `allowedOrigins` of a `browse_session_new`, or any
-   site) and the mode: to read only when the call is one of the four reads, to read and act otherwise. A read-only
-   grant lets only those four reads through; an act call asks again. It is also a jelly notice and an Inbox item, whatever the agent's access level. Nothing reaches the relay,
+   site) and the mode: "to check your Chrome's status only; it can't open or read pages" when the call is one of the
+   four status reads (`status`, `session_list`, `secrets_list`, `secrets_status`), "to read and act" otherwise. Until
+   browse has read-only page tools, a status-only grant cannot open or read a page; an act call asks again. It is also a jelly notice and an Inbox item, whatever the agent's access level. Nothing reaches the relay,
    the extension or the browser meanwhile. Every tool the browse server exposes is gated, classified or not. While a
    task holds the Chrome, Stop stays offered; a second conversation's ask is allowed from the notice's Inbox item or
    the plugin's page, and ends as Not now after five minutes.

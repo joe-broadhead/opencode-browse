@@ -71,10 +71,11 @@ RPC both pass through. A call from a conversation with no grant never reaches th
   does not classify, asks to `act`. Under a `read` grant only those four pass; an act call there never reaches the
   server: it asks again, for `act`, riding along on the task, and waits. Allowed, the same task acts; Not now leaves
   it reading. browse has no separate navigate, snapshot or screenshot tool — they are `execute`, which can click and
-  type — so a read grant cannot open or read a page. A read-only browse session (`session_new` with `readOnly`) refuses
+  type — so a read grant cannot open or read a page, and the person reads its mode as "to check your Chrome's status
+  only; it can't open or read pages" until browse has read-only page tools. A read-only browse session (`session_new` with `readOnly`) refuses
   input, not page script, so it is not counted as read.
 - **More than one task.** While a task holds the Chrome, Stop always stays reachable: the read keeps that task's
-  state and adds a second conversation's or a subagent's waiting ask as `ask`. That ask reaches the person through
+  state and adds a second conversation's or a subagent's waiting ask as `request`. That ask reaches the person through
   the notice, the Inbox and the plugin's page, which allows it by its id; unanswered, it ends at `expiresAt` as
   Not now.
 - **Allow for this task** is `browser.allow { id }` (B3), or jelly's Connect (`browser.connect`), which allows the ask

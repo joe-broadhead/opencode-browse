@@ -52,8 +52,8 @@ describe("before the person answers", () => {
     expect(ask).toMatchObject({ sessionID: "ses_a", agent: "atlas", task: "Book the train for ses_a", origins: ["trains.example", "pay.example"], mode: "act" })
     // B3's request, in jelly's shape; until jelly draws `asking` it reads not-connected, which jelly's Connect allows.
     expect(await browserStatus(deps)).toEqual({ state: "not-connected", canControl: true, request: { id: ask!.id, agent: "atlas", task: { title: ask!.task }, scope: { sites: ["trains.example", "pay.example"], mode: "act" }, expiresAt: ask!.expiresAt } })
-    expect(askText(gate, {})).toContain("atlas wants to use your Chrome for this task, to read and act: Book the train for ses_a. Sites: trains.example, pay.example.")
-    expect(inboxItems(gate).items).toEqual([{ key: ask!.id, category: "request", kind: "chrome-ask", label: "Wants to use your Chrome", name: "atlas", line: "Book the train for ses_a (trains.example, pay.example; to read and act)", at: ask!.at }])
+    expect(askText(gate, {})).toContain("atlas wants to use your Chrome for this task: Book the train for ses_a. Sites: trains.example, pay.example. It asks to read and act.")
+    expect(inboxItems(gate).items).toEqual([{ key: ask!.id, category: "request", kind: "chrome-ask", label: "Wants to use your Chrome", name: "atlas", line: "Book the train for ses_a (trains.example, pay.example), to read and act", at: ask!.at }])
     gate.dispose()
   })
 
@@ -356,7 +356,7 @@ describe("the ask reaches the person through jelly's notice", () => {
     noticeAsk({ request: async (input) => filed.push(input) }, gate.asks()[0]!)
     await tick()
     expect(filed).toEqual([
-      { id: expect.stringMatching(/^browse-[a-f0-9]{24}$/), kind: "notice", body: { package: PACKAGE_NAME, notice: ASK_NOTICE, key: asked[0]!.id, name: "atlas", line: "Book the train for ses_a (any site; to read and act)" }, keep: true },
+      { id: expect.stringMatching(/^browse-[a-f0-9]{24}$/), kind: "notice", body: { package: PACKAGE_NAME, notice: ASK_NOTICE, key: asked[0]!.id, name: "atlas", line: "Book the train for ses_a (any site), to read and act" }, keep: true },
     ])
     // A refusal or no jelly at all changes nothing.
     noticeAsk({ request: async () => Promise.reject(new Error("no jelly")) }, gate.asks()[0]!)

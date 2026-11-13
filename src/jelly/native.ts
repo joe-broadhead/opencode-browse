@@ -165,7 +165,16 @@ export function extensionFact(status: { readonly relay: { readonly running: bool
 }
 
 const sites = (origins: readonly string[] | null) => (origins === null ? "any site" : origins.join(", "))
-const modeWords = (mode: ChromeMode) => (mode === "read" ? "to read only" : "to read and act")
+/**
+ * The mode, as the person reads it. A read grant lets only the plugin's four status reads through; browse opens and
+ * reads pages only through `execute`, which can act, so until browse has read-only page tools it cannot open or read
+ * a page, and the words say so.
+ */
+export const MODE_WORDS: Readonly<Record<ChromeMode, string>> = {
+  read: "to check your Chrome's status only; it can't open or read pages",
+  act: "to read and act",
+}
+const modeWords = (mode: ChromeMode) => MODE_WORDS[mode]
 
 export function requestOf(ask: ChromeAsk): BrowserRequest {
   return { id: ask.id, agent: ask.agent, task: { title: ask.task }, scope: { sites: ask.origins === null ? ["*"] : [...ask.origins], mode: ask.mode }, expiresAt: ask.expiresAt }
@@ -209,7 +218,7 @@ export function askText(gate: ChromeGate, input: unknown): string {
   const id = askIdOf(input)
   const ask = id === undefined ? gate.oldestAsk() : gate.asks().find((item) => item.id === id)
   if (ask === undefined) return "No agent is asking to use your Chrome right now."
-  return `${ask.agent} wants to use your Chrome for this task, ${modeWords(ask.mode)}: ${ask.task}. Sites: ${sites(ask.origins)}. Allowed for this task only; it ends when the task ends or you stop it.`
+  return `${ask.agent} wants to use your Chrome for this task: ${ask.task}. Sites: ${sites(ask.origins)}. It asks ${modeWords(ask.mode)}. Allowed for this task only; it ends when the task ends or you stop it.`
 }
 
 export function inboxItems(gate: ChromeGate) {
@@ -226,7 +235,7 @@ export function inboxItems(gate: ChromeGate) {
   }
 }
 
-const askLine = (ask: ChromeAsk) => `${ask.task} (${sites(ask.origins)}; ${modeWords(ask.mode)})`
+const askLine = (ask: ChromeAsk) => `${ask.task} (${sites(ask.origins)}), ${modeWords(ask.mode)}`
 
 const askIdOf = (input: unknown): string | undefined => {
   if (input === null || typeof input !== "object") return undefined

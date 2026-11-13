@@ -144,7 +144,9 @@ describe("B3: the mode is enforced", () => {
     await tick()
     const [ask] = gate.asks()
     expect(ask!.mode).toBe("read")
-    expect(askText(gate, {})).toContain("to read only")
+    // Until browse has read-only page tools, the person reads that a read grant cannot open or read pages.
+    expect(askText(gate, {})).toContain("It asks to check your Chrome's status only; it can't open or read pages.")
+    expect(inboxItems(gate).items[0]!.line).toEndWith(", to check your Chrome's status only; it can't open or read pages")
     expect(actions.allow(call("browser.allow", { id: ask!.id }))).toBe(true)
     expect(await first).toMatchObject({ ok: true })
     expect(await settle(tool("status")({}, ctx("ses_a")))).toMatchObject({ ok: true })

@@ -53,11 +53,11 @@
     text("state", held && status.state === "ready" ? `${status.agent} may use your Chrome for this task.` : words[status.state] || words.unavailable);
     // A waiting request and a running task can both be there: each is shown, with its own buttons.
     const sites = (list) => (list.includes("*") ? "any site" : list.join(", "));
-    const mode = (value) => (value === "read" ? "to read only" : "to read and act");
+    const mode = (value) => (value === "read" ? "to check your Chrome's status only; it can't open or read pages" : "to read and act");
     const lines = [];
     if (status.task) lines.push(`Using it now: ${status.agent}, ${status.task.title}.`);
     const ask = status.request;
-    if (ask) lines.push(`${ask.agent} wants to use your Chrome for this task, ${mode(ask.scope.mode)}: ${ask.task.title}. Sites: ${sites(ask.scope.sites)}.`);
+    if (ask) lines.push(`${ask.agent} wants to use your Chrome for this task: ${ask.task.title}. Sites: ${sites(ask.scope.sites)}. It asks ${mode(ask.scope.mode)}.`);
     text("detail", lines.join(" "));
     if (ask && status.canControl) {
       button("Allow for this task", true, () => request("act.call", { action: "browser.allow", input: { id: ask.id } }));
