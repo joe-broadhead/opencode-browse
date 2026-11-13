@@ -19,6 +19,21 @@ and this project uses [Semantic Versioning](https://semver.org/).
   pending ask, also filed as jelly's `chrome-ask` notice. The gate covers every tool the browse server exposes,
   classified or not; while a task holds the Chrome, Stop stays offered and a second conversation's ask is allowed
   from the plugin's page; and Stop, the task's end and the idle limit abort a browse call already running.
+- jelly's asks B1–B4 (issue #5). The `browser.status` read answers jelly's shape, `{ state, canControl, task?: { id,
+  title, startedAt }, agent?, request? }`, and no other field. A waiting request is `request: { id, agent, task: {
+  title }, scope: { sites, mode }, expiresAt }`; with no task holding the Chrome its state is `asking` once jelly
+  draws it (`not-connected` until then, so jelly's Connect still allows it), and while a task holds the Chrome the
+  state stays `ready` or `driving` so Stop stays reachable. New actions `browser.allow { id }` and
+  `browser.decline { id }` (owner device, confirmed every time), with the codes `REQUEST_EXPIRED` and
+  `NOT_YOUR_REQUEST`. The `personal-browser` notice is declared to signal each change of the read, with no content;
+  it is raised once jelly treats it as a signal.
+
+### Changed
+
+- In jelly, a request's mode is enforced: a read grant lets only the four reads of the plugin's table through
+  (`status`, `session_list`, `secrets_list`, `secrets_status`), and any other or unclassified tool asks again, to act.
+- In jelly, with no task and no request the read is `ready` with `canControl: false` (it was `not-connected`), so the
+  read after a task ends is `ready`. The read no longer reports `ask`, or `task` as `{ agent, task, origins, since }`.
 
 ## [0.0.0] - 2026-11-10
 <!-- kit-release: the GitHub release v0.0.0 -->
