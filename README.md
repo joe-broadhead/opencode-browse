@@ -367,8 +367,8 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 | `EXTENSION_UNVERIFIED` | the bundled extension does not match its pin | reinstall the plugin |
 | `CHROME_NOT_ALLOWED` | under jelly, the person has not allowed their Chrome for this task (not answered in five minutes, the call cancelled, or stopped) | tell the person what the task needs and which sites, then try again: jelly asks them |
 | `CHROME_SCOPE` | under jelly, a session would reach sites the person did not allow for this task | keep to the allowed sites, or start a new task that names the others |
-| `REQUEST_EXPIRED` | under jelly, the person answered a request to use their Chrome that had already run out or been answered | ask the agent to try again |
-| `NOT_YOUR_REQUEST` | under jelly, the person answered a request id this engine never asked | answer it from the conversation that asked |
+| `REQUEST_EXPIRED` | under jelly, the person answered a request to use their Chrome that ran out, was answered, or is no longer known (the engine restarted) | ask the agent to try again |
+| `NOT_YOUR_REQUEST` | under jelly, the person answered an id this plugin could never have issued | answer it from the conversation that asked |
 | Recording needs ffmpeg | an agent-opened tab records through CDP, which needs `ffmpeg` on PATH | `brew install ffmpeg`, or click the toolbar button on a tab and record that |
 
 ## Uninstall

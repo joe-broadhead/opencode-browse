@@ -244,13 +244,21 @@ export class RequestRefused extends Error {
 }
 /** B3's words, exactly: `REQUEST_EXPIRED: this request ran out. Next step: ask the agent to try again.` */
 export const REQUEST_EXPIRED = errorText("REQUEST_EXPIRED", "this request ran out.", "ask the agent to try again.")
-export const NOT_YOUR_REQUEST = errorText("NOT_YOUR_REQUEST", "this request is not one of your conversations here.", "answer it from the conversation that asked.")
+export const NOT_YOUR_REQUEST = errorText("NOT_YOUR_REQUEST", "this is not a request this plugin made.", "answer it from the conversation that asked.")
 
+/** The form of every request id this plugin issues. */
+const REQUEST_ID = /^ask_[a-f0-9]{24}$/
+
+/**
+ * The request an answer names, while it waits. An id in this plugin's form that is not waiting has run out, been
+ * answered, or is no longer known (an engine restart forgets every request): the engine cannot tell those apart, and
+ * the next step is the same, so it is `REQUEST_EXPIRED`. Only an id this plugin could never have issued is known not
+ * to be the person's request here: `NOT_YOUR_REQUEST`.
+ */
 function waitingRequest(gate: ChromeGate, input: unknown): string {
   const id = askIdOf(input) ?? ""
-  const fate = gate.fate(id)
-  if (fate === "ended") throw new RequestRefused("REQUEST_EXPIRED", REQUEST_EXPIRED)
-  if (fate === "unknown") throw new RequestRefused("NOT_YOUR_REQUEST", NOT_YOUR_REQUEST)
+  if (!REQUEST_ID.test(id)) throw new RequestRefused("NOT_YOUR_REQUEST", NOT_YOUR_REQUEST)
+  if (gate.fate(id) !== "waiting") throw new RequestRefused("REQUEST_EXPIRED", REQUEST_EXPIRED)
   return id
 }
 

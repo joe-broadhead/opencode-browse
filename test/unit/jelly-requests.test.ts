@@ -211,12 +211,20 @@ describe("B3: allow and decline one request", () => {
     expect(() => actions.decline(call("browser.decline", { id: ask!.id }))).toThrow(REQUEST_EXPIRED)
   })
 
-  test("an id this engine never asked is NOT_YOUR_REQUEST, and allows nothing", async () => {
+  test("a request id this engine no longer knows (after a restart) has run out; an id it could never issue is not yours", async () => {
     const { tool, gate, actions } = setup()
     void settle(tool("execute")({}, ctx("ses_a")))
     await tick()
-    expect(() => actions.allow(call("browser.allow", { id: "ask_000000000000000000000000" }))).toThrow(NOT_YOUR_REQUEST)
-    expect(() => actions.decline(call("browser.decline", { id: "ask_000000000000000000000000" }))).toThrow(NOT_YOUR_REQUEST)
+    // A fresh gate is an engine restarted: the old request is forgotten.
+    const restarted = setup()
+    const old = gate.asks()[0]!.id
+    expect(() => restarted.actions.allow(call("browser.allow", { id: old }))).toThrow(REQUEST_EXPIRED)
+    expect(() => restarted.actions.decline(call("browser.decline", { id: old }))).toThrow(REQUEST_EXPIRED)
+    expect(() => actions.allow(call("browser.allow", { id: "ask_000000000000000000000000" }))).toThrow(REQUEST_EXPIRED)
+    for (const id of ["req_123", "ask_XYZ", ""]) {
+      expect(() => actions.allow(call("browser.allow", { id })), id).toThrow(NOT_YOUR_REQUEST)
+      expect(() => actions.decline(call("browser.decline", { id })), id).toThrow(NOT_YOUR_REQUEST)
+    }
     expect(gate.tasks()).toEqual([])
     expect(gate.asks()).toHaveLength(1)
     // A grant for another request's id is refused before anything is allowed.
@@ -235,7 +243,7 @@ describe("B3: allow and decline one request", () => {
     const context = { error: (code: string, message: string) => failed.push([code, message]) }
     expect(await handlers["act.browser.decline"]!(call("browser.decline", { id }), context)).toBe(true)
     await handlers["act.browser.allow"]!(call("browser.allow", { id }), context)
-    await handlers["act.browser.allow"]!(call("browser.allow", { id: "ask_ffffffffffffffffffffffff" }), context)
+    await handlers["act.browser.allow"]!(call("browser.allow", { id: "not-a-request" }), context)
     expect(failed).toEqual([
       ["REQUEST_EXPIRED", "REQUEST_EXPIRED: this request ran out. Next step: ask the agent to try again."],
       ["NOT_YOUR_REQUEST", NOT_YOUR_REQUEST],
