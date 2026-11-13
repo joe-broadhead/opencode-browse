@@ -24,8 +24,8 @@ config file. Under jelly it gates the person's Chrome per task ([jelly.md](jelly
 | `src/doctor.ts` | `/browse-doctor`: the vendor doctor, the binary checks, scope repair |
 | `src/skills.ts` | loading and registering `skills/` |
 | `src/tui.ts` | `/browse` and the palette command "Browse: Status" |
-| `src/jelly/` | jelly's side: the per-task gate on the person's Chrome (`chrome-gate.ts`), the gate on every server tool, the `personal-browser` read, its actions, the Inbox read and the ask's notice (`native.ts`), and the action-grant check (`action-grant.ts`); see [jelly.md](jelly.md) |
-| `views/browser.html` | the `browser-native` page jelly shows: the state, the ask, Allow for this task and Stop |
+| `src/jelly/` | jelly's side: the per-task gate on the person's Chrome (`chrome-gate.ts`), the gate on every server tool, the `personal-browser` read, its actions, the Inbox read and the ask's notice (`native.ts`), and the action-grant check (`action-grant.ts`); the read, the request, allow and decline, and the change notice follow jelly's asks B1–B4 (issue #5); see [jelly.md](jelly.md) |
+| `views/browser.html` | the `browser-native` page jelly shows: the state, the request, Allow for this task, Not now and Stop |
 | `src/host/tools-rpc.ts` | the shared tools RPC v2.1, with this plugin's block between the markers |
 | `manifest/browse.json` | the pin: version, channel, and each target's tarball URL, SHA-256, size, binary SHA-256 and size |
 | `scripts/pin.mjs` | downloads and verifies the pinned targets into `.cache/bin` |

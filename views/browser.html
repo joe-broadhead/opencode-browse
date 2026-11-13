@@ -18,7 +18,7 @@
 <p class="muted">An agent uses your own Chrome only for one task you allow. It ends when the task ends or you stop it.</p>
 <script>
 "use strict";
-// A sealed page: it talks to the app only through the port the app hands it, and only with the read and the two
+// A sealed page: it talks to the app only through the port the app hands it, and only with the read and the
 // actions this view is granted. The app draws every confirmation.
 (() => {
   let port = null;
@@ -32,7 +32,8 @@
   const words = {
     "not-connected": "No agent is using your Chrome.",
     "extension-needed": "The browser extension needs to be connected.",
-    ready: "An agent may use your Chrome for one task.",
+    ready: "No agent is using your Chrome.",
+    asking: "An agent is asking to use your Chrome.",
     driving: "An agent is using your Chrome.",
     "needs-you": "Your Chrome needs you.",
     unavailable: "Your Chrome is not available here.",
@@ -48,15 +49,21 @@
   const read = async () => {
     const status = await request("rpc.call", { method: "browser.status", input: {} });
     document.getElementById("buttons").replaceChildren();
-    text("state", words[status.state] || words.unavailable);
-    // A waiting ask and a running task can both be there: each is shown, with its own button.
-    const sites = (origins) => (origins ? origins.join(", ") : "any site");
+    const held = status.agent !== undefined;
+    text("state", held && status.state === "ready" ? `${status.agent} may use your Chrome for this task.` : words[status.state] || words.unavailable);
+    // A waiting request and a running task can both be there: each is shown, with its own buttons.
+    const sites = (list) => (list.includes("*") ? "any site" : list.join(", "));
+    const mode = (value) => (value === "read" ? "to check your Chrome's status only; it can't open or read pages" : "to read and act");
     const lines = [];
-    if (status.task) lines.push(`Using it now: ${status.task.agent}, ${status.task.task}. Sites: ${sites(status.task.origins)}.`);
-    if (status.ask) lines.push(`${status.ask.agent} wants to use your Chrome for this task: ${status.ask.task}. Sites: ${sites(status.ask.origins)}.`);
+    if (status.task) lines.push(`Using it now: ${status.agent}, ${status.task.title}.`);
+    const ask = status.request;
+    if (ask) lines.push(`${ask.agent} wants to use your Chrome for this task: ${ask.task.title}. Sites: ${sites(ask.scope.sites)}. It asks ${mode(ask.scope.mode)}.`);
     text("detail", lines.join(" "));
-    if (status.ask && status.canControl) button("Allow for this task", true, () => request("act.call", { action: "browser.connect", input: { ask: status.ask.id } }));
-    if (status.task && status.canControl) button("Stop", false, () => request("act.call", { action: "browser.stop", input: {} }));
+    if (ask && status.canControl) {
+      button("Allow for this task", true, () => request("act.call", { action: "browser.allow", input: { id: ask.id } }));
+      button("Not now", false, () => request("act.call", { action: "browser.decline", input: { id: ask.id } }));
+    }
+    if (held && status.canControl) button("Stop", false, () => request("act.call", { action: "browser.stop", input: {} }));
   };
   addEventListener("message", (event) => {
     if (event.source !== parent || !event.data || event.data.kind !== "hello" || port !== null) return;

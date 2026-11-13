@@ -32,12 +32,20 @@ describe("the Jelly declaration", () => {
   })
 
   test("declares the personal-browser binding exactly as jelly's D103 example, with every-time local actions", async () => {
-    const { ACTIONS, NATIVE_VIEW, NativeRpc, CONNECT_INPUT, STOP_INPUT } = await import("../../src/jelly/native.js")
-    expect(pkg.jelly.nativeData).toEqual([{ v: 1, capability: "personal-browser", view: NATIVE_VIEW, read: "browser.status", actions: ACTIONS }])
+    const { ACTIONS, REQUEST_ACTIONS, REQUEST_INPUT, STATUS_OUTPUT, NATIVE_VIEW, NativeRpc, CONNECT_INPUT, STOP_INPUT } = await import("../../src/jelly/native.js")
+    // B1: the hint names connect and stop only; jelly's PluginNativeDataSchema.actions is strict.
+    expect(pkg.jelly.nativeData).toEqual([{ v: 1, capability: "personal-browser", view: NATIVE_VIEW, read: "browser.status", actions: { connect: "browser.connect", stop: "browser.stop" } }])
+    expect(ACTIONS).toEqual({ connect: "browser.connect", stop: "browser.stop" })
     const view = pkg.jelly.views.find((item: { id: string }) => item.id === NATIVE_VIEW)
     expect(view).toEqual({ v: 1, id: NATIVE_VIEW, place: "settings-section", title: "Your Chrome", page: "views/browser.html", grants: ["rpc"], rpc: ["browser.status", "browser.ask"] })
     expect(pkg.files).toContain("views")
-    for (const name of [ACTIONS.connect, ACTIONS.stop]) {
+    // B2: the read declares jelly's shape. B3: allow and decline are ordinary local, every-time actions of the page.
+    expect(pkg.jelly.rpc.find((item: { name: string }) => item.name === "browser.status").output).toEqual(STATUS_OUTPUT)
+    expect(Object.keys(STATUS_OUTPUT.properties).sort()).toEqual(["agent", "canControl", "request", "state", "task"])
+    for (const name of [REQUEST_ACTIONS.allow, REQUEST_ACTIONS.decline]) {
+      expect(pkg.jelly.actions.find((item: { name: string }) => item.name === name).input, name).toEqual(REQUEST_INPUT)
+    }
+    for (const name of [ACTIONS.connect, ACTIONS.stop, REQUEST_ACTIONS.allow, REQUEST_ACTIONS.decline]) {
       const action = pkg.jelly.actions.find((item: { name: string }) => item.name === name)
       expect(action, name).toMatchObject({ target: "engine", class: "local", confirm: "always", views: [NATIVE_VIEW], personOnly: "consent" })
       // The engine method jelly calls is act.<name>, under the package's own RPC id.
@@ -51,8 +59,12 @@ describe("the Jelly declaration", () => {
     }
     expect(NativeRpc.id).toBe(pkg.name)
     expect(pkg.jelly.inbox).toEqual({ method: "browser.inbox" })
-    const { ASK_NOTICE } = await import("../../src/jelly/native.js")
+    const { ASK_NOTICE, CHANGE_NOTICE } = await import("../../src/jelly/native.js")
+    // B4's change notice is not declared while it is not raised (RAISE_CHANGE_NOTICES is false).
+    const { RAISE_CHANGE_NOTICES } = await import("../../src/jelly/native.js")
+    expect(RAISE_CHANGE_NOTICES).toBe(false)
     expect(pkg.jelly.notices).toEqual([{ id: ASK_NOTICE, label: "Your Chrome", category: "request", preview: "line" }])
+    expect(pkg.jelly.notices.map((notice: { id: string }) => notice.id)).not.toContain(CHANGE_NOTICE)
   })
 
   test("declares the vendor, because browse is not our product", () => {

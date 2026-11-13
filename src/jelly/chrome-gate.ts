@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto"
+import { TOOLS } from "../browse-tools.js"
 import { browseError } from "../constants.js"
 
 /**
@@ -13,7 +14,24 @@ import { browseError } from "../constants.js"
  * `admit` runs before any browse tool reaches the MCP server. With no grant it records an ask and waits for the
  * person's answer (Allow for this task, through `allow`), the call's abort, or the ask's time limit; nothing reaches
  * the relay, the extension or the browser meanwhile.
+ *
+ * **Mode.** Every ask and grant is `read` or `act`, and the gate enforces it. The call that asks says which: a tool of
+ * the `read` class in the plugin's own table (`READ_TOOLS`) asks to read, any other tool, and any tool the table does
+ * not classify, asks to act. Under a `read` grant only `READ_TOOLS` pass; an act call there asks again, for `act`, and
+ * waits, so the person sees the wider mode before anything changes.
  */
+
+export type ChromeMode = "read" | "act"
+
+/** The tools a `read` grant lets through: the `read` class of the plugin's own table. Anything else is act. */
+export const READ_TOOLS: ReadonlySet<string> = new Set(TOOLS.filter((tool) => tool.class === "read").map((tool) => tool.name))
+
+/** The mode one browse tool needs. An unclassified tool needs `act`. */
+export function modeOf(tool: string): ChromeMode {
+  return READ_TOOLS.has(tool) ? "read" : "act"
+}
+
+const covers = (granted: ChromeMode, needed: ChromeMode) => granted === "act" || needed === "read"
 
 export interface ChromeAsk {
   readonly id: string
@@ -22,16 +40,25 @@ export interface ChromeAsk {
   readonly task: string
   /** The sites the agent named for the task, or null for any site. */
   readonly origins: readonly string[] | null
+  readonly mode: ChromeMode
   readonly at: string
+  /** When the ask ends unanswered, as Not now. */
+  readonly expiresAt: string
 }
 
 export interface ChromeTask {
+  /** The grant's own id, never the session's. */
+  readonly id: string
   readonly sessionID: string
   readonly agent: string
   readonly task: string
   readonly origins: readonly string[] | null
+  readonly mode: ChromeMode
   readonly since: string
 }
+
+/** What became of a request id: still waiting, answered or run out, or never one of this engine's. */
+export type RequestFate = "waiting" | "ended" | "unknown"
 
 export type ChromeEnd = "task-done" | "stopped" | "session-ended" | "idle" | "disposed"
 
@@ -40,7 +67,8 @@ interface PendingAsk extends ChromeAsk {
   timer: ReturnType<typeof setTimeout> | undefined
 }
 
-interface Grant extends ChromeTask {
+interface Grant extends Omit<ChromeTask, "mode"> {
+  mode: ChromeMode
   lastUsed: number
   inFlight: number
   /** Aborted when the grant ends, so a call already running stops with it. */
@@ -80,6 +108,8 @@ const ENDED: Readonly<Record<ChromeEnd, string>> = {
 
 export const ASK_TIMEOUT_MS = 5 * 60_000
 export const IDLE_MS = 60 * 60_000
+/** How many ended request ids are remembered, to tell `REQUEST_EXPIRED` from `NOT_YOUR_REQUEST`. */
+const ENDED_REMEMBERED = 1024
 const ENDING_TOOLS = new Set(["session_reset", "session_delete"])
 const SCOPING_TOOLS = new Set(["session_new", "session_allowlist"])
 
@@ -102,6 +132,7 @@ export function originsOf(tool: string, input: unknown): readonly string[] | nul
 export class ChromeGate {
   readonly #asks = new Map<string, PendingAsk>()
   readonly #grants = new Map<string, Grant>()
+  readonly #endedAsks = new Set<string>()
   readonly #options: ChromeGateOptions
   readonly #now: () => number
   #ended = false
@@ -119,11 +150,13 @@ export class ChromeGate {
     if (this.#ended) throw notAllowed("the plugin has stopped")
     if (call.signal?.aborted) throw notAllowed("the call was cancelled")
     this.#expire()
+    const needed = modeOf(call.tool)
     let grant = this.#grants.get(call.sessionID)
-    if (grant === undefined || grant.agent !== call.agent) {
-      await this.#ask(call)
+    if (grant === undefined || grant.agent !== call.agent || !covers(grant.mode, needed)) {
+      await this.#ask(call, needed)
       grant = this.#grants.get(call.sessionID)
       if (grant === undefined || grant.agent !== call.agent) throw notAllowed("the answer was not Allow for this task")
+      if (!covers(grant.mode, needed)) throw notAllowed("the person allowed reading only, and this call would act")
     }
     return this.#scoped(grant, call)
   }
@@ -155,11 +188,28 @@ export class ChromeGate {
     const ask = this.#asks.get(askID ?? oldest?.id ?? "")
     if (ask === undefined) return undefined
     this.#forget(ask)
-    const task: Grant = { sessionID: ask.sessionID, agent: ask.agent, task: ask.task, origins: ask.origins, since: new Date(this.#now()).toISOString(), lastUsed: this.#now(), inFlight: 0, controller: new AbortController() }
-    this.#grants.set(ask.sessionID, task)
+    const held = this.#grants.get(ask.sessionID)
+    let task: Grant
+    if (held !== undefined && held.agent === ask.agent) {
+      // A wider ask of the same task: the grant is the same one, now to act; a narrower one changes nothing.
+      held.mode = covers(held.mode, ask.mode) ? held.mode : ask.mode
+      held.lastUsed = this.#now()
+      task = held
+    } else {
+      if (held !== undefined) this.end(ask.sessionID, "task-done")
+      task = { id: `task_${randomBytes(12).toString("hex")}`, sessionID: ask.sessionID, agent: ask.agent, task: ask.task, origins: ask.origins, mode: ask.mode, since: new Date(this.#now()).toISOString(), lastUsed: this.#now(), inFlight: 0, controller: new AbortController() }
+      this.#grants.set(ask.sessionID, task)
+    }
     for (const waiter of ask.waiters) waiter.resolve()
     this.#changed()
     return this.#public(task)
+  }
+
+  /** Whether a request id is waiting, has ended (answered, withdrawn or run out), or was never this engine's. */
+  fate(askID: string): RequestFate {
+    this.#expire()
+    if (this.#asks.has(askID)) return "waiting"
+    return this.#endedAsks.has(askID) ? "ended" : "unknown"
   }
 
   /** Not now, or a withdrawn ask: its waiting calls are refused. */
@@ -223,10 +273,14 @@ export class ChromeGate {
     return [...this.#grants.values()].some((grant) => grant.inFlight > 0)
   }
 
-  async #ask(call: ChromeCall): Promise<void> {
-    const existing = [...this.#asks.values()].find((ask) => ask.sessionID === call.sessionID && ask.agent === call.agent)
-    const ask = existing ?? (await this.#open(call))
-    if (this.#grants.get(call.sessionID)?.agent === call.agent) return
+  #waitingAsk(call: ChromeCall, needed: ChromeMode): PendingAsk | undefined {
+    return [...this.#asks.values()].find((ask) => ask.sessionID === call.sessionID && ask.agent === call.agent && covers(ask.mode, needed))
+  }
+
+  async #ask(call: ChromeCall, needed: ChromeMode): Promise<void> {
+    const ask = this.#waitingAsk(call, needed) ?? (await this.#open(call, needed))
+    const held = this.#grants.get(call.sessionID)
+    if (held?.agent === call.agent && covers(held.mode, needed)) return
     await new Promise<void>((resolve, reject) => {
       const waiter = { resolve: () => done(resolve), reject: (error: Error) => done(() => reject(error)) }
       const onAbort = () => {
@@ -244,22 +298,26 @@ export class ChromeGate {
     })
   }
 
-  async #open(call: ChromeCall): Promise<PendingAsk> {
+  async #open(call: ChromeCall, mode: ChromeMode): Promise<PendingAsk> {
     const task = await this.#options.describe(call.sessionID).catch(() => "")
     // A second call of the same session may have opened one while the title was read.
-    const raced = [...this.#asks.values()].find((ask) => ask.sessionID === call.sessionID && ask.agent === call.agent)
+    const raced = this.#waitingAsk(call, mode)
     if (raced !== undefined) return raced
+    const timeout = this.#options.askTimeoutMs ?? ASK_TIMEOUT_MS
+    const held = this.#grants.get(call.sessionID)
     const ask: PendingAsk = {
       id: `ask_${randomBytes(12).toString("hex")}`,
       sessionID: call.sessionID,
       agent: call.agent,
       task: oneLine(task, 200) || "This conversation",
-      origins: originsOf(call.tool, call.input),
+      // A wider ask of a task already allowed keeps the task's sites.
+      origins: held?.agent === call.agent ? held.origins : originsOf(call.tool, call.input),
+      mode,
       at: new Date(this.#now()).toISOString(),
+      expiresAt: new Date(this.#now() + timeout).toISOString(),
       waiters: new Set(),
       timer: undefined,
     }
-    const timeout = this.#options.askTimeoutMs ?? ASK_TIMEOUT_MS
     ask.timer = setTimeout(() => this.decline(ask.id, "nobody answered in time"), timeout)
     ask.timer.unref?.()
     this.#asks.set(ask.id, ask)
@@ -296,6 +354,8 @@ export class ChromeGate {
   #forget(ask: PendingAsk) {
     if (ask.timer !== undefined) clearTimeout(ask.timer)
     this.#asks.delete(ask.id)
+    this.#endedAsks.add(ask.id)
+    if (this.#endedAsks.size > ENDED_REMEMBERED) this.#endedAsks.delete(this.#endedAsks.values().next().value!)
   }
 
   #changed() {
@@ -307,11 +367,11 @@ export class ChromeGate {
   }
 
   #public(grant: Grant): ChromeTask {
-    return { sessionID: grant.sessionID, agent: grant.agent, task: grant.task, origins: grant.origins, since: grant.since }
+    return { id: grant.id, sessionID: grant.sessionID, agent: grant.agent, task: grant.task, origins: grant.origins, mode: grant.mode, since: grant.since }
   }
 
   #publicAsk(ask: PendingAsk): ChromeAsk {
-    return { id: ask.id, sessionID: ask.sessionID, agent: ask.agent, task: ask.task, origins: ask.origins, at: ask.at }
+    return { id: ask.id, sessionID: ask.sessionID, agent: ask.agent, task: ask.task, origins: ask.origins, mode: ask.mode, at: ask.at, expiresAt: ask.expiresAt }
   }
 }
 

@@ -191,11 +191,87 @@
                 "ready",
                 "driving",
                 "needs-you",
-                "unavailable"
+                "unavailable",
+                "asking"
               ]
             },
             "canControl": {
               "type": "boolean"
+            },
+            "task": {
+              "type": "object",
+              "required": [
+                "id",
+                "title",
+                "startedAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "startedAt": {
+                  "type": "string"
+                }
+              }
+            },
+            "agent": {
+              "type": "string"
+            },
+            "request": {
+              "type": "object",
+              "required": [
+                "id",
+                "agent",
+                "task",
+                "scope",
+                "expiresAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "agent": {
+                  "type": "string"
+                },
+                "task": {
+                  "type": "object",
+                  "required": [
+                    "title"
+                  ],
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "scope": {
+                  "type": "object",
+                  "required": [
+                    "sites",
+                    "mode"
+                  ],
+                  "properties": {
+                    "sites": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "mode": {
+                      "enum": [
+                        "read",
+                        "act"
+                      ]
+                    }
+                  }
+                },
+                "expiresAt": {
+                  "type": "string"
+                }
+              }
             }
           }
         }
@@ -266,6 +342,64 @@
             "ask": {
               "type": "string",
               "pattern": "^ask_[a-f0-9]{24}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "boolean"
+        },
+        "personOnly": "consent"
+      },
+      {
+        "name": "browser.allow",
+        "label": "let an agent use your Chrome for this task only",
+        "target": "engine",
+        "class": "local",
+        "confirm": "always",
+        "preview": "browser.ask",
+        "views": [
+          "browser-native"
+        ],
+        "input": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "boolean"
+        },
+        "personOnly": "consent"
+      },
+      {
+        "name": "browser.decline",
+        "label": "say not now to an agent's ask for your Chrome",
+        "target": "engine",
+        "class": "local",
+        "confirm": "always",
+        "preview": "browser.ask",
+        "views": [
+          "browser-native"
+        ],
+        "input": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
             }
           },
           "additionalProperties": false

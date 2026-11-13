@@ -60,19 +60,28 @@ namespace, classified or not — the one place Code Mode (the model's only way t
 RPC both pass through. A call from a conversation with no grant never reaches the MCP server.
 
 - **A task** is one OpenCode session (the conversation) and the agent that runs it.
-- **The ask.** The first gated call records `{ id, agent, task, origins, at }` — the task is the session's title, the
-  origins are the `allowedOrigins` of a `session_new` or `session_allowlist`, else any site — and waits for the person
-  for up to five minutes. A cancelled turn withdraws it. It is also filed once as the `chrome-ask` notice
+- **The ask.** The first gated call records `{ id, agent, task, origins, mode, at, expiresAt }` — the task is the
+  session's title, the origins are the `allowedOrigins` of a `session_new` or `session_allowlist`, else any site —
+  and waits for the person until `expiresAt`, five minutes on. A cancelled turn withdraws it. It is also filed once as the `chrome-ask` notice
   (`jelly.core` request, kind `notice`, category `request`), which jelly raises to the agent's people whatever the
   agent's access level, and keeps for the Inbox. It is filed with `keep`, so a host that is away when it is filed
   still raises it once it reads the pending requests.
+- **The mode, enforced.** The call that asks states the mode: a tool of the `read` class in the plugin's own table
+  (`status`, `session_list`, `secrets_list`, `secrets_status`) asks to `read`; any other tool, and any tool the table
+  does not classify, asks to `act`. Under a `read` grant only those four pass; an act call there never reaches the
+  server: it asks again, for `act`, riding along on the task, and waits. Allowed, the same task acts; Not now leaves
+  it reading. browse has no separate navigate, snapshot or screenshot tool — they are `execute`, which can click and
+  type — so a read grant cannot open or read a page, and the person reads its mode as "to check your Chrome's status
+  only; it can't open or read pages" until browse has read-only page tools. A read-only browse session (`session_new` with `readOnly`) refuses
+  input, not page script, so it is not counted as read.
 - **More than one task.** While a task holds the Chrome, Stop always stays reachable: the read keeps that task's
-  state and adds a second conversation's or a subagent's waiting ask as `ask`. That ask reaches the person through
-  the notice, the Inbox and the plugin's page, which allows it by its id; unanswered, it ends after five minutes as
+  state and adds a second conversation's or a subagent's waiting ask as `request`. That ask reaches the person through
+  the notice, the Inbox and the plugin's page, which allows it by its id; unanswered, it ends at `expiresAt` as
   Not now.
-- **Allow for this task** is the `browser.connect` action. It allows the ask named by `input.ask`, or the oldest one
-  when jelly sends `{}`. With no ask pending the read reports `canControl: false`, so jelly offers no Connect and the
-  Chrome cannot be allowed in advance.
+- **Allow for this task** is `browser.allow { id }` (B3), or jelly's Connect (`browser.connect`), which allows the ask
+  named by `input.ask`, or the oldest one when jelly sends `{}`, until jelly draws `asking`. **Not now** is
+  `browser.decline { id }`. With no ask pending the read reports `canControl: false`, so jelly offers no Connect and
+  the Chrome cannot be allowed in advance.
 - **The end.** The agent's `session_reset` or `session_delete` in that conversation, `browser.stop` (all, or one
   `session`), the conversation deleted or archived, an hour with no browse call, or the engine stopping. A call
   still running is aborted with the grant and fails with `CHROME_NOT_ALLOWED`. Nothing is
@@ -84,7 +93,8 @@ Managed mode is not the person's Chrome and is not gated. Outside jelly nothing 
 
 ## The personal-browser binding
 
-`nativeData` is jelly's D103 example, exactly:
+jelly's asks B1–B4 (issue #5), checked against jelly at `99cd657c4`. `nativeData` is jelly's D103 example, exactly
+(B1); its `actions` object is strict in jelly's schema, so it names connect and stop only:
 
 ```json
 [{ "v": 1, "capability": "personal-browser", "view": "browser-native", "read": "browser.status",
@@ -95,28 +105,51 @@ The plugin registers its RPC under the package name, `@joe-broadhead/opencode-br
 
 | Method | Kind | Answer |
 | --- | --- | --- |
-| `browser.status` | read-only, permission `browse_status` | `{ state, canControl }`, plus `ask` while one waits and `task` while one is allowed |
-| `browser.ask` | read-only, the Connect confirmation's `preview` | the ask in words: agent, task, sites |
+| `browser.status` | read-only, permission `browse_status` | `{ state, canControl, task?, agent?, request? }` (B2, B3) |
+| `browser.ask` | read-only, the confirmations' `preview` | the ask in words: agent, mode, task, sites |
 | `browser.inbox` | read-only, `inbox.method` | `{ items }`: one `request` item, kind `chrome-ask`, per waiting ask |
 | `act.browser.connect` | action, `local`, `always` | `true` when it allowed an ask |
+| `act.browser.allow` | action, `local`, `always`, input `{ id }` | `true`; `REQUEST_EXPIRED` or `NOT_YOUR_REQUEST` |
+| `act.browser.decline` | action, `local`, `always`, input `{ id }` | `true`; `REQUEST_EXPIRED` or `NOT_YOUR_REQUEST` |
 | `act.browser.stop` | action, `local`, `always` | `true` |
 
+The read (B2): `task` is `{ id, title, startedAt }` while `driving` (the plugin never reports `needs-you`), with
+`id` the grant's own id and `title` the conversation's; `agent` is the id of the agent holding the session, while a
+task is allowed. `request` (B3) is `{ id, agent, task: { title }, scope: { sites, mode }, expiresAt }`, where
+`sites: ["*"]` means any site. No other field is reported.
+
 The states: `unavailable` in managed mode or with no binary; `ready` or `driving` (a call in flight) with
-`canControl: true` while a task is allowed, with any waiting `ask` beside it, so jelly offers Stop; with no task,
-`not-connected` (or `extension-needed`) with `canControl: true` while an ask waits, so jelly offers Connect;
-otherwise `not-connected` with `canControl: false`. The page offers Allow for this task and Stop whenever each applies. Each action checks jelly's grant before it changes anything: the host's
+`canControl: true` while a task is allowed, with a new `request` riding along, so jelly keeps offering Stop; with no
+task and a request waiting, `asking` — reported as `not-connected` (or `extension-needed`) until jelly draws
+`asking`, because jelly at `99cd657c4` reads an unknown state as unavailable with neither Connect nor Stop (one
+constant, `ASKING_STATE`, in `src/jelly/native.ts`); with neither, `ready` with `canControl: false`, so the next
+read after a task ends is `ready`, never `driving` on a stale allow — or `extension-needed` with `canControl: false`
+when the running relay reports the extension not connected (a relay that is not running starts on demand, so it
+does not make the read `extension-needed`). `REQUEST_EXPIRED` answers an id in the plugin's form
+(`ask_` and 24 hex) that is not waiting: answered, withdrawn, run out, or no longer known after an engine restart —
+the engine cannot tell them apart, and the next step is the same. `NOT_YOUR_REQUEST` answers only an id the plugin
+could never have issued. The page offers Allow for this task, Not now and Stop whenever each
+applies. Each action checks jelly's grant before it changes anything: the host's
 Ed25519 key published in the engine, the audience `@joe-broadhead/opencode-browse#engine`, the action, the input's
 digest, the minute it is good for, the single-use id, and the `local` class the actions declare (jelly's host is what
 refuses a `local` action from a paired device).
 
 `browser-native` is a `settings-section` page (`views/browser.html`) with the `rpc` grant for `browser.status` and
-`browser.ask`: it shows the state and the ask, and offers Allow for this task and Stop through the two actions, which
-jelly confirms.
+`browser.ask`: it shows the state and the request, and offers Allow for this task, Not now and Stop through the
+actions, which jelly confirms.
 
-`notices` declares `chrome-ask` (label "Your Chrome", category `request`, preview `line`). What jelly has no contract
-for yet — Allow for this task and Not now on the notice or an approval card, the ask and task words on its card and
-strip, Connect naming the ask, the task's end pushed rather than polled, and ending the task with jelly's
-conversation — is on issue #3.
+`notices` declares one: `chrome-ask` (label "Your Chrome", category `request`, preview `line`), the ask itself,
+naming the agent, the task, the sites and the mode, so the person sees it whatever the agent's access level.
+
+B4's `personal-browser` change signal is built but neither raised nor declared. It would be filed with no name and no
+line, keyed per change, not kept, each time the read's answer changes, so jelly reads again at once; it stays separate
+from `chrome-ask` because the ask must carry words to the person and the signal must carry none. jelly's notice schema
+at `99cd657c4` has no `browser` category and requires a label and a preview: declared as a `request`, each change
+would be a banner (one per browse call, as `driving` comes and goes). When jelly treats it as a signal to read, set
+`RAISE_CHANGE_NOTICES` in `src/jelly/native.ts` to true and declare it in `jelly.notices` (jelly refuses an
+undeclared notice). What jelly
+has no contract for yet — Allow and Not now on jelly's own card, the hint's `actions` growing `allow` and `decline`,
+and ending the task with jelly's conversation — is on issues #3 and #5.
 
 ## Home feeds
 

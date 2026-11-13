@@ -49,16 +49,17 @@ describe("before the person answers", () => {
     void settle(tool("session_new")({ id: "trains", allowedOrigins: ["trains.example", "pay.example"] }, ctx("ses_a")))
     await tick()
     const [ask] = gate.asks()
-    expect(ask).toMatchObject({ sessionID: "ses_a", agent: "atlas", task: "Book the train for ses_a", origins: ["trains.example", "pay.example"] })
-    expect(await browserStatus(deps)).toEqual({ state: "not-connected", canControl: true, ask: { id: ask!.id, agent: "atlas", task: ask!.task, origins: ask!.origins, at: ask!.at } })
-    expect(askText(gate, {})).toContain("atlas wants to use your Chrome for this task: Book the train for ses_a. Sites: trains.example, pay.example.")
-    expect(inboxItems(gate).items).toEqual([{ key: ask!.id, category: "request", kind: "chrome-ask", label: "Wants to use your Chrome", name: "atlas", line: "Book the train for ses_a (trains.example, pay.example)", at: ask!.at }])
+    expect(ask).toMatchObject({ sessionID: "ses_a", agent: "atlas", task: "Book the train for ses_a", origins: ["trains.example", "pay.example"], mode: "act" })
+    // B3's request, in jelly's shape; until jelly draws `asking` it reads not-connected, which jelly's Connect allows.
+    expect(await browserStatus(deps)).toEqual({ state: "not-connected", canControl: true, request: { id: ask!.id, agent: "atlas", task: { title: ask!.task }, scope: { sites: ["trains.example", "pay.example"], mode: "act" }, expiresAt: ask!.expiresAt } })
+    expect(askText(gate, {})).toContain("atlas wants to use your Chrome for this task: Book the train for ses_a. Sites: trains.example, pay.example. It asks to read and act.")
+    expect(inboxItems(gate).items).toEqual([{ key: ask!.id, category: "request", kind: "chrome-ask", label: "Wants to use your Chrome", name: "atlas", line: "Book the train for ses_a (trains.example, pay.example), to read and act", at: ask!.at }])
     gate.dispose()
   })
 
   test("with no ask there is nothing to allow: no Connect, so the Chrome is never pre-allowed", async () => {
     const { deps, actions } = setup()
-    expect(await browserStatus(deps)).toEqual({ state: "not-connected", canControl: false })
+    expect(await browserStatus(deps)).toEqual({ state: "ready", canControl: false })
     expect(actions.connect({ input: {}, grant: grant("browser.connect", {}) })).toBe(false)
   })
 
@@ -95,10 +96,13 @@ describe("Allow for this task", () => {
     expect(actions.connect({ input: { ask: ask!.id }, grant: grant("browser.connect", { ask: ask!.id }) })).toBe(true)
     await tick()
     expect(calls).toHaveLength(1)
-    expect((await browserStatus(deps)).state).toBe("driving")
+    const [held] = gate.tasks()
+    // B2: while driving, the task and the agent that holds the session.
+    expect(await browserStatus(deps)).toEqual({ state: "driving", canControl: true, task: { id: held!.id, title: "Book the train for ses_a", startedAt: held!.since }, agent: "atlas" })
+    expect(held!.id).toMatch(/^task_[a-f0-9]{24}$/)
     release()
     expect(await first).toMatchObject({ ok: true })
-    expect(await browserStatus(deps)).toMatchObject({ state: "ready", canControl: true, task: { agent: "atlas", task: "Book the train for ses_a", origins: null } })
+    expect(await browserStatus(deps)).toEqual({ state: "ready", canControl: true, agent: "atlas" })
     expect(await settle(tool("status")({}, ctx("ses_a")))).toMatchObject({ ok: true })
     expect(calls).toHaveLength(2)
   })
@@ -184,7 +188,7 @@ describe("the grant lasts for the task only", () => {
     const { tool, calls, gate, deps, actions } = await allowed()
     expect(actions.stop({ input: {}, grant: grant("browser.stop", {}) })).toBe(true)
     expect(gate.tasks()).toEqual([])
-    expect(await browserStatus(deps)).toEqual({ state: "not-connected", canControl: false })
+    expect(await browserStatus(deps)).toEqual({ state: "ready", canControl: false })
     expect(await settle(tool("execute")({}, ctx("ses_a")))).toMatchObject({ ok: false })
     expect(calls).toEqual([])
     expect(() => actions.stop({ input: {}, grant: grant("browser.connect", {}) })).toThrow()
@@ -251,11 +255,11 @@ describe("a second ask while a task holds the Chrome", () => {
     expect(status.canControl).toBe(true)
     expect(["ready", "driving", "needs-you"]).toContain(status.state)
     expect(["not-connected", "extension-needed"]).not.toContain(status.state)
-    expect(status.task).toMatchObject({ agent: "atlas" })
-    expect(status.ask).toMatchObject({ agent: "atlas-helper" })
-    // The plugin's page: Allow for this task, naming the ask.
-    const id = status.ask!.id
-    expect(actions.connect({ input: { ask: id }, grant: grant("browser.connect", { ask: id }) })).toBe(true)
+    expect(status.agent).toBe("atlas")
+    expect(status.request).toMatchObject({ agent: "atlas-helper" })
+    // The plugin's page: Allow for this task, naming the request.
+    const id = status.request!.id
+    expect(actions.allow({ input: { id }, grant: grant("browser.allow", { id }) })).toBe(true)
     expect(await b).toMatchObject({ ok: true })
     expect(gate.tasks().map((task) => task.sessionID).sort()).toEqual(["ses_a", "ses_sub"])
     expect(calls).toHaveLength(2)
@@ -269,8 +273,7 @@ describe("a second ask while a task holds the Chrome", () => {
     await a
     const b = await settle(tool("execute")({}, ctx("ses_sub", "atlas-helper")))
     expect(!b.ok && b.error).toStartWith("CHROME_NOT_ALLOWED:")
-    expect(await browserStatus(deps)).toMatchObject({ state: "ready", canControl: true, task: { agent: "atlas" } })
-    expect((await browserStatus(deps)).ask).toBeUndefined()
+    expect(await browserStatus(deps)).toEqual({ state: "ready", canControl: true, agent: "atlas" })
     expect(calls).toHaveLength(1)
   })
 
@@ -278,8 +281,9 @@ describe("a second ask while a task holds the Chrome", () => {
     const { tool, gate, deps } = setup()
     void settle(tool("execute")({}, ctx("ses_a")))
     await tick()
-    expect(await browserStatus(deps)).toMatchObject({ state: "not-connected", canControl: true, ask: { agent: "atlas" } })
+    expect(await browserStatus(deps)).toMatchObject({ state: "not-connected", canControl: true, request: { agent: "atlas" } })
     expect((await browserStatus(deps)).task).toBeUndefined()
+    expect((await browserStatus(deps)).agent).toBeUndefined()
     gate.dispose()
   })
 })
@@ -352,7 +356,7 @@ describe("the ask reaches the person through jelly's notice", () => {
     noticeAsk({ request: async (input) => filed.push(input) }, gate.asks()[0]!)
     await tick()
     expect(filed).toEqual([
-      { id: expect.stringMatching(/^browse-[a-f0-9]{24}$/), kind: "notice", body: { package: PACKAGE_NAME, notice: ASK_NOTICE, key: asked[0]!.id, name: "atlas", line: "Book the train for ses_a (any site)" }, keep: true },
+      { id: expect.stringMatching(/^browse-[a-f0-9]{24}$/), kind: "notice", body: { package: PACKAGE_NAME, notice: ASK_NOTICE, key: asked[0]!.id, name: "atlas", line: "Book the train for ses_a (any site), to read and act" }, keep: true },
     ])
     // A refusal or no jelly at all changes nothing.
     noticeAsk({ request: async () => Promise.reject(new Error("no jelly")) }, gate.asks()[0]!)
