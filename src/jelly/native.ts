@@ -47,9 +47,10 @@ export const ASKING_STATE: "asking" | "not-connected" = "not-connected"
 
 /**
  * B4 says to raise `personal-browser` on every change, with no content, in a `browser` category. jelly at 99cd657c4
- * has no `browser` category and requires a label and a preview, so the notice is declared as a `request` with the
- * `count` preview (no name, no line); raised in that category each change would be a banner (one per browse call, as
- * `driving` comes and goes). It is raised only once this is true, when jelly treats it as a signal to read.
+ * has no `browser` category and requires a label and a preview; declared as a `request` (the `count` preview, no name,
+ * no line), each change would be a banner (one per browse call, as `driving` comes and goes). So it is neither raised
+ * nor declared yet: when jelly treats it as a signal to read, set this true and add
+ * `{ "id": "personal-browser", … }` to `jelly.notices` in package.json (jelly refuses an undeclared notice).
  */
 export const RAISE_CHANGE_NOTICES = false
 

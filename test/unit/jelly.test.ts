@@ -60,11 +60,11 @@ describe("the Jelly declaration", () => {
     expect(NativeRpc.id).toBe(pkg.name)
     expect(pkg.jelly.inbox).toEqual({ method: "browser.inbox" })
     const { ASK_NOTICE, CHANGE_NOTICE } = await import("../../src/jelly/native.js")
-    // B4's change notice, as jelly's notice schema at 99cd657c4 allows it: a label, a request, the count preview.
-    expect(pkg.jelly.notices).toEqual([
-      { id: ASK_NOTICE, label: "Your Chrome", category: "request", preview: "line" },
-      { id: CHANGE_NOTICE, label: "Your Chrome", category: "request", preview: "count" },
-    ])
+    // B4's change notice is not declared while it is not raised (RAISE_CHANGE_NOTICES is false).
+    const { RAISE_CHANGE_NOTICES } = await import("../../src/jelly/native.js")
+    expect(RAISE_CHANGE_NOTICES).toBe(false)
+    expect(pkg.jelly.notices).toEqual([{ id: ASK_NOTICE, label: "Your Chrome", category: "request", preview: "line" }])
+    expect(pkg.jelly.notices.map((notice: { id: string }) => notice.id)).not.toContain(CHANGE_NOTICE)
   })
 
   test("declares the vendor, because browse is not our product", () => {

@@ -456,12 +456,6 @@
         "label": "Your Chrome",
         "category": "request",
         "preview": "line"
-      },
-      {
-        "id": "personal-browser",
-        "label": "Your Chrome",
-        "category": "request",
-        "preview": "count"
       }
     ],
     "signIns": [],

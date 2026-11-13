@@ -138,14 +138,16 @@ refuses a `local` action from a paired device).
 `browser.ask`: it shows the state and the request, and offers Allow for this task, Not now and Stop through the
 actions, which jelly confirms.
 
-`notices` declares two. `chrome-ask` (label "Your Chrome", category `request`, preview `line`) is the ask itself,
+`notices` declares one: `chrome-ask` (label "Your Chrome", category `request`, preview `line`), the ask itself,
 naming the agent, the task, the sites and the mode, so the person sees it whatever the agent's access level.
-`personal-browser` (B4) is the change signal: filed with no name and no line, keyed per change, not kept, each time the
-read's answer changes, so jelly reads again at once. The two stay separate because the ask must carry words to the
-person and the signal must carry none. jelly's notice schema at `99cd657c4` has no `browser` category and requires a
-label and a preview, so `personal-browser` is declared as `request` with the `count` preview; raised there, each change
-would be a banner (one per browse call, as `driving` comes and goes), so it is raised only once
-`RAISE_CHANGE_NOTICES` in `src/jelly/native.ts` is true, when jelly treats the notice as a signal to read. What jelly
+
+B4's `personal-browser` change signal is built but neither raised nor declared. It would be filed with no name and no
+line, keyed per change, not kept, each time the read's answer changes, so jelly reads again at once; it stays separate
+from `chrome-ask` because the ask must carry words to the person and the signal must carry none. jelly's notice schema
+at `99cd657c4` has no `browser` category and requires a label and a preview: declared as a `request`, each change
+would be a banner (one per browse call, as `driving` comes and goes). When jelly treats it as a signal to read, set
+`RAISE_CHANGE_NOTICES` in `src/jelly/native.ts` to true and declare it in `jelly.notices` (jelly refuses an
+undeclared notice). What jelly
 has no contract for yet — Allow and Not now on jelly's own card, the hint's `actions` growing `allow` and `decline`,
 and ending the task with jelly's conversation — is on issues #3 and #5.
 

@@ -25,8 +25,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
   draws it (`not-connected` until then, so jelly's Connect still allows it), and while a task holds the Chrome the
   state stays `ready` or `driving` so Stop stays reachable. New actions `browser.allow { id }` and
   `browser.decline { id }` (owner device, confirmed every time), with the codes `REQUEST_EXPIRED` and
-  `NOT_YOUR_REQUEST`. The `personal-browser` notice is declared to signal each change of the read, with no content;
-  it is raised once jelly treats it as a signal.
+  `NOT_YOUR_REQUEST`. The `personal-browser` change signal (B4) is built behind `RAISE_CHANGE_NOTICES`, neither
+  raised nor declared until jelly treats it as a signal to read.
 
 ### Changed
 
