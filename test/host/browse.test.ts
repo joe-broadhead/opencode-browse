@@ -6,6 +6,9 @@ import { resolveBinary } from "../../src/engine.js"
 import { pinnedBinary } from "../support/pinned.js"
 import { relayVersion, stopRelaySafely } from "../../src/managed/relay.js"
 import { assertNoRelayLeft, relayPidsForHome } from "../support/relays.js"
+import { createHash, generateKeyPairSync, randomBytes, sign } from "node:crypto"
+import { actionInputDigest, type ActionPublicKey } from "../../src/jelly/action-grant.js"
+import { NativeRpc, PACKAGE_NAME } from "../../src/jelly/native.js"
 
 // Each test starts a real host on a stock server; a busy machine needs more than Bun's default 5 s.
 setDefaultTimeout(120_000)
@@ -264,6 +267,112 @@ describe("the relay a real-mode host starts", () => {
       await host.close()
     }
   }, 180_000)
+})
+
+describe("the person's Chrome, per task, under jelly", () => {
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519")
+  const key: ActionPublicKey = { kid: createHash("sha256").update("host-test").digest("base64url"), jwk: publicKey.export({ format: "jwk" }) as ActionPublicKey["jwk"] }
+  const grant = (action: string, input: unknown) => {
+    const now = Math.floor(Date.now() / 1000)
+    const part = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url")
+    const head = part({ alg: "EdDSA", typ: "jelly-act+jwt", kid: key.kid })
+    const body = part({ iss: "hst_test", aud: `${PACKAGE_NAME}#engine`, act: action, in: actionInputDigest(input), dev: "dev", mbr: "acc_test", cls: "local", iat: now, exp: now + 60, jti: randomBytes(16).toString("base64url") })
+    return `${head}.${body}.${sign(null, Buffer.from(`${head}.${body}`), privateKey).toString("base64url")}`
+  }
+
+  test("nothing reaches the server before Allow for this task; the grant is the session's, and Stop ends it", async () => {
+    const filed: { kind?: string; keep?: boolean; body?: Record<string, unknown> }[] = []
+    const coreRequest = async (input: unknown) => (filed.push(input as (typeof filed)[number]), { answer: { raised: true } })
+    const host = await startHost({ options: { verifyBinary: false }, seam: { jelly: true, actionKey: () => key, askTimeoutMs: 4_000, coreRequest } })
+    try {
+      const native = host.probe().rpc(NativeRpc as never) as unknown as Record<string, (input: unknown) => Promise<unknown>>
+      const status = () => native["browser.status"]!({}) as Promise<{ state: string; canControl: boolean; ask?: { id: string; agent: string } }>
+      expect(await status()).toEqual({ state: "not-connected", canControl: false })
+      const before = host.fake.tools().length
+      const allowed = await session(host)
+      const waiting = attempt(host, allowed, "build", "status")
+      const ask = await until("the ask is reported", async () => (await status()).ask)
+      expect(ask.agent).toBe("build")
+      // The ask is filed once as jelly's chrome-ask notice, kept until jelly's host reads it.
+      await until("the ask's notice is filed", async () => filed.length > 0)
+      expect(filed).toEqual([expect.objectContaining({ kind: "notice", keep: true, body: expect.objectContaining({ package: PACKAGE_NAME, notice: "chrome-ask", key: ask.id, name: "build" }) })])
+      expect(await native["browser.ask"]!({})).toStartWith("build wants to use your Chrome for this task")
+      expect(await native["browser.inbox"]!({})).toMatchObject({ items: [{ key: ask.id, kind: "chrome-ask" }] })
+      // A Connect without the host's grant is refused, and allows nothing.
+      await expect(native["act.browser.connect"]!({ input: {}, grant: "forged.grant.value" })).rejects.toBeDefined()
+      expect(host.fake.tools()).toHaveLength(before)
+      expect((await status()).canControl).toBe(true)
+      // The tool registered after setup, from the MCP server, is still behind the gate: nothing was called.
+      expect(host.fake.tools()).toHaveLength(before)
+      expect(await native["act.browser.connect"]!({ input: {}, grant: grant("browser.connect", {}) })).toBe(true)
+      expect(await waiting).toMatchObject({ ok: true })
+      expect(host.fake.tools().slice(before)).toEqual(["status"])
+      expect((await status()).state).toBe("ready")
+
+      // Another session's call asks afresh, and with no answer it is refused and reaches nothing.
+      const other = await attempt(host, await session(host), "build", "status")
+      expect(other).toMatchObject({ ok: false })
+      expect(host.fake.tools().slice(before)).toEqual(["status"])
+
+      // The person's Stop ends the task: the next call of the allowed session is refused too.
+      expect(await native["act.browser.stop"]!({ input: {}, grant: grant("browser.stop", {}) })).toBe(true)
+      expect(await status()).toEqual({ state: "not-connected", canControl: false })
+      const stopped = await attempt(host, allowed, "build", "status")
+      expect(stopped).toMatchObject({ ok: false })
+      expect(host.fake.tools().slice(before)).toEqual(["status"])
+    } finally {
+      await host.close()
+    }
+  }, 120_000)
+
+  test("a tool browse adds later, which the table does not classify, is gated too", async () => {
+    const host = await startHost({ options: { verifyBinary: false }, fake: { tools: [...REAL_TOOLS, NEW_TOOL] }, seam: { jelly: true, actionKey: () => key, askTimeoutMs: 1_500 } })
+    try {
+      const before = host.fake.tools().length
+      const outcome = await attempt(host, await session(host), "build", NEW_TOOL.name)
+      expect(outcome).toMatchObject({ ok: false })
+      expect(outcome.ok === false && outcome.error).toContain("CHROME_NOT_ALLOWED")
+      expect(host.fake.tools()).toHaveLength(before)
+    } finally {
+      await host.close()
+    }
+  }, 120_000)
+
+  test("the model path: Code Mode's tools.browse waits for Allow, and a direct browse_ call is not a tool at all", async () => {
+    const host = await startHost({ options: { verifyBinary: false }, model: true, seam: { jelly: true, actionKey: () => key, askTimeoutMs: 60_000 } })
+    try {
+      await modelReady(host)
+      const native = host.probe().rpc(NativeRpc as never) as unknown as Record<string, (input: unknown) => Promise<unknown>>
+      const before = host.fake.tools().length
+      // The model's own tool list has no browse_* tool: it reaches browse only through Code Mode's execute.
+      host.model!.script = [{ tool: "browse_status", arguments: {} }]
+      await modelTurn(host, await modelSession(host), "Check the browser.")
+      expect(host.fake.tools()).toHaveLength(before)
+
+      host.model!.script = [{ tool: "execute", arguments: { code: "await tools.browse.status({}); return 'ran'" } }]
+      const sessionID = await modelSession(host)
+      const turn = modelTurn(host, sessionID, "Check the browser.")
+      const ask = await until("the Code Mode call asks", async () => ((await native["browser.status"]!({})) as { ask?: { id: string } }).ask)
+      expect(host.fake.tools()).toHaveLength(before)
+      expect(await native["act.browser.connect"]!({ input: { ask: ask.id }, grant: grant("browser.connect", { ask: ask.id }) })).toBe(true)
+      await until("the allowed call reaches the server", async () => host.fake.tools().slice(before).includes("status"), 30_000)
+      // The turn ends once the program's answer is back, before the host closes.
+      expect(await turn).toEqual([])
+    } finally {
+      await host.close()
+    }
+  }, 180_000)
+
+  test("outside jelly nothing is gated, and the read says unavailable", async () => {
+    const host = await startHost({ options: { verifyBinary: false }, seam: { jelly: false } })
+    try {
+      const native = host.probe().rpc(NativeRpc as never) as unknown as Record<string, (input: unknown) => Promise<unknown>>
+      expect(await native["browser.status"]!({})).toEqual({ state: "unavailable", canControl: false })
+      expect(await attempt(host, await session(host), "build", "status")).toMatchObject({ ok: true })
+    } finally {
+      await host.close()
+    }
+  })
 })
 
 describe("the scoped profile", () => {

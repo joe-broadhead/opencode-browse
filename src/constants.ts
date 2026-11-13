@@ -45,6 +45,8 @@ export type PluginCode =
   | "CHROMIUM_UNVERIFIED"
   | "CHROMIUM_INSTALL_FAILED"
   | "EXTENSION_UNVERIFIED"
+  | "CHROME_NOT_ALLOWED"
+  | "CHROME_SCOPE"
 
 export const PLUGIN_CODES: readonly PluginCode[] = [
   "HOST_UNTESTED",
@@ -73,6 +75,8 @@ export const PLUGIN_CODES: readonly PluginCode[] = [
   "CHROMIUM_UNVERIFIED",
   "CHROMIUM_INSTALL_FAILED",
   "EXTENSION_UNVERIFIED",
+  "CHROME_NOT_ALLOWED",
+  "CHROME_SCOPE",
 ]
 
 export const isPluginCode = (value: unknown): value is PluginCode => typeof value === "string" && (PLUGIN_CODES as readonly string[]).includes(value)

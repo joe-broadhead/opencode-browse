@@ -28,8 +28,9 @@ Code Mode's own `execute` has no `page`, so a bare `page.…` there fails with `
 ## Your own session
 
 Agents do not get separate browse sessions: they all share the server's one session unless an agent makes its own.
-Start a task with `browse_session_new`, named for the task, and pass its id as `session` on later calls. When the task
-is done, `browse_session_reset` it, so the next task starts clean.
+Start a task with `browse_session_new`, named for the task (`readOnly` for inspect-only work, `allowedOrigins` to keep
+it on a few sites), and pass its id as `session` on later calls. `browse_session_list` shows each session's read-only
+flag and allowed origins; respect them. When the task is done, `browse_session_reset` it, so the next starts clean.
 
 ## The loop
 
@@ -39,10 +40,6 @@ is done, `browse_session_reset` it, so the next task starts clean.
    person; do not add delays.
 3. **Verify.** A fresh read after the action: `page.url()`, a heading, a new snapshot. A click that returned is not
    proof the task succeeded.
-
-Use one session per task. `browse_session_list` shows sessions with their read-only flag and allowed origins; respect
-them. Create one with `browse_session_new` (add `readOnly` for inspect-only work, `allowedOrigins` to keep it on a
-few sites) and pass its id as `session` on later calls when this server needs more than one.
 
 Before the first call to any tool whose signature you have not read this session, find it with `search()` in Code
 Mode; never guess an input name.
@@ -64,6 +61,9 @@ respect it and do not look for a way around it. In an unattended run (`opencode 
 work there needs the default allow or an explicit allow rule.
 
 Captures write real page content: see the `browse-capture` skill.
+
+In jelly the user allows their Chrome per task: your first call asks and waits, so say why and name `allowedOrigins`.
+On `CHROME_NOT_ALLOWED` ask in the conversation, never retry; on `CHROME_SCOPE` keep to the allowed sites.
 
 ## Hand back, never take over
 

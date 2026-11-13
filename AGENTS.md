@@ -10,6 +10,10 @@ browse's MCP server; it never runs a browser itself.
 - `bin/mcp.mjs` is the MCP entry; it re-verifies the pinned binary at every spawn. `src/managed/` is managed mode:
   Chrome for Testing in its own profile, the pinned extension, and browse's own pairing. Never touch the user's browser,
   Chrome or profile from managed mode or its tests.
+- `src/jelly/` is jelly's side: the per-task gate on the person's Chrome (`chrome-gate.ts`), the `personal-browser`
+  read and its two actions under the package's own RPC id (`native.ts`), and the action-grant check
+  (`action-grant.ts`). Under jelly, in real mode, no browse tool reaches the server for a session the person has not
+  allowed; never add a path to the server that skips the gate, and never persist a grant.
 - `manifest/browse.json` is the pin. `scripts/pin.mjs` writes it; `scripts/build-native.mjs` builds the release files.
 - The plugin never edits a config file, never runs `browse install`, `browse update` or `browse pair`, and never adds an
   `OPENCODE_BROWSER_ALLOW_*` environment variable.
@@ -47,7 +51,7 @@ Conventional commits, one logical change each, signed, authored as
 as `github-actions[bot]`. No personal email in anything we publish. Before
 committing or tagging, check that `git config user.email` is that address: a fresh clone inherits the machine's global
 identity, which is not that address. Never commit, tag or publish with a work or personal address, or with a local
-hostname. Never push this repository: it has no remote until hand-over.
+hostname. Publish through a pull request on GitHub; never push to `master` directly.
 
 Releases come only from `.github/workflows/release.yml` ("Releasing" in [CONTRIBUTING.md](CONTRIBUTING.md)). A
 release-prep PR sets `version` in `package.json` and the install specs and runs `node scripts/changelog.mjs release`;

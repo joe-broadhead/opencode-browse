@@ -168,8 +168,162 @@
       "browse",
       "browse-capture"
     ],
-    "rpc": [],
-    "views": [],
+    "rpc": [
+      {
+        "name": "browser.status",
+        "label": "read whether an agent may use your Chrome",
+        "permission": "browse_status",
+        "readOnly": true,
+        "input": {
+          "type": "object"
+        },
+        "output": {
+          "type": "object",
+          "required": [
+            "state",
+            "canControl"
+          ],
+          "properties": {
+            "state": {
+              "enum": [
+                "not-connected",
+                "extension-needed",
+                "ready",
+                "driving",
+                "needs-you",
+                "unavailable"
+              ]
+            },
+            "canControl": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      {
+        "name": "browser.ask",
+        "label": "read which task asks to use your Chrome",
+        "permission": "browse_status",
+        "readOnly": true,
+        "input": {
+          "type": "object"
+        },
+        "output": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "browser.inbox",
+        "label": "read the asks to use your Chrome",
+        "permission": "browse_status",
+        "readOnly": true,
+        "input": {
+          "type": "object"
+        },
+        "output": {
+          "type": "object",
+          "required": [
+            "items"
+          ],
+          "properties": {
+            "items": {
+              "type": "array"
+            }
+          }
+        }
+      }
+    ],
+    "views": [
+      {
+        "v": 1,
+        "id": "browser-native",
+        "place": "settings-section",
+        "title": "Your Chrome",
+        "page": "views/browser.html",
+        "grants": [
+          "rpc"
+        ],
+        "rpc": [
+          "browser.status",
+          "browser.ask"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "name": "browser.connect",
+        "label": "let an agent use your Chrome for one task",
+        "target": "engine",
+        "class": "local",
+        "confirm": "always",
+        "preview": "browser.ask",
+        "views": [
+          "browser-native"
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "ask": {
+              "type": "string",
+              "pattern": "^ask_[a-f0-9]{24}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "boolean"
+        },
+        "personOnly": "consent"
+      },
+      {
+        "name": "browser.stop",
+        "label": "stop an agent using your Chrome",
+        "target": "engine",
+        "class": "local",
+        "confirm": "always",
+        "views": [
+          "browser-native"
+        ],
+        "input": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "boolean"
+        },
+        "personOnly": "consent"
+      }
+    ],
+    "nativeData": [
+      {
+        "v": 1,
+        "capability": "personal-browser",
+        "view": "browser-native",
+        "read": "browser.status",
+        "actions": {
+          "connect": "browser.connect",
+          "stop": "browser.stop"
+        }
+      }
+    ],
+    "inbox": {
+      "method": "browser.inbox"
+    },
+    "notices": [
+      {
+        "id": "chrome-ask",
+        "label": "Your Chrome",
+        "category": "request",
+        "preview": "line"
+      }
+    ],
     "signIns": [],
     "contributes": {
       "homeFeeds": [],
@@ -199,6 +353,7 @@
     "manifest",
     "managed-extension",
     "skills",
+    "views",
     "assets/icon.svg",
     "assets/icon-128.png",
     "assets/icon-256.png",

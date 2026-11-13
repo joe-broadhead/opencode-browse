@@ -12,7 +12,7 @@ const env = { ...process.env, PATH: `${join(root, "node_modules", ".bin")}${deli
 const { TESTED_HOSTS } = await import(new URL("../src/constants.ts", import.meta.url).href)
 
 // The approved package shape. Change it here only together with the release policy.
-const FILES = ["bin", "dist", "manifest", "managed-extension", "skills", "assets/icon.svg", "assets/icon-128.png", "assets/icon-256.png", "NOTICE", "README.md", "LICENSE", "CHANGELOG.md"]
+const FILES = ["bin", "dist", "manifest", "managed-extension", "skills", "views", "assets/icon.svg", "assets/icon-128.png", "assets/icon-256.png", "NOTICE", "README.md", "LICENSE", "CHANGELOG.md"]
 const EXPORTS = { ".": "index", "./tui": "tui" }
 const ASSET_EXPORTS = { "./icon.svg": "assets/icon.svg", "./icon-128.png": "assets/icon-128.png", "./icon-256.png": "assets/icon-256.png" }
 const DIST = Object.values(EXPORTS).map((base) => `${base}.js`).sort()
