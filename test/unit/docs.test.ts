@@ -143,7 +143,9 @@ describe("the docs", () => {
     expect(changelog.startsWith("# Changelog\n")).toBe(true)
     // One release heading: the GitHub release's own notes. browse was never on npm, so there is no npm history.
     expect(changelog).toMatch(/^## \[0\.0\.0\] - \d{4}-\d{2}-\d{2}$/m)
-    expect(changelog).not.toContain("## [Unreleased]")
+    // Notes for the next release wait under `## [Unreleased]`, above every release (scripts/changelog.mjs).
+    const unreleased = changelog.indexOf("## [Unreleased]")
+    if (unreleased !== -1) expect(unreleased).toBeLessThan(changelog.indexOf("## [0.0.0]"))
     expect(changelog).toContain("### Added")
   })
 })

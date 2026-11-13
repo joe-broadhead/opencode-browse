@@ -3,6 +3,21 @@
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- In jelly, the person's Chrome per task (issue #3): under jelly, in real mode, every browse tool waits behind a gate
+  until the person allows their Chrome for that one task; nothing reaches the relay, the extension or the browser
+  before. The grant is held in memory for one conversation and agent, and ends with the agent's `session_reset` or
+  `session_delete`, the person's Stop, the conversation being deleted or archived, an hour idle, or the engine
+  stopping. Under a grant with sites, a wider allowlist is refused. New codes `CHROME_NOT_ALLOWED` and
+  `CHROME_SCOPE`.
+- jelly's `personal-browser` binding (D103): the `browser-native` page view, the read-only `browser.status`,
+  `browser.ask` and `browser.inbox` methods under the package's own RPC id, the `browser.connect` and `browser.stop`
+  actions (owner device, confirmed every time, checked against jelly's signed action grant), and an Inbox item for a
+  pending ask.
+
 ## [0.0.0] - 2026-11-10
 <!-- kit-release: the GitHub release v0.0.0 -->
 

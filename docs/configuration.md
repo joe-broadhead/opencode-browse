@@ -112,6 +112,8 @@ Every error is `CODE: What happened. Next step: What to do.` One next step, endi
 | `CHROMIUM_BRANDED` | `chromiumPath` is branded Google Chrome | point it at Chrome for Testing or Chromium |
 | `CHROMIUM_INSTALL_FAILED` | `/browse-install-browser` failed before or during the install | run `/browse-doctor` and fix the first failed check |
 | `EXTENSION_UNVERIFIED` | the bundled extension does not match its pin | reinstall the plugin |
+| `CHROME_NOT_ALLOWED` | under jelly, the person has not allowed their Chrome for this task (not answered in five minutes, the call cancelled, or stopped) | tell the person what the task needs and which sites, then try again: jelly asks them |
+| `CHROME_SCOPE` | under jelly, a session would reach sites the person did not allow for this task | keep to the allowed sites, or start a new task that names the others |
 | `UNSUPPORTED_PLATFORM` | no package ships for this OS or architecture | set `path` to your own browse binary |
 | `SERVER_LEGACY` | an `opencode-browser` entry remains | remove it, then restart |
 | `SERVER_NOT_REGISTERED` | the server transform failed | restart OpenCode |

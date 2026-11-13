@@ -286,6 +286,25 @@ ID or secret to distribute.
 The paths are `/etc/opencode/opencode.json` on Linux and `/Library/Application Support/opencode/opencode.json` on
 macOS.
 
+## Your Chrome in jelly: per task
+
+In [jelly](https://heyjelly.ai) an agent uses the person's own Chrome only **for one task the person allows** — never
+by default, never for good. In real mode, every browse tool waits behind a gate until the person answers:
+
+1. The agent's first browse call in a conversation asks: jelly shows "<agent> wants to use your Chrome for this task",
+   with the task (the conversation's title) and the sites (the `allowedOrigins` of a `browse_session_new`, or any
+   site). The ask is also an Inbox item. Nothing reaches the relay, the extension or the browser meanwhile.
+2. **Allow for this task** is jelly's Connect (`browser.connect`, confirmed every time from an owner device, with a
+   signed single-use grant the plugin checks). The waiting call then runs, and so do the task's later calls.
+3. The grant ends when the agent calls `browse_session_reset` or `browse_session_delete`, when the person presses
+   Stop (`browser.stop`), when the conversation is deleted or archived, after an hour with no browse call, or when
+   the engine stops. It lives only in memory: no rule, saved approval or file holds it, and another conversation asks
+   afresh. Under a grant with sites, a new session gets those sites and a wider allowlist is refused (`CHROME_SCOPE`).
+4. No answer in five minutes, or a cancelled turn, is "Not now": the call fails with `CHROME_NOT_ALLOWED`.
+
+Managed mode drives its own Chrome for Testing, not the person's, and is not gated. Outside jelly nothing changes:
+OpenCode's own permission rules decide. [docs/jelly.md](docs/jelly.md) has the declaration and the contracts.
+
 ## Known limits
 
 - **Parallel agents share one browse session.** This plugin pins browse `0.0.15`, whose build predates per-caller sessions
@@ -340,6 +359,8 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 | `CHROMIUM_BRANDED` | `chromiumPath` is branded Google Chrome, which will not load the unpacked extension | point it at Chromium or Chrome for Testing |
 | `CHROMIUM_INSTALL_FAILED` | `/browse-install-browser` failed before or during the install | run `/browse-doctor` and fix the first failed check |
 | `EXTENSION_UNVERIFIED` | the bundled extension does not match its pin | reinstall the plugin |
+| `CHROME_NOT_ALLOWED` | under jelly, the person has not allowed their Chrome for this task (not answered in five minutes, the call cancelled, or stopped) | tell the person what the task needs and which sites, then try again: jelly asks them |
+| `CHROME_SCOPE` | under jelly, a session would reach sites the person did not allow for this task | keep to the allowed sites, or start a new task that names the others |
 | Recording needs ffmpeg | an agent-opened tab records through CDP, which needs `ffmpeg` on PATH | `brew install ffmpeg`, or click the toolbar button on a tab and record that |
 
 ## Uninstall

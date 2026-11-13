@@ -4,7 +4,7 @@ The plugin is a thin layer over the pinned browse binary. OpenCode owns the MCP 
 prompts and Code Mode; browse owns the relay, the extension and the browser. This plugin registers the server at
 runtime, ships the binary, classifies its 18 tools, sets default permission rules, reports status, ships two skills and
 lets scripts call the known tools. It adds no tool of its own, makes no browser call of its own, and never edits a
-config file.
+config file. Under jelly it gates the person's Chrome per task ([jelly.md](jelly.md)).
 
 ## Layout
 
@@ -24,6 +24,8 @@ config file.
 | `src/doctor.ts` | `/browse-doctor`: the vendor doctor, the binary checks, scope repair |
 | `src/skills.ts` | loading and registering `skills/` |
 | `src/tui.ts` | `/browse` and the palette command "Browse: Status" |
+| `src/jelly/` | jelly's side: the per-task gate on the person's Chrome (`chrome-gate.ts`), the `personal-browser` read, its actions and the Inbox read (`native.ts`), and the action-grant check (`action-grant.ts`); see [jelly.md](jelly.md) |
+| `views/browser.html` | the `browser-native` page jelly shows: the state, the ask, Allow for this task and Stop |
 | `src/host/tools-rpc.ts` | the shared tools RPC v2.1, with this plugin's block between the markers |
 | `manifest/browse.json` | the pin: version, channel, and each target's tarball URL, SHA-256, size, binary SHA-256 and size |
 | `scripts/pin.mjs` | downloads and verifies the pinned targets into `.cache/bin` |
@@ -47,9 +49,11 @@ config file.
 7. `ctx.agent.transform` inserts the default rules after each agent's base `* * allow`; the scoped profile applies
    when `scope` is set.
 8. With `scope`, `ensureScope` lists, creates or repairs the pinned session with the vendor CLI.
-9. `ctx.skill.transform`, `/browse-status`, `/browse-doctor`, `/browse-install-browser`, the status RPC and the tools
+9. Under jelly, in real mode, `ctx.tool.transform` puts the per-task gate in front of every `browse_*` executor and the
+   plugin watches for deleted and archived sessions; the `personal-browser` RPC is registered under the package name.
+10. `ctx.skill.transform`, `/browse-status`, `/browse-doctor`, `/browse-install-browser`, the status RPC and the tools
    RPC are registered.
-10. With `"browser": "managed"`, a `ManagedBrowser` prepares the extension copy, mints a code through `browse pair`,
+11. With `"browser": "managed"`, a `ManagedBrowser` prepares the extension copy, mints a code through `browse pair`,
     writes it for the unpacked extension, launches Chrome for Testing and waits for the relay to report the extension
     connected. It is stopped on dispose. With invalid options or an untested host the plugin still loads: status only,
     with the deny nets in place.
