@@ -55,18 +55,24 @@ browser's own options page. `jelly.signIns` is empty.
 
 Issue #3: an agent may use the person's own Chrome **per task, when the person allows it** —
 never by default, never for good. Under jelly (the plugin sees jelly's engine hand-off) and in real mode, the plugin
-wraps every `browse_*` tool's executor, the one place the model path, Code Mode and the `browse.tools` RPC all pass
-through. A call from a conversation with no grant never reaches the MCP server.
+wraps the executor of every tool the browse server exposes — each `browse_*` id and anything in the `browse`
+namespace, classified or not — the one place Code Mode (the model's only way to reach browse) and the `browse.tools`
+RPC both pass through. A call from a conversation with no grant never reaches the MCP server.
 
 - **A task** is one OpenCode session (the conversation) and the agent that runs it.
 - **The ask.** The first gated call records `{ id, agent, task, origins, at }` — the task is the session's title, the
   origins are the `allowedOrigins` of a `session_new` or `session_allowlist`, else any site — and waits for the person
-  for up to five minutes. A cancelled turn withdraws it.
+  for up to five minutes. A cancelled turn withdraws it. It is also filed once as the `chrome-ask` notice
+  (`jelly.core` request, kind `notice`, category `request`), which jelly raises to the agent's people whatever the
+  agent's access level, and keeps for the Inbox.
+- **More than one task.** A waiting ask is reported before a running task, so another conversation's or a
+  subagent's ask can always be allowed; the running task stays in the read's `task` and keeps its grant.
 - **Allow for this task** is the `browser.connect` action. It allows the ask named by `input.ask`, or the oldest one
   when jelly sends `{}`. With no ask pending the read reports `canControl: false`, so jelly offers no Connect and the
   Chrome cannot be allowed in advance.
 - **The end.** The agent's `session_reset` or `session_delete` in that conversation, `browser.stop` (all, or one
-  `session`), the conversation deleted or archived, an hour with no browse call, or the engine stopping. Nothing is
+  `session`), the conversation deleted or archived, an hour with no browse call, or the engine stopping. A call
+  still running is aborted with the grant and fails with `CHROME_NOT_ALLOWED`. Nothing is
   written: no rule, saved approval or file, so an "Always allow" on a tool's card never allows the Chrome.
 - **The sites.** Under a grant with sites, a `session_new` without an allowlist gets them, and a wider or cleared
   allowlist is refused with `CHROME_SCOPE`.
@@ -92,19 +98,22 @@ The plugin registers its RPC under the package name, `@joe-broadhead/opencode-br
 | `act.browser.connect` | action, `local`, `always` | `true` when it allowed an ask |
 | `act.browser.stop` | action, `local`, `always` | `true` |
 
-The states: `unavailable` in managed mode or with no binary; `ready` or `driving` (a call in flight) while a task is
-allowed; `not-connected` (or `extension-needed`) with `canControl: true` while an ask waits; otherwise
-`not-connected` with `canControl: false`. Each action checks jelly's grant before it changes anything: the host's
+The states: `unavailable` in managed mode or with no binary; `not-connected` (or `extension-needed`) with
+`canControl: true` while an ask waits, with any running `task` beside it; `ready` or `driving` (a call in flight)
+while a task is allowed and nothing waits; otherwise `not-connected` with `canControl: false`. While an ask waits,
+jelly offers Connect and not Stop; the page offers both. Each action checks jelly's grant before it changes anything: the host's
 Ed25519 key published in the engine, the audience `@joe-broadhead/opencode-browse#engine`, the action, the input's
-digest, the minute it is good for, the single-use id, and the `local` class (an owner device).
+digest, the minute it is good for, the single-use id, and the `local` class the actions declare (jelly's host is what
+refuses a `local` action from a paired device).
 
 `browser-native` is a `settings-section` page (`views/browser.html`) with the `rpc` grant for `browser.status` and
 `browser.ask`: it shows the state and the ask, and offers Allow for this task and Stop through the two actions, which
 jelly confirms.
 
-What jelly has no contract for yet — an ask that reaches the person whatever the agent's access level, the ask and
-task words on its own card and strip, Connect naming the ask, Not now, pushed start and end, and ending the task with
-jelly's conversation — is on issue #3.
+`notices` declares `chrome-ask` (label "Your Chrome", category `request`, preview `line`). What jelly has no contract
+for yet — Allow for this task and Not now on the notice or an approval card, the ask and task words on its card and
+strip, Connect naming the ask, the task's end pushed rather than polled, and ending the task with jelly's
+conversation — is on issue #3.
 
 ## Home feeds
 

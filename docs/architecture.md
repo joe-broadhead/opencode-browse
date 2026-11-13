@@ -24,7 +24,7 @@ config file. Under jelly it gates the person's Chrome per task ([jelly.md](jelly
 | `src/doctor.ts` | `/browse-doctor`: the vendor doctor, the binary checks, scope repair |
 | `src/skills.ts` | loading and registering `skills/` |
 | `src/tui.ts` | `/browse` and the palette command "Browse: Status" |
-| `src/jelly/` | jelly's side: the per-task gate on the person's Chrome (`chrome-gate.ts`), the `personal-browser` read, its actions and the Inbox read (`native.ts`), and the action-grant check (`action-grant.ts`); see [jelly.md](jelly.md) |
+| `src/jelly/` | jelly's side: the per-task gate on the person's Chrome (`chrome-gate.ts`), the gate on every server tool, the `personal-browser` read, its actions, the Inbox read and the ask's notice (`native.ts`), and the action-grant check (`action-grant.ts`); see [jelly.md](jelly.md) |
 | `views/browser.html` | the `browser-native` page jelly shows: the state, the ask, Allow for this task and Stop |
 | `src/host/tools-rpc.ts` | the shared tools RPC v2.1, with this plugin's block between the markers |
 | `manifest/browse.json` | the pin: version, channel, and each target's tarball URL, SHA-256, size, binary SHA-256 and size |
@@ -49,7 +49,7 @@ config file. Under jelly it gates the person's Chrome per task ([jelly.md](jelly
 7. `ctx.agent.transform` inserts the default rules after each agent's base `* * allow`; the scoped profile applies
    when `scope` is set.
 8. With `scope`, `ensureScope` lists, creates or repairs the pinned session with the vendor CLI.
-9. Under jelly, in real mode, `ctx.tool.transform` puts the per-task gate in front of every `browse_*` executor and the
+9. Under jelly, in real mode, `ctx.tool.transform` puts the per-task gate in front of every executor of the browse server and the
    plugin watches for deleted and archived sessions; the `personal-browser` RPC is registered under the package name.
 10. `ctx.skill.transform`, `/browse-status`, `/browse-doctor`, `/browse-install-browser`, the status RPC and the tools
    RPC are registered.

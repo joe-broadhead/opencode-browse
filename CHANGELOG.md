@@ -16,7 +16,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 - jelly's `personal-browser` binding (D103): the `browser-native` page view, the read-only `browser.status`,
   `browser.ask` and `browser.inbox` methods under the package's own RPC id, the `browser.connect` and `browser.stop`
   actions (owner device, confirmed every time, checked against jelly's signed action grant), and an Inbox item for a
-  pending ask.
+  pending ask, also filed as jelly's `chrome-ask` notice. The gate covers every tool the browse server exposes,
+  classified or not; a second conversation's ask can be allowed while another task holds the Chrome; and Stop, the
+  task's end and the idle limit abort a browse call already running.
 
 ## [0.0.0] - 2026-11-10
 <!-- kit-release: the GitHub release v0.0.0 -->

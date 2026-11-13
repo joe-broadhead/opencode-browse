@@ -293,17 +293,20 @@ by default, never for good. In real mode, every browse tool waits behind a gate 
 
 1. The agent's first browse call in a conversation asks: jelly shows "<agent> wants to use your Chrome for this task",
    with the task (the conversation's title) and the sites (the `allowedOrigins` of a `browse_session_new`, or any
-   site). The ask is also an Inbox item. Nothing reaches the relay, the extension or the browser meanwhile.
+   site). It is also a jelly notice and an Inbox item, whatever the agent's access level. Nothing reaches the relay,
+   the extension or the browser meanwhile. Every tool the browse server exposes is gated, classified or not, and a
+   second conversation's ask can be allowed while another task runs.
 2. **Allow for this task** is jelly's Connect (`browser.connect`, confirmed every time from an owner device, with a
    signed single-use grant the plugin checks). The waiting call then runs, and so do the task's later calls.
 3. The grant ends when the agent calls `browse_session_reset` or `browse_session_delete`, when the person presses
    Stop (`browser.stop`), when the conversation is deleted or archived, after an hour with no browse call, or when
-   the engine stops. It lives only in memory: no rule, saved approval or file holds it, and another conversation asks
+   the engine stops; a call still running is aborted with it. It lives only in memory: no rule, saved approval or file holds it, and another conversation asks
    afresh. Under a grant with sites, a new session gets those sites and a wider allowlist is refused (`CHROME_SCOPE`).
 4. No answer in five minutes, or a cancelled turn, is "Not now": the call fails with `CHROME_NOT_ALLOWED`.
 
-Managed mode drives its own Chrome for Testing, not the person's, and is not gated. Outside jelly nothing changes:
-OpenCode's own permission rules decide. [docs/jelly.md](docs/jelly.md) has the declaration and the contracts.
+Managed mode drives its own Chrome for Testing, not the person's, and is not gated. Outside jelly nothing changes: in
+real mode an agent drives the person's Chrome under OpenCode's own permission rules, which allow every browse tool by
+default (use `access` or your own rules to make them ask). [docs/jelly.md](docs/jelly.md) has the declaration and the contracts.
 
 ## Known limits
 
