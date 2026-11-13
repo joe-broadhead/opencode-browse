@@ -15,7 +15,7 @@ const jelly = pkg.jelly
 own(jelly !== undefined && typeof jelly === "object", "package.json has no jelly declaration")
 if (jelly) {
   const keys = Object.keys(jelly).sort()
-  own(JSON.stringify(keys) === JSON.stringify(["contributes", "icon", "rpc", "signIns", "skills", "summary", "title", "tools", "views"]), `jelly has the keys ${keys.join(", ")}`)
+  own(JSON.stringify(keys) === JSON.stringify(["actions", "contributes", "icon", "inbox", "nativeData", "rpc", "signIns", "skills", "summary", "title", "tools", "views"]), `jelly has the keys ${keys.join(", ")}`)
   own(typeof jelly.title === "string" && jelly.title.trim() !== "", "jelly.title must be a non-empty string")
   own(typeof jelly.summary === "string" && jelly.summary.length > 0 && jelly.summary.length <= 120, `jelly.summary is ${typeof jelly.summary === "string" ? jelly.summary.length : "not a string"} characters; the cap is 120`)
   own(jelly.icon === "assets/icon.svg", "jelly.icon must be assets/icon.svg")
@@ -34,6 +34,38 @@ if (jelly) {
     own(typeof entry.readOnly === "boolean", `tool ${entry.name} needs readOnly`)
     for (const key of Object.keys(entry)) own(["name", "permission", "effect", "readOnly"].includes(key), `tool ${entry.name} has the key ${key}`)
   }
+
+  // The personal-browser binding (D103) and its per-task ask, by the rules jelly's contract applies
+  // (plugin-native-data, plugin-views, plugin-actions and plugin-inbox).
+  const permissions = new Set((jelly.tools ?? []).map((tool) => tool.permission))
+  const rpc = new Map((jelly.rpc ?? []).map((method) => [method.name, method]))
+  for (const method of jelly.rpc ?? []) {
+    own(permissions.has(method.permission), `rpc ${method.name} must read under a declared tool permission`)
+    own(!method.name.startsWith("act."), `rpc ${method.name} may not start with act.`)
+  }
+  const pages = new Set()
+  for (const view of jelly.views ?? []) {
+    own(typeof view.page === "string" && existsSync(join(root, view.page)), `view ${view.id} needs its page in the package`)
+    own(pkg.files?.some((entry) => view.page === entry || view.page?.startsWith(`${entry}/`)), `view ${view.id}'s page must ship in files`)
+    own(view.grants?.includes("rpc") === (view.rpc?.length > 0), `view ${view.id} names its methods exactly when it has the rpc grant`)
+    for (const name of view.rpc ?? []) own(rpc.get(name)?.readOnly === true, `view ${view.id} may call only read-only methods: ${name}`)
+    pages.add(view.id)
+  }
+  for (const action of jelly.actions ?? []) {
+    own(action.views.every((view) => pages.has(view)), `action ${action.name} is called only by this plugin's pages`)
+    if (action.preview !== undefined) own(rpc.get(action.preview)?.readOnly === true, `action ${action.name}'s preview must be a read-only method`)
+  }
+  for (const hint of jelly.nativeData ?? []) {
+    own(hint.v === 1 && hint.capability === "personal-browser", "nativeData declares the personal browser only")
+    const view = (jelly.views ?? []).find((item) => item.id === hint.view)
+    own(view?.page !== undefined && view.grants.includes("rpc") && view.rpc.includes(hint.read) && rpc.get(hint.read)?.readOnly === true, "the native read must be its page view's granted, read-only method")
+    own(hint.actions?.connect !== undefined && hint.actions.connect !== hint.actions.stop, "the personal browser needs two different actions")
+    for (const name of Object.values(hint.actions ?? {})) {
+      const action = (jelly.actions ?? []).find((item) => item.name === name)
+      own(action?.class === "local" && action.confirm === "always" && action.views.includes(hint.view), `the personal browser's ${name} needs local access and confirmation every time`)
+    }
+  }
+  if (jelly.inbox !== undefined) own(rpc.get(jelly.inbox.method)?.readOnly === true, "the inbox reads through a read-only method")
 }
 
 // The three icon files and their declarations, as the kit requires.

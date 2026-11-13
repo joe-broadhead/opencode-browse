@@ -8,13 +8,11 @@ const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
 
 describe("the Jelly declaration", () => {
   test("has every key Jelly reads, and no unknown ones", () => {
-    expect(Object.keys(pkg.jelly).sort()).toEqual(["contributes", "icon", "rpc", "signIns", "skills", "summary", "title", "tools", "views"].sort())
+    expect(Object.keys(pkg.jelly).sort()).toEqual(["actions", "contributes", "icon", "inbox", "nativeData", "rpc", "signIns", "skills", "summary", "title", "tools", "views"].sort())
     expect(pkg.jelly.title).toBe("Browse")
     expect(pkg.jelly.summary.length).toBeLessThanOrEqual(120)
     expect(pkg.jelly.icon).toBe("assets/icon.svg")
     expect(pkg.jelly.signIns).toEqual([])
-    expect(pkg.jelly.views).toEqual([])
-    expect(pkg.jelly.rpc).toEqual([])
     expect(pkg.jelly.skills).toEqual(["browse", "browse-capture"])
   })
 
@@ -31,6 +29,28 @@ describe("the Jelly declaration", () => {
     expect(pkg.jelly.icon).toBe(pkg.opencode.icons[0].src)
     for (const icon of pkg.opencode.icons) expect(pkg.files).toContain(icon.src)
     for (const asset of ["./icon.svg", "./icon-128.png", "./icon-256.png"]) expect(pkg.exports[asset]).toBeDefined()
+  })
+
+  test("declares the personal-browser binding exactly as jelly's D103 example, with every-time local actions", async () => {
+    const { ACTIONS, NATIVE_VIEW, NativeRpc, CONNECT_INPUT, STOP_INPUT } = await import("../../src/jelly/native.js")
+    expect(pkg.jelly.nativeData).toEqual([{ v: 1, capability: "personal-browser", view: NATIVE_VIEW, read: "browser.status", actions: ACTIONS }])
+    const view = pkg.jelly.views.find((item: { id: string }) => item.id === NATIVE_VIEW)
+    expect(view).toEqual({ v: 1, id: NATIVE_VIEW, place: "settings-section", title: "Your Chrome", page: "views/browser.html", grants: ["rpc"], rpc: ["browser.status", "browser.ask"] })
+    expect(pkg.files).toContain("views")
+    for (const name of [ACTIONS.connect, ACTIONS.stop]) {
+      const action = pkg.jelly.actions.find((item: { name: string }) => item.name === name)
+      expect(action, name).toMatchObject({ target: "engine", class: "local", confirm: "always", views: [NATIVE_VIEW], personOnly: "consent" })
+      // The engine method jelly calls is act.<name>, under the package's own RPC id.
+      expect(Object.keys(NativeRpc.methods)).toContain(`act.${name}`)
+    }
+    expect(pkg.jelly.actions.find((item: { name: string }) => item.name === ACTIONS.connect).input).toEqual(CONNECT_INPUT)
+    expect(pkg.jelly.actions.find((item: { name: string }) => item.name === ACTIONS.stop).input).toEqual(STOP_INPUT)
+    for (const method of pkg.jelly.rpc) {
+      expect(method.readOnly).toBe(true)
+      expect(Object.keys(NativeRpc.methods)).toContain(method.name)
+    }
+    expect(NativeRpc.id).toBe(pkg.name)
+    expect(pkg.jelly.inbox).toEqual({ method: "browser.inbox" })
   })
 
   test("declares the vendor, because browse is not our product", () => {

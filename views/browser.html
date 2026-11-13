@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Your Chrome</title>
+<style>
+  body { font: 14px/1.4 var(--jelly-font, system-ui, sans-serif); color: var(--jelly-text, #222); background: transparent; margin: 0; padding: 12px; }
+  p { margin: 0 0 8px; }
+  .muted { color: var(--jelly-muted, #666); }
+  button { font: inherit; margin-right: 8px; padding: 4px 12px; border-radius: var(--jelly-radius, 6px); border: 1px solid var(--jelly-border, #ccc); background: var(--jelly-raised, #fff); color: inherit; }
+  button.primary { background: var(--jelly-accent, #2a5bd7); color: var(--jelly-on-accent, #fff); border-color: transparent; }
+</style>
+</head>
+<body>
+<p id="state">Reading your Chrome…</p>
+<p id="detail" class="muted"></p>
+<p id="buttons"></p>
+<p class="muted">An agent uses your own Chrome only for one task you allow. It ends when the task ends or you stop it.</p>
+<script>
+"use strict";
+// A sealed page: it talks to the app only through the port the app hands it, and only with the read and the two
+// actions this view is granted. The app draws every confirmation.
+(() => {
+  let port = null;
+  let next = 0;
+  const waiting = new Map();
+  const request = (op, fields) => new Promise((resolve, reject) => {
+    const id = `r${++next}`;
+    waiting.set(id, { resolve, reject });
+    port.postMessage({ v: 1, id, op, ...fields });
+  });
+  const words = {
+    "not-connected": "No agent is using your Chrome.",
+    "extension-needed": "The browser extension needs to be connected.",
+    ready: "An agent may use your Chrome for one task.",
+    driving: "An agent is using your Chrome.",
+    "needs-you": "Your Chrome needs you.",
+    unavailable: "Your Chrome is not available here.",
+  };
+  const text = (id, value) => { document.getElementById(id).textContent = value; };
+  const button = (label, primary, run) => {
+    const element = document.createElement("button");
+    element.textContent = label;
+    if (primary) element.className = "primary";
+    element.addEventListener("click", () => run().catch((error) => text("detail", String(error && error.message || error))).finally(read));
+    document.getElementById("buttons").append(element);
+  };
+  const read = async () => {
+    const status = await request("rpc.call", { method: "browser.status", input: {} });
+    document.getElementById("buttons").replaceChildren();
+    text("state", words[status.state] || words.unavailable);
+    if (status.ask) {
+      const sites = status.ask.origins ? status.ask.origins.join(", ") : "any site";
+      text("detail", `${status.ask.agent} wants to use your Chrome for this task: ${status.ask.task}. Sites: ${sites}.`);
+      if (status.canControl) button("Allow for this task", true, () => request("act.call", { action: "browser.connect", input: { ask: status.ask.id } }));
+    } else if (status.task) {
+      const sites = status.task.origins ? status.task.origins.join(", ") : "any site";
+      text("detail", `${status.task.agent}: ${status.task.task}. Sites: ${sites}.`);
+      if (status.canControl) button("Stop", false, () => request("act.call", { action: "browser.stop", input: {} }));
+    } else {
+      text("detail", "");
+    }
+  };
+  addEventListener("message", (event) => {
+    if (event.source !== parent || !event.data || event.data.kind !== "hello" || port !== null) return;
+    port = event.ports[0];
+    port.onmessage = (message) => {
+      const answer = message.data;
+      const pending = answer && waiting.get(answer.re);
+      if (!pending) return;
+      waiting.delete(answer.re);
+      if (answer.ok) pending.resolve(answer.value);
+      else pending.reject(new Error(answer.error));
+    };
+    port.start();
+    read().catch(() => text("state", words.unavailable));
+    setInterval(() => read().catch(() => undefined), 5000);
+  });
+})();
+</script>
+</body>
+</html>
