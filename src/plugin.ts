@@ -15,7 +15,7 @@ import { ManagedBrowser } from "./managed/browser.js"
 import { formatRelayStop, stopRelaySafely } from "./managed/relay.js"
 import { detectRecording, type RecordingReadiness } from "./recording.js"
 import { ChromeGate, type ChromeAsk } from "./jelly/chrome-gate.js"
-import { browserStatus, changeNotices, noticeAsk, RAISE_CHANGE_NOTICES, registerGate, registerNativeRpc, underJelly, watchSessions, type NativeDeps } from "./jelly/native.js"
+import { browserStatus, changeNotices, extensionFact, noticeAsk, RAISE_CHANGE_NOTICES, registerGate, registerNativeRpc, underJelly, watchSessions, type NativeDeps } from "./jelly/native.js"
 import type { ActionPublicKey } from "./jelly/action-grant.js"
 
 /** Internal seam: tests point the plugin at their own skills and a shorter status timeout. */
@@ -406,7 +406,7 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
         extensionConnected: async () => {
           const timeout = new Promise<undefined>((resolve) => setTimeout(resolve, 3_000).unref?.())
           const status = await Promise.race([read(), timeout])
-          return status?.extension.connected
+          return extensionFact(status)
         },
         ...(seam.actionKey ? { key: seam.actionKey } : {}),
       }

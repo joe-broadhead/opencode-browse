@@ -122,7 +122,9 @@ The states: `unavailable` in managed mode or with no binary; `ready` or `driving
 task and a request waiting, `asking` — reported as `not-connected` (or `extension-needed`) until jelly draws
 `asking`, because jelly at `99cd657c4` reads an unknown state as unavailable with neither Connect nor Stop (one
 constant, `ASKING_STATE`, in `src/jelly/native.ts`); with neither, `ready` with `canControl: false`, so the next
-read after a task ends is `ready`, never `driving` on a stale allow. `REQUEST_EXPIRED` answers an id that was answered,
+read after a task ends is `ready`, never `driving` on a stale allow — or `extension-needed` with `canControl: false`
+when the running relay reports the extension not connected (a relay that is not running starts on demand, so it
+does not make the read `extension-needed`). `REQUEST_EXPIRED` answers an id that was answered,
 withdrawn or ran out; `NOT_YOUR_REQUEST` an id this engine never asked (it cannot tell whose conversation an id
 belongs to, only that it is not one of its own). The page offers Allow for this task, Not now and Stop whenever each
 applies. Each action checks jelly's grant before it changes anything: the host's

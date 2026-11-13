@@ -148,12 +148,20 @@ export interface NativeDeps {
   readonly gate: ChromeGate
   /** False in managed mode, with no binary, or with unusable options: the person's Chrome is not this plugin's to use. */
   readonly available: () => boolean
-  /** Whether the browse extension is connected, when that is known quickly. */
+  /** Whether the browse extension is connected: false only when the running relay says it is not; else unknown. */
   readonly extensionConnected: () => Promise<boolean | undefined>
   readonly key?: () => ActionPublicKey | undefined
   readonly now?: () => number
   /** The state of a request with no task holding the Chrome; `ASKING_STATE` unless a test says otherwise. */
   readonly askingState?: "asking" | "not-connected"
+}
+
+/**
+ * What the plugin's status says about the extension: false only when the running relay reports it not connected. A
+ * stopped relay says nothing about the extension (it starts on demand), so that, like no status, is unknown.
+ */
+export function extensionFact(status: { readonly relay: { readonly running: boolean }; readonly extension: { readonly connected: boolean } } | undefined): boolean | undefined {
+  return status?.relay.running === true ? status.extension.connected : undefined
 }
 
 const sites = (origins: readonly string[] | null) => (origins === null ? "any site" : origins.join(", "))
@@ -189,9 +197,11 @@ export async function browserStatus(deps: NativeDeps): Promise<BrowserStatus> {
     const connected = await deps.extensionConnected().catch(() => undefined)
     return { state: connected === false ? "extension-needed" : "not-connected", canControl: true, ...request }
   }
-  // Nothing held and nothing asked: ready, never `driving` on a stale allow. There is nothing to allow or stop, so no
-  // Connect is offered and the person's Chrome is never pre-allowed.
-  return { state: "ready", canControl: false }
+  // Nothing held and nothing asked: never `driving` on a stale allow. There is nothing to allow or stop, so no Connect
+  // is offered and the person's Chrome is never pre-allowed. `ready` unless the running relay says the extension is
+  // not connected; a relay that is not running starts on demand, so it is no reason to say the extension is missing.
+  const connected = await deps.extensionConnected().catch(() => undefined)
+  return { state: connected === false ? "extension-needed" : "ready", canControl: false }
 }
 
 /** The words of the ask Connect or Allow would allow, for the confirmation jelly draws. */

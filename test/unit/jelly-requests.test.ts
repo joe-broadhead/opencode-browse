@@ -15,6 +15,7 @@ import {
   browserStatus,
   CHANGE_NOTICE,
   changeNotices,
+  extensionFact,
   gated,
   inboxItems,
   nativeActions,
@@ -41,7 +42,7 @@ function grant(action: string, input: unknown) {
 }
 const call = (action: string, input: unknown) => ({ input, grant: grant(action, input) })
 
-function setup(options: { askTimeoutMs?: number; askingState?: "asking" | "not-connected"; changed?: () => void } = {}) {
+function setup(options: { askTimeoutMs?: number; askingState?: "asking" | "not-connected"; changed?: () => void; extension?: boolean } = {}) {
   const gate = new ChromeGate({ describe: async () => "Compare train fares", ...(options.askTimeoutMs ? { askTimeoutMs: options.askTimeoutMs } : {}), ...(options.changed ? { changed: options.changed } : {}) })
   const reached: string[] = []
   let release: () => void = () => undefined
@@ -51,7 +52,7 @@ function setup(options: { askTimeoutMs?: number; askingState?: "asking" | "not-c
       if (hold) await new Promise<void>((resolve) => (release = resolve))
       return { content: [] }
     })
-  const deps: NativeDeps = { gate, available: () => true, extensionConnected: async () => true, key: () => KEY, ...(options.askingState ? { askingState: options.askingState } : {}) }
+  const deps: NativeDeps = { gate, available: () => true, extensionConnected: async () => ("extension" in options ? options.extension : true), key: () => KEY, ...(options.askingState ? { askingState: options.askingState } : {}) }
   return { gate, reached, tool, deps, actions: nativeActions(deps), release: () => release() }
 }
 
@@ -74,6 +75,22 @@ describe("B2: the read in jelly's shape", () => {
     await running
     expect(await browserStatus(deps)).toEqual({ state: "ready", canControl: true, agent: "atlas" })
     gate.dispose()
+  })
+})
+
+describe("with nothing held or asked", () => {
+  test("the extension reported not connected reads extension-needed; unknown or connected reads ready; neither offers control", async () => {
+    expect(await browserStatus(setup({ extension: false }).deps)).toEqual({ state: "extension-needed", canControl: false })
+    expect(await browserStatus(setup({ extension: undefined }).deps)).toEqual({ state: "ready", canControl: false })
+    expect(await browserStatus(setup({ extension: true }).deps)).toEqual({ state: "ready", canControl: false })
+  })
+
+  test("only a running relay can say the extension is missing; a stopped one starts on demand", () => {
+    const facts = (running: boolean, connected: boolean) => ({ relay: { running }, extension: { connected } })
+    expect(extensionFact(facts(true, false))).toBe(false)
+    expect(extensionFact(facts(true, true))).toBe(true)
+    expect(extensionFact(facts(false, false))).toBeUndefined()
+    expect(extensionFact(undefined)).toBeUndefined()
   })
 })
 

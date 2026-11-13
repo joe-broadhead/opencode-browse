@@ -33,7 +33,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 - In jelly, a request's mode is enforced: a read grant lets only the four reads of the plugin's table through
   (`status`, `session_list`, `secrets_list`, `secrets_status`), and any other or unclassified tool asks again, to act.
 - In jelly, with no task and no request the read is `ready` with `canControl: false` (it was `not-connected`), so the
-  read after a task ends is `ready`. The read no longer reports `ask`, or `task` as `{ agent, task, origins, since }`.
+  read after a task ends is `ready`; it is `extension-needed` instead when the running relay reports the extension
+  not connected. The read no longer reports `ask`, or `task` as `{ agent, task, origins, since }`.
 
 ## [0.0.0] - 2026-11-10
 <!-- kit-release: the GitHub release v0.0.0 -->
