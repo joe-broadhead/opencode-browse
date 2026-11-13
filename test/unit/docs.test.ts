@@ -32,8 +32,8 @@ describe("the README", () => {
     const positions = order.map((heading) => README.indexOf(heading))
     for (const position of positions) expect(position).toBeGreaterThan(-1)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
-    expect(README).toContain("opencode plugin add github:joe-broadhead/opencode-browse#v0.0.0")
-    expect(README).toContain("opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.0")
+    expect(README).toContain("opencode plugin add github:joe-broadhead/opencode-browse#v0.0.1")
+    expect(README).toContain("opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.1")
     expect(README).toContain("`/etc/opencode/opencode.json` on Linux and `/Library/Application Support/opencode/opencode.json` on")
   })
 

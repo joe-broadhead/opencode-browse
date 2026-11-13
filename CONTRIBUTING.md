@@ -49,7 +49,7 @@ It runs with a throwaway HOME, XDG dirs and a free port, and stops the relay it 
 | `host` | the embedded OpenCode host on 2.2.3, 2.2.4, 2.2.5 and 2.2.6, against the fake browse |
 | `pack` | the tarball, the bundles, the release binary resolution and the tamper refusal |
 | `forbidden` | the list in `AGENTS.md` |
-| `copies` | the shared tools RPC outside its plugin block |
+| `copies` | the shared tools RPC outside its plugin block, the native installer and Jelly's setting rules (`test/support/jelly-settings.ts`) match the copies every plugin carries |
 | `whitelist` | `package.json` and `dist/` shape |
 | `jelly` | the Jelly declaration against `package.json` |
 | `actionlint` | the two workflows, linted as workflows when `actionlint` is installed |
@@ -186,5 +186,5 @@ Each release has its own tag, and a Git install does not update by itself. To mo
 Or add the plugin to `opencode.json` instead, with the same spec:
 
 ```json
-{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.0" }] }
+{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.1" }] }
 ```

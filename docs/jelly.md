@@ -151,6 +151,22 @@ undeclared notice). What jelly
 has no contract for yet — Allow and Not now on jelly's own card, the hint's `actions` growing `allow` and `decline`,
 and ending the task with jelly's conversation — is on issues #3 and #5.
 
+## Settings
+
+`jelly.contributes.settings` declares two of the plugin's options. Jelly draws each as a choice, never as free text,
+and writes the value into the option of the same name:
+
+- `access`, a choice of three: **Allowed** (`all`, the default), **Ask before changes** (`ask-changes`) and **Read
+  only** (`read-only`), with Jelly's own line for each.
+- `browser`, a choice of two: **Your browser** (`real`, the default), the person's own Chrome, gated per task as above,
+  and **Separate browser** (`managed`), a Chromium with its own profile, which is not gated.
+
+Both sets are the options parser's own, so Jelly never saves a value the plugin refuses. A Jelly that does not know
+declared choices (before app#1301) refuses the whole declaration. `headless` and `verifyBinary` (switches), `path` and
+`chromiumPath` (paths) and `scope` (an object) are not declared. `test/unit/jelly.test.ts` checks the settings against
+Jelly's setting rules, restated in `test/support/jelly-settings.ts` (a shared copy, pinned by `scripts/check-copies.mjs`),
+and each declared value against the options parser.
+
 ## Home feeds
 
 None.

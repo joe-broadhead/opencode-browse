@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@joe-broadhead/opencode-browse",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "description": "Drive the user's real Chromium browser from OpenCode, with the browse extension: their tabs, logins and extensions, and a hand-back for logins, 2FA and payments",
   "keywords": [
@@ -468,8 +468,44 @@
           "key": "access",
           "label": "Access",
           "type": "string",
-          "default": "all",
-          "description": "all, ask-changes or read-only. Generates default rules for agents with a base allow rule; under ask-changes the four reads and tab cleanup run and everything else asks; under read-only the reads run and everything else is denied."
+          "description": "How much the plugin's tools may do. Generates default rules for agents with a base allow rule; under ask-changes the four reads and tab cleanup run and everything else asks; under read-only the reads run and everything else is denied.",
+          "choices": [
+            {
+              "value": "all",
+              "label": "Allowed",
+              "description": "Every tool runs without asking, reads and changes alike."
+            },
+            {
+              "value": "ask-changes",
+              "label": "Ask before changes",
+              "description": "Reads run without asking. Each change asks you first."
+            },
+            {
+              "value": "read-only",
+              "label": "Read only",
+              "description": "Reads run. Changes never run."
+            }
+          ],
+          "default": "all"
+        },
+        {
+          "key": "browser",
+          "label": "Browser",
+          "type": "string",
+          "description": "Which browser the tools drive. In jelly, the person's own Chrome is used per task, only once they allow it; a separate browser is not gated.",
+          "choices": [
+            {
+              "value": "real",
+              "label": "Your browser",
+              "description": "Your own Chrome-family browser, with browse's extension and your logins."
+            },
+            {
+              "value": "managed",
+              "label": "Separate browser",
+              "description": "A Chromium the plugin runs, with its own profile, signed out of every site."
+            }
+          ],
+          "default": "real"
         }
       ]
     }

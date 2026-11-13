@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.0.1] - 2026-11-13
 
 ### Added
 
@@ -27,6 +27,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
   `browser.decline { id }` (owner device, confirmed every time), with the codes `REQUEST_EXPIRED` and
   `NOT_YOUR_REQUEST`. The `personal-browser` change signal (B4) is built behind `RAISE_CHANGE_NOTICES`, neither
   raised nor declared until jelly treats it as a signal to read.
+- The `jelly` settings declare their choices: `access` is drawn as Allowed, Ask before changes or Read only, with
+  jelly's own line for each, and the `browser` option is declared as Your browser (`real`) or Separate browser
+  (`managed`) (needs a jelly that includes app#1301).
 
 ### Changed
 

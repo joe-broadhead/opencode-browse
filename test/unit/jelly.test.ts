@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { ACCESS_VALUES } from "../../src/browse-tools.js"
+import { parseOptions } from "../../src/options.js"
+import { ACCESS_CHOICES, type PluginSetting, settingChoices, settingsProblems, settingValueIssue } from "../support/jelly-settings.js"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
@@ -65,6 +68,53 @@ describe("the Jelly declaration", () => {
     expect(RAISE_CHANGE_NOTICES).toBe(false)
     expect(pkg.jelly.notices).toEqual([{ id: ASK_NOTICE, label: "Your Chrome", category: "request", preview: "line" }])
     expect(pkg.jelly.notices.map((notice: { id: string }) => notice.id)).not.toContain(CHANGE_NOTICE)
+  })
+
+  test("declares the access and browser settings, with Jelly's own words for access, and nothing else", () => {
+    expect(pkg.jelly.contributes).toEqual({
+      homeFeeds: [],
+      homeWidgets: [],
+      workKinds: [],
+      settings: [
+        {
+          key: "access",
+          label: "Access",
+          type: "string",
+          description: expect.any(String),
+          choices: ACCESS_CHOICES,
+          default: parseOptions({}).access,
+        },
+        {
+          key: "browser",
+          label: "Browser",
+          type: "string",
+          description: expect.any(String),
+          choices: [
+            { value: "real", label: "Your browser", description: expect.any(String) },
+            { value: "managed", label: "Separate browser", description: expect.any(String) },
+          ],
+          default: parseOptions({}).browser,
+        },
+      ],
+    })
+  })
+
+  test("the settings follow Jelly's rules for a declared setting", () => {
+    expect(settingsProblems(pkg.jelly.contributes.settings)).toEqual([])
+  })
+
+  test("the options parser takes every value of each declared closed set, its default included, and refuses a value outside it", () => {
+    const settings = pkg.jelly.contributes.settings as PluginSetting[]
+    const values = (key: string) => (settingChoices(settings.find((entry) => entry.key === key)!) ?? []).map((choice) => choice.value)
+    expect(values("access")).toEqual([...ACCESS_VALUES])
+    expect(values("browser")).toEqual(["real", "managed"])
+    for (const setting of settings) {
+      const key = setting.key as "access" | "browser"
+      for (const value of values(key)) expect<string>(parseOptions({ [key]: value })[key]).toBe(value)
+      expect<string>(parseOptions({})[key]).toBe(setting.default as string)
+      expect(settingValueIssue(setting, "write")).not.toBeNull()
+      expect(() => parseOptions({ [key]: "write" })).toThrow(`The option "${key}" must be`)
+    }
   })
 
   test("declares the vendor, because browse is not our product", () => {
