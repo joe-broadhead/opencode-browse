@@ -292,13 +292,15 @@ In [jelly](https://heyjelly.ai) an agent uses the person's own Chrome only **for
 by default, never for good. In real mode, every browse tool waits behind a gate until the person answers:
 
 1. The agent's first browse call in a conversation asks: jelly shows "<agent> wants to use your Chrome for this task",
-   with the task (the conversation's title) and the sites (the `allowedOrigins` of a `browse_session_new`, or any
-   site). It is also a jelly notice and an Inbox item, whatever the agent's access level. Nothing reaches the relay,
+   with the task (the conversation's title), the sites (the `allowedOrigins` of a `browse_session_new`, or any
+   site) and the mode: to read only when the call is one of the four reads, to read and act otherwise. A read-only
+   grant lets only those four reads through; an act call asks again. It is also a jelly notice and an Inbox item, whatever the agent's access level. Nothing reaches the relay,
    the extension or the browser meanwhile. Every tool the browse server exposes is gated, classified or not. While a
    task holds the Chrome, Stop stays offered; a second conversation's ask is allowed from the notice's Inbox item or
    the plugin's page, and ends as Not now after five minutes.
-2. **Allow for this task** is jelly's Connect (`browser.connect`, confirmed every time from an owner device, with a
-   signed single-use grant the plugin checks). The waiting call then runs, and so do the task's later calls.
+2. **Allow for this task** is `browser.allow` for one request, or jelly's Connect (`browser.connect`), and **Not
+   now** is `browser.decline`; each is confirmed every time from an owner device, with a signed single-use grant the
+   plugin checks. The waiting call then runs, and so do the task's later calls.
 3. The grant ends when the agent calls `browse_session_reset` or `browse_session_delete`, when the person presses
    Stop (`browser.stop`), when the conversation is deleted or archived, after an hour with no browse call, or when
    the engine stops; a call still running is aborted with it. It lives only in memory: no rule, saved approval or file holds it, and another conversation asks
@@ -365,6 +367,8 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 | `EXTENSION_UNVERIFIED` | the bundled extension does not match its pin | reinstall the plugin |
 | `CHROME_NOT_ALLOWED` | under jelly, the person has not allowed their Chrome for this task (not answered in five minutes, the call cancelled, or stopped) | tell the person what the task needs and which sites, then try again: jelly asks them |
 | `CHROME_SCOPE` | under jelly, a session would reach sites the person did not allow for this task | keep to the allowed sites, or start a new task that names the others |
+| `REQUEST_EXPIRED` | under jelly, the person answered a request to use their Chrome that had already run out or been answered | ask the agent to try again |
+| `NOT_YOUR_REQUEST` | under jelly, the person answered a request id this engine never asked | answer it from the conversation that asked |
 | Recording needs ffmpeg | an agent-opened tab records through CDP, which needs `ffmpeg` on PATH | `brew install ffmpeg`, or click the toolbar button on a tab and record that |
 
 ## Uninstall

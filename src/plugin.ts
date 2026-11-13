@@ -15,7 +15,7 @@ import { ManagedBrowser } from "./managed/browser.js"
 import { formatRelayStop, stopRelaySafely } from "./managed/relay.js"
 import { detectRecording, type RecordingReadiness } from "./recording.js"
 import { ChromeGate, type ChromeAsk } from "./jelly/chrome-gate.js"
-import { noticeAsk, registerGate, registerNativeRpc, underJelly, watchSessions } from "./jelly/native.js"
+import { browserStatus, changeNotices, noticeAsk, RAISE_CHANGE_NOTICES, registerGate, registerNativeRpc, underJelly, watchSessions, type NativeDeps } from "./jelly/native.js"
 import type { ActionPublicKey } from "./jelly/action-grant.js"
 
 /** Internal seam: tests point the plugin at their own skills and a shorter status timeout. */
@@ -30,6 +30,8 @@ export interface BrowseSeam {
   readonly askTimeoutMs?: number
   /** jelly's core request, instead of the `jelly.core` RPC, for the ask's notice. */
   readonly coreRequest?: (input: unknown, options?: { signal?: AbortSignal }) => Promise<unknown>
+  /** Raise the `personal-browser` change notice (B4); by default `RAISE_CHANGE_NOTICES`. */
+  readonly changeNotices?: boolean
 }
 
 /** The package root: `dist/`'s parent when built, the repository when loaded from `src/`. */
@@ -384,9 +386,13 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
       // session the person has not allowed. Managed mode drives its own Chrome for Testing, not the person's.
       const jelly = seam.jelly ?? underJelly()
       const personal = jelly && options.browser === "real"
+      const core = seam.coreRequest ? { request: seam.coreRequest } : ctx.rpc
+      // B4: each change of the read tells jelly to read again, once jelly treats the notice as a signal.
+      let changed = () => undefined as void
       const gate = new ChromeGate({
         describe: async (sessionID) => (await ctx.session.get({ sessionID } as never)).title ?? "",
-        ...(jelly ? { asked: (ask: ChromeAsk) => noticeAsk(seam.coreRequest ? { request: seam.coreRequest } : ctx.rpc, ask) } : {}),
+        ...(jelly ? { asked: (ask: ChromeAsk) => noticeAsk(core, ask) } : {}),
+        changed: () => changed(),
         ...(seam.askTimeoutMs !== undefined ? { askTimeoutMs: seam.askTimeoutMs } : {}),
       })
       let stopWatching = () => undefined as void
@@ -394,7 +400,7 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
         await registerGate(ctx.tool, gate)
         stopWatching = watchSessions(ctx.event, gate)
       }
-      await registerNativeRpc(ctx.rpc, {
+      const nativeDeps: NativeDeps = {
         gate,
         available: () => personal && binary !== undefined && source?.type !== "conflict",
         extensionConnected: async () => {
@@ -403,7 +409,9 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
           return status?.extension.connected
         },
         ...(seam.actionKey ? { key: seam.actionKey } : {}),
-      })
+      }
+      if (personal && (seam.changeNotices ?? RAISE_CHANGE_NOTICES)) changed = changeNotices(core, () => browserStatus(nativeDeps))
+      await registerNativeRpc(ctx.rpc, nativeDeps)
       const stopTools = await registerToolsRpc(ctx, { methods: METHODS, mcp: { server: SERVER_NAME, managed: () => source?.type !== "conflict" } })
       return async () => {
         gate.dispose()

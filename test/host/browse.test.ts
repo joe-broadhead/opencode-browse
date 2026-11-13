@@ -283,19 +283,25 @@ describe("the person's Chrome, per task, under jelly", () => {
   test("nothing reaches the server before Allow for this task; the grant is the session's, and Stop ends it", async () => {
     const filed: { kind?: string; keep?: boolean; body?: Record<string, unknown> }[] = []
     const coreRequest = async (input: unknown) => (filed.push(input as (typeof filed)[number]), { answer: { raised: true } })
-    const host = await startHost({ options: { verifyBinary: false }, seam: { jelly: true, actionKey: () => key, askTimeoutMs: 4_000, coreRequest } })
+    const host = await startHost({ options: { verifyBinary: false }, seam: { jelly: true, actionKey: () => key, askTimeoutMs: 4_000, coreRequest, changeNotices: true } })
     try {
       const native = host.probe().rpc(NativeRpc as never) as unknown as Record<string, (input: unknown) => Promise<unknown>>
-      const status = () => native["browser.status"]!({}) as Promise<{ state: string; canControl: boolean; ask?: { id: string; agent: string } }>
-      expect(await status()).toEqual({ state: "not-connected", canControl: false })
+      const status = () => native["browser.status"]!({}) as Promise<{ state: string; canControl: boolean; request?: { id: string; agent: string } }>
+      const asks = () => filed.filter((item) => item.body?.notice === "chrome-ask")
+      const changes = () => filed.filter((item) => item.body?.notice === "personal-browser")
+      expect(await status()).toEqual({ state: "ready", canControl: false })
       const before = host.fake.tools().length
       const allowed = await session(host)
       const waiting = attempt(host, allowed, "build", "status")
-      const ask = await until("the ask is reported", async () => (await status()).ask)
+      const ask = await until("the request is reported", async () => (await status()).request)
       expect(ask.agent).toBe("build")
       // The ask is filed once as jelly's chrome-ask notice, kept until jelly's host reads it.
-      await until("the ask's notice is filed", async () => filed.length > 0)
-      expect(filed).toEqual([expect.objectContaining({ kind: "notice", keep: true, body: expect.objectContaining({ package: PACKAGE_NAME, notice: "chrome-ask", key: ask.id, name: "build" }) })])
+      await until("the ask's notice is filed", async () => asks().length > 0)
+      expect(asks()).toEqual([expect.objectContaining({ kind: "notice", keep: true, body: expect.objectContaining({ package: PACKAGE_NAME, notice: "chrome-ask", key: ask.id, name: "build" }) })])
+      // B4: the change is signalled too, with no content.
+      await until("the change notice is filed", async () => changes().length > 0)
+      expect(changes()[0]).toMatchObject({ kind: "notice", keep: false, body: { package: PACKAGE_NAME, notice: "personal-browser" } })
+      expect(Object.keys(changes()[0]!.body!).sort()).toEqual(["key", "notice", "package"])
       expect(await native["browser.ask"]!({})).toStartWith("build wants to use your Chrome for this task")
       expect(await native["browser.inbox"]!({})).toMatchObject({ items: [{ key: ask.id, kind: "chrome-ask" }] })
       // A Connect without the host's grant is refused, and allows nothing.
@@ -315,8 +321,10 @@ describe("the person's Chrome, per task, under jelly", () => {
       expect(host.fake.tools().slice(before)).toEqual(["status"])
 
       // The person's Stop ends the task: the next call of the allowed session is refused too.
+      const changed = changes().length
       expect(await native["act.browser.stop"]!({ input: {}, grant: grant("browser.stop", {}) })).toBe(true)
-      expect(await status()).toEqual({ state: "not-connected", canControl: false })
+      expect(await status()).toEqual({ state: "ready", canControl: false })
+      await until("Stop is signalled", async () => changes().length > changed)
       const stopped = await attempt(host, allowed, "build", "status")
       expect(stopped).toMatchObject({ ok: false })
       expect(host.fake.tools().slice(before)).toEqual(["status"])
@@ -352,7 +360,7 @@ describe("the person's Chrome, per task, under jelly", () => {
       host.model!.script = [{ tool: "execute", arguments: { code: "await tools.browse.status({}); return 'ran'" } }]
       const sessionID = await modelSession(host)
       const turn = modelTurn(host, sessionID, "Check the browser.")
-      const ask = await until("the Code Mode call asks", async () => ((await native["browser.status"]!({})) as { ask?: { id: string } }).ask)
+      const ask = await until("the Code Mode call asks", async () => ((await native["browser.status"]!({})) as { request?: { id: string } }).request)
       expect(host.fake.tools()).toHaveLength(before)
       expect(await native["act.browser.connect"]!({ input: { ask: ask.id }, grant: grant("browser.connect", { ask: ask.id }) })).toBe(true)
       await until("the allowed call reaches the server", async () => host.fake.tools().slice(before).includes("status"), 30_000)
