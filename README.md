@@ -294,8 +294,9 @@ by default, never for good. In real mode, every browse tool waits behind a gate 
 1. The agent's first browse call in a conversation asks: jelly shows "<agent> wants to use your Chrome for this task",
    with the task (the conversation's title) and the sites (the `allowedOrigins` of a `browse_session_new`, or any
    site). It is also a jelly notice and an Inbox item, whatever the agent's access level. Nothing reaches the relay,
-   the extension or the browser meanwhile. Every tool the browse server exposes is gated, classified or not, and a
-   second conversation's ask can be allowed while another task runs.
+   the extension or the browser meanwhile. Every tool the browse server exposes is gated, classified or not. While a
+   task holds the Chrome, Stop stays offered; a second conversation's ask is allowed from the notice's Inbox item or
+   the plugin's page, and ends as Not now after five minutes.
 2. **Allow for this task** is jelly's Connect (`browser.connect`, confirmed every time from an owner device, with a
    signed single-use grant the plugin checks). The waiting call then runs, and so do the task's later calls.
 3. The grant ends when the agent calls `browse_session_reset` or `browse_session_delete`, when the person presses

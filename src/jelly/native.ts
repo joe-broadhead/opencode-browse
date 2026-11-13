@@ -119,14 +119,17 @@ export async function browserStatus(deps: NativeDeps): Promise<BrowserStatus> {
   if (!deps.available()) return { state: "unavailable", canControl: false }
   const [task] = deps.gate.tasks().sort((left, right) => right.since.localeCompare(left.since))
   const ask = deps.gate.oldestAsk()
-  // A waiting ask comes first, even while another task holds the Chrome: jelly offers Connect only in these two
-  // states, and an ask it cannot offer would wait unseen until it timed out. The running task is still reported.
+  // While a task holds the Chrome, Stop must stay reachable: jelly offers Stop only in `ready`, `driving` and
+  // `needs-you`, so the state stays one of those. A second ask rides along as `ask`; it reaches the person through
+  // the `chrome-ask` notice, the Inbox and the plugin's page (Allow for this task by its id), and ends as Not now
+  // after five minutes unanswered.
+  if (task !== undefined) return { state: deps.gate.driving() ? "driving" : "ready", canControl: true, task: strip(task), ...(ask ? { ask: strip(ask) } : {}) }
+  // No task: a waiting ask is jelly's Connect. Without one there is nothing to allow, so no Connect is offered and the
+  // person's Chrome is never pre-allowed.
   if (ask !== undefined) {
     const connected = await deps.extensionConnected().catch(() => undefined)
-    return { state: connected === false ? "extension-needed" : "not-connected", canControl: true, ask: strip(ask), ...(task ? { task: strip(task) } : {}) }
+    return { state: connected === false ? "extension-needed" : "not-connected", canControl: true, ask: strip(ask) }
   }
-  if (task !== undefined) return { state: deps.gate.driving() ? "driving" : "ready", canControl: true, task: strip(task) }
-  // Without an ask there is nothing to allow, so jelly offers no Connect: the person's Chrome is never pre-allowed.
   return { state: "not-connected", canControl: false }
 }
 
@@ -272,7 +275,8 @@ type CoreRequest = (input: unknown, options?: { signal?: AbortSignal }) => Promi
 
 /**
  * Files the ask as jelly's `chrome-ask` notice: jelly raises it to the agent's people whatever the agent's access
- * level, and keeps it for the Inbox. Best effort, never waited on: outside jelly, or refused, nothing changes.
+ * level, and keeps it for the Inbox. Never waited on: outside jelly, or refused, nothing changes. Filed with `keep`,
+ * so a host that is away when it is filed still raises it once it reads the pending requests.
  */
 export function noticeAsk(rpc: Plugin.Context["rpc"] | { readonly request: CoreRequest }, ask: ChromeAsk): void {
   let request: CoreRequest
@@ -288,7 +292,9 @@ export function noticeAsk(rpc: Plugin.Context["rpc"] | { readonly request: CoreR
           id: `browse-${randomBytes(12).toString("hex")}`,
           kind: "notice",
           body: { package: PACKAGE_NAME, notice: ASK_NOTICE, key: ask.id, name: ask.agent, line: `${ask.task} (${sites(ask.origins)})` },
-          keep: false,
+          // Kept: if jelly's host is away past the wait, the request stays filed and the host still raises it
+          // when it reads what is pending (`jelly.core` request, `keep`).
+          keep: true,
         },
         { signal: AbortSignal.timeout(10_000) },
       ),

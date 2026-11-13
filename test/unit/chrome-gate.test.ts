@@ -237,7 +237,7 @@ describe("the grant lasts for the task only", () => {
 })
 
 describe("a second ask while a task holds the Chrome", () => {
-  test("the waiting ask is shown first and can be allowed; the running task is still reported and untouched", async () => {
+  test("Stop stays offered: the state is the task's, the ask rides along, and the page allows it by its id", async () => {
     const { tool, gate, deps, actions, calls } = setup()
     const a = settle(tool("execute")({}, ctx("ses_a")))
     await tick()
@@ -247,15 +247,40 @@ describe("a second ask while a task holds the Chrome", () => {
     const b = settle(tool("execute")({}, ctx("ses_sub", "atlas-helper")))
     await tick()
     const status = await browserStatus(deps)
-    expect(status.state).toBe("not-connected")
+    // jelly offers Stop iff canControl and the state is ready, driving or needs-you (personal-browser.ts:36-46).
     expect(status.canControl).toBe(true)
-    expect(status.ask).toMatchObject({ agent: "atlas-helper" })
+    expect(["ready", "driving", "needs-you"]).toContain(status.state)
+    expect(["not-connected", "extension-needed"]).not.toContain(status.state)
     expect(status.task).toMatchObject({ agent: "atlas" })
-    // jelly's Connect sends {}: it allows the waiting ask, not nothing.
-    expect(actions.connect({ input: {}, grant: grant("browser.connect", {}) })).toBe(true)
+    expect(status.ask).toMatchObject({ agent: "atlas-helper" })
+    // The plugin's page: Allow for this task, naming the ask.
+    const id = status.ask!.id
+    expect(actions.connect({ input: { ask: id }, grant: grant("browser.connect", { ask: id }) })).toBe(true)
     expect(await b).toMatchObject({ ok: true })
     expect(gate.tasks().map((task) => task.sessionID).sort()).toEqual(["ses_a", "ses_sub"])
     expect(calls).toHaveLength(2)
+  })
+
+  test("unanswered, the second ask ends as Not now and the running task keeps Stop", async () => {
+    const { tool, gate, deps, calls } = setup({ askTimeoutMs: 30 })
+    const a = settle(tool("execute")({}, ctx("ses_a")))
+    await tick()
+    gate.allow()
+    await a
+    const b = await settle(tool("execute")({}, ctx("ses_sub", "atlas-helper")))
+    expect(!b.ok && b.error).toStartWith("CHROME_NOT_ALLOWED:")
+    expect(await browserStatus(deps)).toMatchObject({ state: "ready", canControl: true, task: { agent: "atlas" } })
+    expect((await browserStatus(deps)).ask).toBeUndefined()
+    expect(calls).toHaveLength(1)
+  })
+
+  test("with no task, a waiting ask is jelly's Connect", async () => {
+    const { tool, gate, deps } = setup()
+    void settle(tool("execute")({}, ctx("ses_a")))
+    await tick()
+    expect(await browserStatus(deps)).toMatchObject({ state: "not-connected", canControl: true, ask: { agent: "atlas" } })
+    expect((await browserStatus(deps)).task).toBeUndefined()
+    gate.dispose()
   })
 })
 
@@ -327,7 +352,7 @@ describe("the ask reaches the person through jelly's notice", () => {
     noticeAsk({ request: async (input) => filed.push(input) }, gate.asks()[0]!)
     await tick()
     expect(filed).toEqual([
-      { id: expect.stringMatching(/^browse-[a-f0-9]{24}$/), kind: "notice", body: { package: PACKAGE_NAME, notice: ASK_NOTICE, key: asked[0]!.id, name: "atlas", line: "Book the train for ses_a (any site)" }, keep: false },
+      { id: expect.stringMatching(/^browse-[a-f0-9]{24}$/), kind: "notice", body: { package: PACKAGE_NAME, notice: ASK_NOTICE, key: asked[0]!.id, name: "atlas", line: "Book the train for ses_a (any site)" }, keep: true },
     ])
     // A refusal or no jelly at all changes nothing.
     noticeAsk({ request: async () => Promise.reject(new Error("no jelly")) }, gate.asks()[0]!)

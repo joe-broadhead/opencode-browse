@@ -17,8 +17,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
   `browser.ask` and `browser.inbox` methods under the package's own RPC id, the `browser.connect` and `browser.stop`
   actions (owner device, confirmed every time, checked against jelly's signed action grant), and an Inbox item for a
   pending ask, also filed as jelly's `chrome-ask` notice. The gate covers every tool the browse server exposes,
-  classified or not; a second conversation's ask can be allowed while another task holds the Chrome; and Stop, the
-  task's end and the idle limit abort a browse call already running.
+  classified or not; while a task holds the Chrome, Stop stays offered and a second conversation's ask is allowed
+  from the plugin's page; and Stop, the task's end and the idle limit abort a browse call already running.
 
 ## [0.0.0] - 2026-11-10
 <!-- kit-release: the GitHub release v0.0.0 -->

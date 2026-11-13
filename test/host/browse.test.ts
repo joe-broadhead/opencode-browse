@@ -281,7 +281,9 @@ describe("the person's Chrome, per task, under jelly", () => {
   }
 
   test("nothing reaches the server before Allow for this task; the grant is the session's, and Stop ends it", async () => {
-    const host = await startHost({ options: { verifyBinary: false }, seam: { jelly: true, actionKey: () => key, askTimeoutMs: 4_000 } })
+    const filed: { kind?: string; keep?: boolean; body?: Record<string, unknown> }[] = []
+    const coreRequest = async (input: unknown) => (filed.push(input as (typeof filed)[number]), { answer: { raised: true } })
+    const host = await startHost({ options: { verifyBinary: false }, seam: { jelly: true, actionKey: () => key, askTimeoutMs: 4_000, coreRequest } })
     try {
       const native = host.probe().rpc(NativeRpc as never) as unknown as Record<string, (input: unknown) => Promise<unknown>>
       const status = () => native["browser.status"]!({}) as Promise<{ state: string; canControl: boolean; ask?: { id: string; agent: string } }>
@@ -291,6 +293,9 @@ describe("the person's Chrome, per task, under jelly", () => {
       const waiting = attempt(host, allowed, "build", "status")
       const ask = await until("the ask is reported", async () => (await status()).ask)
       expect(ask.agent).toBe("build")
+      // The ask is filed once as jelly's chrome-ask notice, kept until jelly's host reads it.
+      await until("the ask's notice is filed", async () => filed.length > 0)
+      expect(filed).toEqual([expect.objectContaining({ kind: "notice", keep: true, body: expect.objectContaining({ package: PACKAGE_NAME, notice: "chrome-ask", key: ask.id, name: "build" }) })])
       expect(await native["browser.ask"]!({})).toStartWith("build wants to use your Chrome for this task")
       expect(await native["browser.inbox"]!({})).toMatchObject({ items: [{ key: ask.id, kind: "chrome-ask" }] })
       // A Connect without the host's grant is refused, and allows nothing.
