@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "plugin": "opencode-browse",
+  "repository": "joe-broadhead/opencode-browse",
+  "tag": "v0.0.1",
+  "built": {
+    "commit": "fbd6f10239ac077f8072b348bfd9a675cdac3b14",
+    "run": 43480322360,
+    "workflow": "native"
+  },
+  "modules": {
+    "browse": {
+      "darwin-arm64": {
+        "name": "browse-darwin-arm64.gz",
+        "url": "https://github.com/joe-broadhead/opencode-browse/releases/download/v0.0.1/browse-darwin-arm64.gz",
+        "bytes": 53043025,
+        "sha256": "7c6aa387061e53bac439951a6653a068508690ca054f91d028241ce0951998c3",
+        "executable": {
+          "name": "browse",
+          "bytes": 115017698,
+          "sha256": "0ac3f49841cb2afa2fbf5d5ff5b4742fa267e55664c5ed461a30c9b433797a6c"
+        }
+      },
+      "darwin-x64": {
+        "name": "browse-darwin-x64.gz",
+        "url": "https://github.com/joe-broadhead/opencode-browse/releases/download/v0.0.1/browse-darwin-x64.gz",
+        "bytes": 54687090,
+        "sha256": "dfaa6b876b5541d63c38367be44171eab7f8524ffedf07585656469989285625",
+        "executable": {
+          "name": "browse",
+          "bytes": 123825632,
+          "sha256": "09bd89da643944aa6e4d57c25cd93c49cccca6baa4a14307c70e4f9f8ba0fe9c"
+        }
+      },
+      "linux-x64-gnu": {
+        "name": "browse-linux-x64-gnu.gz",
+        "url": "https://github.com/joe-broadhead/opencode-browse/releases/download/v0.0.1/browse-linux-x64-gnu.gz",
+        "bytes": 63211515,
+        "sha256": "d674769d4205afb495ac1c5afeea4f47017bf421cf61cbb300a60e087d354ad5",
+        "executable": {
+          "name": "browse",
+          "bytes": 134781104,
+          "sha256": "df67bf95d4a5d86d27762b12fd502a2e02861882a449bd52e6fe08d74da90227"
+        }
+      },
+      "linux-arm64-gnu": {
+        "name": "browse-linux-arm64-gnu.gz",
+        "url": "https://github.com/joe-broadhead/opencode-browse/releases/download/v0.0.1/browse-linux-arm64-gnu.gz",
+        "bytes": 63921879,
+        "sha256": "4f3fae8aa38d410c8e6662d298e153b8d9bc125c91158c12498d52152a7d580e",
+        "executable": {
+          "name": "browse",
+          "bytes": 134859768,
+          "sha256": "0350db93f11fbf94b6e65cc64f1757ece145b315fbf481ec8bba48a41e27a46b"
+        }
+      }
+    }
+  },
+  "licences": [
+    {
+      "name": "LICENSE.browse",
+      "url": "https://github.com/joe-broadhead/opencode-browse/releases/download/v0.0.1/LICENSE.browse",
+      "bytes": 1065,
+      "sha256": "625f0f619133f89bbbb2abe37369613dfa1885eba1e50d02170deb62bb42cb6b"
+    }
+  ]
+}
