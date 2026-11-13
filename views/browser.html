@@ -49,17 +49,14 @@
     const status = await request("rpc.call", { method: "browser.status", input: {} });
     document.getElementById("buttons").replaceChildren();
     text("state", words[status.state] || words.unavailable);
-    if (status.ask) {
-      const sites = status.ask.origins ? status.ask.origins.join(", ") : "any site";
-      text("detail", `${status.ask.agent} wants to use your Chrome for this task: ${status.ask.task}. Sites: ${sites}.`);
-      if (status.canControl) button("Allow for this task", true, () => request("act.call", { action: "browser.connect", input: { ask: status.ask.id } }));
-    } else if (status.task) {
-      const sites = status.task.origins ? status.task.origins.join(", ") : "any site";
-      text("detail", `${status.task.agent}: ${status.task.task}. Sites: ${sites}.`);
-      if (status.canControl) button("Stop", false, () => request("act.call", { action: "browser.stop", input: {} }));
-    } else {
-      text("detail", "");
-    }
+    // A waiting ask and a running task can both be there: each is shown, with its own button.
+    const sites = (origins) => (origins ? origins.join(", ") : "any site");
+    const lines = [];
+    if (status.task) lines.push(`Using it now: ${status.task.agent}, ${status.task.task}. Sites: ${sites(status.task.origins)}.`);
+    if (status.ask) lines.push(`${status.ask.agent} wants to use your Chrome for this task: ${status.ask.task}. Sites: ${sites(status.ask.origins)}.`);
+    text("detail", lines.join(" "));
+    if (status.ask && status.canControl) button("Allow for this task", true, () => request("act.call", { action: "browser.connect", input: { ask: status.ask.id } }));
+    if (status.task && status.canControl) button("Stop", false, () => request("act.call", { action: "browser.stop", input: {} }));
   };
   addEventListener("message", (event) => {
     if (event.source !== parent || !event.data || event.data.kind !== "hello" || port !== null) return;

@@ -43,6 +43,8 @@ interface PendingAsk extends ChromeAsk {
 interface Grant extends ChromeTask {
   lastUsed: number
   inFlight: number
+  /** Aborted when the grant ends, so a call already running stops with it. */
+  readonly controller: AbortController
 }
 
 export interface ChromeCall {
@@ -64,6 +66,14 @@ export interface ChromeGateOptions {
   readonly idleMs?: number
   /** Told whenever an ask or a grant starts or ends. */
   readonly changed?: () => void
+}
+
+const ENDED: Readonly<Record<ChromeEnd, string>> = {
+  "task-done": "the task ended",
+  stopped: "the person stopped it",
+  "session-ended": "the conversation ended",
+  idle: "the task was idle for an hour",
+  disposed: "the plugin has stopped",
 }
 
 export const ASK_TIMEOUT_MS = 5 * 60_000
@@ -116,20 +126,24 @@ export class ChromeGate {
     return this.#scoped(grant, call)
   }
 
-  /** Marks a call that reached the server, for `driving`; the returned function marks its end. */
-  begin(sessionID: string, tool: string): (ok: boolean) => void {
+  /**
+   * Marks a call that reached the server, for `driving`. `signal` aborts when the grant ends (Stop, the task's end,
+   * the idle limit), so the call stops with it; `done` marks the call's end.
+   */
+  begin(sessionID: string, tool: string): { readonly signal: AbortSignal; readonly done: (ok: boolean) => void } {
     const grant = this.#grants.get(sessionID)
-    if (grant === undefined) return () => undefined
+    if (grant === undefined) return { signal: AbortSignal.abort(notAllowed("the task ended")), done: () => undefined }
     grant.inFlight++
     grant.lastUsed = this.#now()
     this.#changed()
-    return (ok) => {
+    const done = (ok: boolean) => {
       grant.inFlight = Math.max(0, grant.inFlight - 1)
       grant.lastUsed = this.#now()
       // The agent's own end of the task: it reset or deleted its browse session.
       if (ok && ENDING_TOOLS.has(tool)) this.end(sessionID, "task-done")
       else this.#changed()
     }
+    return { signal: grant.controller.signal, done }
   }
 
   /** Allow for this task: the ask named, or the oldest one. Returns the task it allowed, or undefined. */
@@ -139,7 +153,7 @@ export class ChromeGate {
     const ask = this.#asks.get(askID ?? oldest?.id ?? "")
     if (ask === undefined) return undefined
     this.#forget(ask)
-    const task: Grant = { sessionID: ask.sessionID, agent: ask.agent, task: ask.task, origins: ask.origins, since: new Date(this.#now()).toISOString(), lastUsed: this.#now(), inFlight: 0 }
+    const task: Grant = { sessionID: ask.sessionID, agent: ask.agent, task: ask.task, origins: ask.origins, since: new Date(this.#now()).toISOString(), lastUsed: this.#now(), inFlight: 0, controller: new AbortController() }
     this.#grants.set(ask.sessionID, task)
     for (const waiter of ask.waiters) waiter.resolve()
     this.#changed()
@@ -171,15 +185,19 @@ export class ChromeGate {
   }
 
   /** Ends one session's grant. */
-  end(sessionID: string, _why: ChromeEnd): boolean {
-    const had = this.#grants.delete(sessionID)
-    if (had) this.#changed()
-    return had
+  end(sessionID: string, why: ChromeEnd): boolean {
+    const grant = this.#grants.get(sessionID)
+    if (grant === undefined) return false
+    this.#grants.delete(sessionID)
+    grant.controller.abort(notAllowed(ENDED[why]))
+    this.#changed()
+    return true
   }
 
   /** Every grant and ask ends, and no call is let through again. */
   dispose(): void {
-    this.stop()
+    for (const ask of [...this.#asks.values()]) this.decline(ask.id, "the plugin has stopped")
+    for (const id of [...this.#grants.keys()]) this.end(id, "disposed")
     this.#ended = true
   }
 

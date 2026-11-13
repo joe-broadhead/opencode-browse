@@ -1,7 +1,6 @@
 import type { Plugin } from "@opencode/plugin"
 import type { Rpc } from "@opencode/plugin/rpc"
 import { SERVER_NAME } from "../constants.js"
-import { TOOLS } from "../browse-tools.js"
 import { actionAudience, actionGrantVerifier, ActionGrantRefused, publishedActionKey, type ActionPublicKey } from "./action-grant.js"
 import { ChromeGate, type ChromeAsk, type ChromeTask } from "./chrome-gate.js"
 
@@ -114,12 +113,16 @@ const sites = (origins: readonly string[] | null) => (origins === null ? "any si
 export async function browserStatus(deps: NativeDeps): Promise<BrowserStatus> {
   if (!deps.available()) return { state: "unavailable", canControl: false }
   const [task] = deps.gate.tasks().sort((left, right) => right.since.localeCompare(left.since))
-  if (task !== undefined) return { state: deps.gate.driving() ? "driving" : "ready", canControl: true, task: strip(task) }
   const ask = deps.gate.oldestAsk()
+  // A waiting ask comes first, even while another task holds the Chrome: jelly offers Connect only in these two
+  // states, and an ask it cannot offer would wait unseen until it timed out. The running task is still reported.
+  if (ask !== undefined) {
+    const connected = await deps.extensionConnected().catch(() => undefined)
+    return { state: connected === false ? "extension-needed" : "not-connected", canControl: true, ask: strip(ask), ...(task ? { task: strip(task) } : {}) }
+  }
+  if (task !== undefined) return { state: deps.gate.driving() ? "driving" : "ready", canControl: true, task: strip(task) }
   // Without an ask there is nothing to allow, so jelly offers no Connect: the person's Chrome is never pre-allowed.
-  if (ask === undefined) return { state: "not-connected", canControl: false }
-  const connected = await deps.extensionConnected().catch(() => undefined)
-  return { state: connected === false ? "extension-needed" : "not-connected", canControl: true, ask: strip(ask) }
+  return { state: "not-connected", canControl: false }
 }
 
 /** The words of the ask Connect would allow, for the confirmation jelly draws. */
@@ -155,7 +158,8 @@ export function nativeActions(deps: NativeDeps) {
   const checked = (action: string, call: unknown) => {
     const { input, grant } = (call ?? {}) as { input?: unknown; grant?: unknown }
     const claims = grants.verify(action, { input: input ?? null, grant })
-    // Both actions are the person's, from an owner device: a grant of the `chat` class is not enough.
+    // `cls` is the class the action declares, not proof of the device: jelly's host refuses a `local` action from a
+    // paired device. A grant of another class was not minted for these actions, so it is refused.
     if (claims.cls !== "local") throw new ActionGrantRefused("The grant is not from an owner device.")
     return input
   }
@@ -199,39 +203,54 @@ export function registerNativeRpc(rpc: Pick<Plugin.Context["rpc"], "register">, 
   } as never)
 }
 
-/** The engine tool id of each browse tool: `browse_<tool>`. */
-export const GATED_TOOLS: readonly string[] = TOOLS.map((tool) => `${SERVER_NAME}_${tool.name}`)
-
 type Executor = (input: unknown, context: { readonly sessionID: string; readonly agent: string; readonly signal?: AbortSignal }) => Promise<unknown>
 
-/** Wraps one tool's executor: the gate first, then the server. */
+/** A tool of the browse server: its `browse_` id, or the browse namespace. Classified or not, it is gated. */
+export function isServerTool(info: { readonly id: string; readonly options?: { readonly namespace?: unknown } | undefined }): boolean {
+  return info.id.startsWith(`${SERVER_NAME}_`) || info.options?.namespace === SERVER_NAME
+}
+
+/**
+ * Wraps one tool's executor: the gate first, then the server, with a signal that also aborts when the grant ends, so
+ * the person's Stop ends a call already running. The call fails at once even if the server ignores the abort.
+ */
 export function gated(gate: ChromeGate, id: string, inner: Executor): Executor {
-  const tool = id.slice(SERVER_NAME.length + 1)
+  const tool = id.startsWith(`${SERVER_NAME}_`) ? id.slice(SERVER_NAME.length + 1) : id
   return async (input, context) => {
     const admitted = await gate.admit({ sessionID: context.sessionID, agent: String(context.agent), tool, input, ...(context.signal ? { signal: context.signal } : {}) })
-    const done = gate.begin(context.sessionID, tool)
+    const { signal: granted, done } = gate.begin(context.sessionID, tool)
+    const signal = context.signal ? AbortSignal.any([context.signal, granted]) : granted
+    let onEnd = () => undefined as void
+    const ended = new Promise<never>((_, reject) => {
+      onEnd = () => reject(granted.reason)
+      if (granted.aborted) onEnd()
+      else granted.addEventListener("abort", onEnd, { once: true })
+    })
+    ended.catch(() => undefined)
     let ok = false
     try {
-      const result = await inner(admitted, context)
+      const result = await Promise.race([inner(admitted, { ...context, signal }), ended])
       ok = !(result !== null && typeof result === "object" && (result as { isError?: unknown }).isError === true)
       return result
     } finally {
+      granted.removeEventListener("abort", onEnd)
       done(ok)
     }
   }
 }
 
-/** Puts the gate in front of every browse tool, wherever it is called from. */
+/** Puts the gate in front of every tool of the browse server, wherever it is called from. */
 export function registerGate(tool: Pick<Plugin.Context["tool"], "transform">, gate: ChromeGate) {
   const wrapped = new WeakSet<object>()
   return tool.transform((editor) => {
-    for (const id of GATED_TOOLS) {
-      editor.update(id, (info) => {
-        const current = info.execute as unknown as Executor
+    for (const info of editor.list()) {
+      if (!isServerTool(info)) continue
+      editor.update(info.id, (next) => {
+        const current = next.execute as unknown as Executor
         if (wrapped.has(current)) return
-        const next = gated(gate, id, current)
-        wrapped.add(next)
-        info.execute = next as never
+        const guarded = gated(gate, info.id, current)
+        wrapped.add(guarded)
+        next.execute = guarded as never
       })
     }
   })

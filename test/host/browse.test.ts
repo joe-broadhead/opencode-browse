@@ -320,6 +320,44 @@ describe("the person's Chrome, per task, under jelly", () => {
     }
   }, 120_000)
 
+  test("a tool browse adds later, which the table does not classify, is gated too", async () => {
+    const host = await startHost({ options: { verifyBinary: false }, fake: { tools: [...REAL_TOOLS, NEW_TOOL] }, seam: { jelly: true, actionKey: () => key, askTimeoutMs: 1_500 } })
+    try {
+      const before = host.fake.tools().length
+      const outcome = await attempt(host, await session(host), "build", NEW_TOOL.name)
+      expect(outcome).toMatchObject({ ok: false })
+      expect(outcome.ok === false && outcome.error).toContain("CHROME_NOT_ALLOWED")
+      expect(host.fake.tools()).toHaveLength(before)
+    } finally {
+      await host.close()
+    }
+  }, 120_000)
+
+  test("the model path: Code Mode's tools.browse waits for Allow, and a direct browse_ call is not a tool at all", async () => {
+    const host = await startHost({ options: { verifyBinary: false }, model: true, seam: { jelly: true, actionKey: () => key, askTimeoutMs: 60_000 } })
+    try {
+      await modelReady(host)
+      const native = host.probe().rpc(NativeRpc as never) as unknown as Record<string, (input: unknown) => Promise<unknown>>
+      const before = host.fake.tools().length
+      // The model's own tool list has no browse_* tool: it reaches browse only through Code Mode's execute.
+      host.model!.script = [{ tool: "browse_status", arguments: {} }]
+      await modelTurn(host, await modelSession(host), "Check the browser.")
+      expect(host.fake.tools()).toHaveLength(before)
+
+      host.model!.script = [{ tool: "execute", arguments: { code: "await tools.browse.status({}); return 'ran'" } }]
+      const sessionID = await modelSession(host)
+      const turn = modelTurn(host, sessionID, "Check the browser.")
+      const ask = await until("the Code Mode call asks", async () => ((await native["browser.status"]!({})) as { ask?: { id: string } }).ask)
+      expect(host.fake.tools()).toHaveLength(before)
+      expect(await native["act.browser.connect"]!({ input: { ask: ask.id }, grant: grant("browser.connect", { ask: ask.id }) })).toBe(true)
+      await until("the allowed call reaches the server", async () => host.fake.tools().slice(before).includes("status"), 30_000)
+      // The turn ends once the program's answer is back, before the host closes.
+      expect(await turn).toEqual([])
+    } finally {
+      await host.close()
+    }
+  }, 180_000)
+
   test("outside jelly nothing is gated, and the read says unavailable", async () => {
     const host = await startHost({ options: { verifyBinary: false }, seam: { jelly: false } })
     try {

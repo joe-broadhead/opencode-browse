@@ -4,7 +4,7 @@ import { describe, expect, test } from "bun:test"
 import { createHash, generateKeyPairSync, randomBytes, sign } from "node:crypto"
 import { actionInputDigest, type ActionPublicKey } from "../../src/jelly/action-grant.js"
 import { ChromeGate } from "../../src/jelly/chrome-gate.js"
-import { browserStatus, gated, inboxItems, askText, nativeActions, PACKAGE_NAME, underJelly, type NativeDeps } from "../../src/jelly/native.js"
+import { browserStatus, gated, inboxItems, askText, nativeActions, PACKAGE_NAME, registerGate, underJelly, type NativeDeps } from "../../src/jelly/native.js"
 
 const { publicKey, privateKey } = generateKeyPairSync("ed25519")
 const KEY: ActionPublicKey = { kid: createHash("sha256").update("test-key").digest("base64url"), jwk: publicKey.export({ format: "jwk" }) as ActionPublicKey["jwk"] }
@@ -233,6 +233,85 @@ describe("the grant lasts for the task only", () => {
     const cleared = await settle(tool("session_allowlist")({ allowedOrigins: [] }, ctx("ses_a")))
     expect(!cleared.ok && cleared.error).toStartWith("CHROME_SCOPE:")
     expect(calls).toHaveLength(1)
+  })
+})
+
+describe("a second ask while a task holds the Chrome", () => {
+  test("the waiting ask is shown first and can be allowed; the running task is still reported and untouched", async () => {
+    const { tool, gate, deps, actions, calls } = setup()
+    const a = settle(tool("execute")({}, ctx("ses_a")))
+    await tick()
+    gate.allow()
+    await a
+    // A subagent's conversation, or another one, asks while ses_a holds the grant.
+    const b = settle(tool("execute")({}, ctx("ses_sub", "atlas-helper")))
+    await tick()
+    const status = await browserStatus(deps)
+    expect(status.state).toBe("not-connected")
+    expect(status.canControl).toBe(true)
+    expect(status.ask).toMatchObject({ agent: "atlas-helper" })
+    expect(status.task).toMatchObject({ agent: "atlas" })
+    // jelly's Connect sends {}: it allows the waiting ask, not nothing.
+    expect(actions.connect({ input: {}, grant: grant("browser.connect", {}) })).toBe(true)
+    expect(await b).toMatchObject({ ok: true })
+    expect(gate.tasks().map((task) => task.sessionID).sort()).toEqual(["ses_a", "ses_sub"])
+    expect(calls).toHaveLength(2)
+  })
+})
+
+describe("every tool of the server is gated", () => {
+  test("an unclassified browse tool, or one in the browse namespace, waits behind the gate; another server's does not", async () => {
+    const gate = new ChromeGate({ describe: async () => "t", askTimeoutMs: 30 })
+    const reached: string[] = []
+    const tools = ["browse_new_tool", "browse_status", "other_tool", "renamed"].map((id) => ({
+      id,
+      ...(id === "renamed" ? { options: { namespace: "browse" } } : {}),
+      execute: async () => {
+        reached.push(id)
+        return { content: [] }
+      },
+    }))
+    const editor = {
+      list: () => tools,
+      update: (id: string, change: (info: (typeof tools)[number]) => void) => change(tools.find((item) => item.id === id)!),
+    }
+    await registerGate({ transform: async (callback: (value: never) => void) => (callback(editor as never), { dispose: async () => undefined }) } as never, gate)
+    for (const item of tools) await settle((item.execute as (input: unknown, context: unknown) => Promise<unknown>)({}, ctx("ses_a")))
+    expect(reached).toEqual(["other_tool"])
+  })
+})
+
+describe("Stop ends a call already running", () => {
+  test("a long call is aborted with the grant, and its signal says so", async () => {
+    const { gate, actions } = setup()
+    let seen: AbortSignal | undefined
+    const long = gated(gate, "browse_execute", (_input, context) => {
+      seen = context.signal
+      return new Promise(() => undefined)
+    })
+    const first = settle(long({}, ctx("ses_a")))
+    await tick()
+    gate.allow()
+    await tick()
+    expect(seen?.aborted).toBe(false)
+    expect(actions.stop({ input: {}, grant: grant("browser.stop", {}) })).toBe(true)
+    const outcome = await first
+    expect(!outcome.ok && outcome.error).toStartWith("CHROME_NOT_ALLOWED:")
+    expect(seen?.aborted).toBe(true)
+    expect(gate.driving()).toBe(false)
+  })
+
+  test("the idle limit and the task's end abort a running call too", async () => {
+    const { gate } = setup()
+    let seen: AbortSignal | undefined
+    const long = gated(gate, "browse_execute", (_input, context) => ((seen = context.signal), new Promise(() => undefined)))
+    const first = settle(long({}, ctx("ses_a")))
+    await tick()
+    gate.allow()
+    await tick()
+    gate.end("ses_a", "session-ended")
+    expect(await first).toMatchObject({ ok: false })
+    expect(seen?.aborted).toBe(true)
   })
 })
 
