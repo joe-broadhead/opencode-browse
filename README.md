@@ -21,19 +21,19 @@ browser** of its own (below) and install nothing.
 ## Install
 
 ```sh
-opencode plugin add github:joe-broadhead/opencode-browse#v0.0.1
+opencode plugin add github:joe-broadhead/opencode-browse#v0.0.2
 ```
 
 The binary is downloaded from this plugin's release on first use, and only at `access: "all"`, the default. Setup downloads it, checks it against its pinned SHA-256, and then registers the server. At `"ask-changes"` or `"read-only"` setup downloads nothing: it names `/browse-install`, which downloads and verifies the binary at any `access` value. Run it, then restart OpenCode, so the server registers.
 
 Restart OpenCode. Then add the extension and pair it:
 
-Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.0`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-browse#v<version>`.
+Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.1`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-browse#v<version>`.
 
 Or add the plugin to `opencode.json` instead, with the same spec:
 
 ```json
-{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.1" }] }
+{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.2" }] }
 ```
 
 1. Install **browse** from the Chrome Web Store and open its options page.
@@ -241,7 +241,7 @@ Options go in the plugin entry in `opencode.json`:
 {
   "plugins": [
     {
-      "package": "github:joe-broadhead/opencode-browse#v0.0.1",
+      "package": "github:joe-broadhead/opencode-browse#v0.0.2",
       "options": {
         // Pin the server to one browse session on these sites. Optional.
         "scope": { "session": "opencode", "allowedOrigins": ["github.com", "*.githubusercontent.com"], "readOnly": false },
@@ -278,7 +278,7 @@ ID or secret to distribute.
 {
   "plugins": [
     {
-      "package": "github:joe-broadhead/opencode-browse#v0.0.1",
+      "package": "github:joe-broadhead/opencode-browse#v0.0.2",
       "options": { "scope": { "allowedOrigins": ["*.your-company.com"], "readOnly": true } }
     }
   ]
@@ -331,6 +331,9 @@ default (use `access` or your own rules to make them ask). [docs/jelly.md](docs/
   as `not-connected` (or `extension-needed`) until jelly draws `asking`, and the `personal-browser` change signal is
   built but neither raised nor declared until jelly reads it as a signal. Allow for this task and Not now are on the
   plugin's page, the notice and the Inbox, not on jelly's own card.
+- **In jelly, a tool browse adds later is not fenced from a read-only helper.** Jelly keeps a read-only helper away
+  only from declared tools not marked read-only; a tool browse adds after this release is not declared, so at Allowed
+  it runs there too, until a release declares it.
 - **Jelly.** The `access` and `browser` settings declare their choices, which only a jelly that includes app#1301
   reads; an older jelly refuses the plugin's declaration.
 - Updates are not automatic for a Git install, and `opencode plugin update` and `opencode plugin check` do not work on one: to move to a newer release, remove the old entry and add the new tag.
@@ -386,7 +389,7 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 ## Uninstall
 
 ```sh
-opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.1
+opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.2
 ```
 
 That removes the plugin, its cached binary and its rules; it does not touch your browser. The extension is

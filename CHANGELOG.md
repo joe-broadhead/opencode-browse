@@ -3,10 +3,12 @@
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.0.2] - 2026-11-14
 
 ### Changed
 
+- `package.json` is `"private": true`, so nothing can be published to npm by mistake; installs from the Git tag
+  (`github:joe-broadhead/opencode-browse#v<version>`) are unaffected. The release kit keeps `package.json` canonical.
 - The icon is now browse's own icon, Anomaly's `public/icons/logo.svg` from the browse repository, unmodified, in place of the family's Neutral slate tile; `opencode.vendor.mark` is `true`.
 
 ### Fixed
@@ -15,7 +17,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
   default) every tool runs without a permission prompt, the page action included; the person's own Chrome is still
   used only for a task they allow. Ask before changes runs the four reads and asks for the rest; Read only denies
   the rest. It no longer says a tool browse adds later is denied until a release classifies it: it falls under
-  `browse_*` like every tool. The page now names the two declared skills.
+  `browse_*` like every tool, and Jelly's read-only-helper fence does not cover it, because it is not declared. The
+  page now names the two declared skills.
 - Tab cleanup is a change: at Ask before changes it asks, and at Read only it is denied, as the rules always did. The
   README, SECURITY.md, `docs/configuration.md` and the `browse` skill said it ran.
 - The declaration test runs the family's shared kit (`test/support/jelly-kit.ts`, pinned by
