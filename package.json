@@ -47,7 +47,8 @@
     "vendor": {
       "id": "anomaly",
       "name": "Anomaly",
-      "domain": "anoma.ly"
+      "domain": "anoma.ly",
+      "mark": true
     }
   },
   "jelly": {
