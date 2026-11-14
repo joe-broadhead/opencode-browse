@@ -152,7 +152,7 @@ that allows everything. `access: "all"` is the default, so this is the block in 
 ```
 <!-- /rules:all -->
 
-With `access: "ask-changes"`, the reads and tab cleanup still run and everything else asks. That is the block for it:
+With `access: "ask-changes"`, the reads still run and everything else asks, tab cleanup included. That is the block for it:
 
 <!-- rules:ask-changes -->
 ```json

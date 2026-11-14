@@ -52,7 +52,7 @@ Every tool runs by default, with no prompt: reads, `execute`, the session tools,
 Under the plugin's `access` option the default block changes shape:
 
 - `"all"` (the default): everything runs.
-- `"ask-changes"`: the four reads and `tabs_cleanup` run; `execute`, the session tools, `settings`, the captures and
+- `"ask-changes"`: the four reads run; `execute`, `tabs_cleanup`, the session tools, `settings`, the captures and
   the secrets tools ask. Say in one sentence what the call will do before you make it; the prompt is the yes.
 - `"read-only"`: those same tools are denied.
 

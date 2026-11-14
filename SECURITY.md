@@ -73,8 +73,8 @@ clicks, typing, form submits, reading the DOM); the three captures record real p
 chooses; `browse_secrets_run` runs a local command with your stored credentials in its environment; and a tool browse
 adds later runs at once on the `browse_*` rule.
 
-To restrict it, set the plugin's `access` option: `"ask-changes"` runs the four reads and tab cleanup and asks for
-everything else, and `"read-only"` runs the reads and denies everything else. An agent's own rules, your `permissions`
+To restrict it, set the plugin's `access` option: `"ask-changes"` runs the four reads and asks for everything else
+(tab cleanup included), and `"read-only"` runs the reads and denies everything else. An agent's own rules, your `permissions`
 in `opencode.json` and a saved approval still win, and the tool names are the 18 in `src/browse-tools.ts`. Agents
 without a base allow get no rules: inserting the block there would turn a default deny into an ask.
 
