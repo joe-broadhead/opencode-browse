@@ -32,8 +32,8 @@ for a task they allow ("Your Chrome, per task", below), whatever the access leve
 
 Jelly's agents have no base "allow everything" rule, so this plugin's default rules, which it puts after that rule,
 never reach them. Jelly writes each declared `ask` or `deny` as that tool's default instead (the person's own choice
-replaces it), and denies a read-only helper every tool not marked `readOnly`. A declared `allow` changes nothing in
-Jelly.
+replaces it), and denies a read-only helper every declared tool not marked `readOnly`; that fence covers declared
+tools only. A declared `allow` changes nothing in Jelly.
 
 - Reads (`readOnly: true`), which run at every access level: `browse_status`, `browse_session_list`,
   `browse_secrets_list` and `browse_secrets_status`.
@@ -45,8 +45,9 @@ Jelly.
 - Off: none.
 
 A tool browse adds later is not declared here. It falls under `browse_*`, in Jelly's access level and in the plugin's
-own rules alike: it runs at Allowed, asks at Ask before changes and is denied at Read only. Status lists it as unknown
-until a release classifies and declares it.
+own rules alike: it runs at Allowed, asks at Ask before changes and is denied at Read only. Because it is not declared,
+Jelly's read-only-helper fence does not cover it, so at Allowed it also runs inside a read-only helper. Status lists it
+as unknown until a release classifies and declares it.
 
 The captures write real page content, so a person who does not want that at Allowed chooses Ask before changes, or
 turns `browse_network`, `browse_recording` and `browse_flight_recorder` off in that agent's settings.
