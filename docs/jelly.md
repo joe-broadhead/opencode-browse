@@ -25,26 +25,37 @@ the outer `<svg>` (which had no `viewBox`) and its `<style>`. The README carries
 
 ## Tools and permissions
 
-18 tools are declared (4 read-only): the reads, the tab cleanup and the three captures run; the page action, the
-session tools, the settings and the three tools that act with your credentials ask; none of the known 18 is off. A tool
-browse adds later is not declared here, and Jelly does not ask about it; this plugin's own rules deny it until a
-release classifies it.
+18 tools are declared (4 read-only), every one `allow`. At **Allowed** (`access: "all"`, the default) every tool
+runs without a permission prompt: the page action, the session tools, the settings, the tab cleanup, the three
+captures and the three tools that act with your credentials. In real mode the person's own Chrome is still used only
+for a task they allow ("Your Chrome, per task", below), whatever the access level.
 
 Jelly's agents have no base "allow everything" rule, so this plugin's default rules, which it puts after that rule,
 never reach them. Jelly writes each declared `ask` or `deny` as that tool's default instead (the person's own choice
 replaces it), and denies a read-only helper every tool not marked `readOnly`. A declared `allow` changes nothing in
 Jelly.
 
-- Ask: `browse_execute` (the whole page-action surface), `browse_session_new`, `browse_session_use`,
+- Reads (`readOnly: true`), which run at every access level: `browse_status`, `browse_session_list`,
+  `browse_secrets_list` and `browse_secrets_status`.
+- Changes (`readOnly: false`), which run at **Allowed**, ask at **Ask before changes** and are denied at **Read only**:
+  `browse_execute` (the whole page-action surface), `browse_session_new`, `browse_session_use`,
   `browse_session_adopt`, `browse_session_reset`, `browse_session_delete`, `browse_session_allowlist`,
-  `browse_settings`, `browse_secrets_run` and `browse_secrets_refresh`.
-- Run: `browse_status`, `browse_session_list`, `browse_secrets_list`, `browse_secrets_status`, `browse_tabs_cleanup`,
-  `browse_network`, `browse_recording`, `browse_flight_recorder`.
+  `browse_settings`, `browse_tabs_cleanup`, `browse_network`, `browse_recording`, `browse_flight_recorder`,
+  `browse_secrets_run` and `browse_secrets_refresh`.
+- Off: none.
 
-So a Jelly agent cannot drive the browser at all unless the person allows `browse_execute`; a person who allows it
-should expect every page action to be approved one call at a time. Captures run, and they write real page content, so
-a person who does not want that should turn `browse_network`, `browse_recording` and `browse_flight_recorder` off in
-that agent's settings.
+A tool browse adds later is not declared here. It falls under `browse_*`, in Jelly's access level and in the plugin's
+own rules alike: it runs at Allowed, asks at Ask before changes and is denied at Read only. Status lists it as unknown
+until a release classifies and declares it.
+
+The captures write real page content, so a person who does not want that at Allowed chooses Ask before changes, or
+turns `browse_network`, `browse_recording` and `browse_flight_recorder` off in that agent's settings.
+
+## Skills
+
+Declared: `browse` (driving the person's browser: inspect, act, verify, and when to hand off) and `browse-capture`
+(screen recordings, the flight recorder, a redacted HAR and secret profiles). Jelly refuses an install whose skill ids
+collide with another plugin's or the agent's own.
 
 ## Sign-in
 

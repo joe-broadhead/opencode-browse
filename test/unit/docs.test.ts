@@ -123,7 +123,11 @@ describe("the docs", () => {
 
   test("jelly says what a Jelly agent can and cannot do", () => {
     expect(JELLY).toContain("18 tools")
-    expect(JELLY).toContain("cannot drive the browser at all unless the person allows `browse_execute`")
+    // Every tool is declared allow (the family default): the page says they run at Allowed, and that the person's own
+    // Chrome is still gated per task.
+    expect(JELLY).not.toContain("cannot drive the browser at all unless the person allows `browse_execute`")
+    expect(JELLY).toContain("every tool\nruns without a permission prompt")
+    expect(JELLY).toContain("only\nfor a task they allow")
     expect(JELLY).toContain("jelly.signIns")
     expect(JELLY).toContain("opencode.vendor")
   })
