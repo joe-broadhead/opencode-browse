@@ -14,9 +14,9 @@ const COPIES = [
   { path: "src/host/tools-rpc.ts", optional: false, sha256: "15d82caa53aaae7ad9efb88dddb97056d3895c4dbf49b8efbb85b743871b2a6d", part: sharedPart },
   // The release-binary installer, byte-identical across the native plugins (NATIVE-DESIGN.md section 2).
   { path: "src/native/install.ts", optional: false, sha256: "8ce0d8505f7577dc793ad2b279117f1118de404bbfacf08a8bd70b976425159a", part: (text) => text },
-  // Jelly's setting rules, restated without zod (the file's header says what it restates and how to update it).
   // The declaration test kit (Jelly's plugin authors' standard), whole.
   { path: "test/support/jelly-kit.ts", optional: false, sha256: "ab599abcf041044c77e7938c3d9a081e00072487a7ec20b654d86c8230951190", part: (text) => text },
+  // Jelly's setting rules, restated without zod (the file's header says what it restates and how to update it).
   { path: "test/support/jelly-settings.ts", optional: false, sha256: "966aeac7eddce490da51e8e46780f1fbcfaf9b3e892bd62f2c3952c2a6111383", part: (text) => text },
 ]
 
