@@ -9,6 +9,18 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 - The icon is now browse's own icon, Anomaly's `public/icons/logo.svg` from the browse repository, unmodified, in place of the family's Neutral slate tile; `opencode.vendor.mark` is `true`.
 
+### Fixed
+
+- The Jelly page (`docs/jelly.md`) matches the declaration: all 18 tools are declared `allow`, so at Allowed (the
+  default) every tool runs without a permission prompt, the page action included; the person's own Chrome is still
+  used only for a task they allow. Ask before changes runs the four reads and asks for the rest; Read only denies
+  the rest. It no longer says a tool browse adds later is denied until a release classifies it: it falls under
+  `browse_*` like every tool. The page now names the two declared skills.
+- Tab cleanup is a change: at Ask before changes it asks, and at Read only it is denied, as the rules always did. The
+  README, SECURITY.md, `docs/configuration.md` and the `browse` skill said it ran.
+- The declaration test runs the family's shared kit (`test/support/jelly-kit.ts`, pinned by
+  `scripts/check-copies.mjs`) against the declaration and the Jelly page.
+
 ## [0.0.1] - 2026-11-13
 
 ### Added
