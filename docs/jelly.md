@@ -27,7 +27,7 @@ the outer `<svg>` (which had no `viewBox`) and its `<style>`. The README carries
 
 18 tools are declared (4 read-only), every one `allow`. At **Allowed** (`access: "all"`, the default) every tool
 runs without a permission prompt: the page action, the session tools, the settings, the tab cleanup, the three
-captures and the three tools that act with your credentials. In real mode the person's own Chrome is still used only
+captures and the two tools that act with stored credentials. In real mode the person's own Chrome is still used only
 for a task they allow ("Your Chrome, per task", below), whatever the access level.
 
 Jelly's agents have no base "allow everything" rule, so this plugin's default rules, which it puts after that rule,
@@ -50,6 +50,9 @@ until a release classifies and declares it.
 
 The captures write real page content, so a person who does not want that at Allowed chooses Ask before changes, or
 turns `browse_network`, `browse_recording` and `browse_flight_recorder` off in that agent's settings.
+
+The `scope` option's scoped profile, which turns five session tools off, is the plugin's own OpenCode rule set; it is
+not declared to Jelly and is off by default.
 
 ## Skills
 

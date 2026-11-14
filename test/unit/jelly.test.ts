@@ -4,8 +4,8 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { ACCESS_VALUES } from "../../src/browse-tools.js"
 import { parseOptions } from "../../src/options.js"
-import { defaultRules, evaluate } from "../../src/permissions.js"
-import { declarationProblems, docProblems } from "../support/jelly-kit.js"
+import { defaultRules } from "../../src/permissions.js"
+import { declarationProblems, docProblems, effectFromRules } from "../support/jelly-kit.js"
 import { ACCESS_CHOICES, type PluginSetting, settingChoices, settingsProblems, settingValueIssue } from "../support/jelly-settings.js"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
@@ -16,9 +16,8 @@ const doc = readFileSync(join(root, "docs/jelly.md"), "utf8")
 describe("the Jelly declaration", () => {
   test("follows the plugin authors' standard (the shared kit), with the effects the plugin's own default rules give", async () => {
     const { TOOLS } = await import("../../src/browse-tools.js")
-    const rules = [{ action: "*", resource: "*", effect: "allow" as const }, ...defaultRules()]
     const problems = declarationProblems(ROOT, {
-      effectOf: (permission) => evaluate(rules, permission),
+      effectOf: effectFromRules(defaultRules()),
       registered: TOOLS.map((tool) => `browse_${tool.name}`),
     })
     // The shared kit's key list predates Jelly's `actions`, `nativeData`, `inbox` and `notices` (Jelly's
