@@ -75,7 +75,7 @@ content to a path the agent chooses, and `browse_secrets_run` runs a local comma
 environment.
 
 `access` restricts it, and the README prints the block for each value: `"all"` (the default) as above,
-`"ask-changes"` (the four reads and tab cleanup run, everything else asks) and `"read-only"` (the reads run,
+`"ask-changes"` (the four reads run, everything else asks, tab cleanup included) and `"read-only"` (the reads run,
 everything else is denied). An agent's own rules and your top-level `permissions` still win, and the names are the 18
 in `src/browse-tools.ts`.
 

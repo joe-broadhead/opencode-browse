@@ -4,12 +4,28 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { ACCESS_VALUES } from "../../src/browse-tools.js"
 import { parseOptions } from "../../src/options.js"
+import { defaultRules } from "../../src/permissions.js"
+import { declarationProblems, docProblems, effectFromRules } from "../support/jelly-kit.js"
 import { ACCESS_CHOICES, type PluginSetting, settingChoices, settingsProblems, settingValueIssue } from "../support/jelly-settings.js"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
+const ROOT = new URL("../../", import.meta.url)
+const doc = readFileSync(join(root, "docs/jelly.md"), "utf8")
 
 describe("the Jelly declaration", () => {
+  test("follows the plugin authors' standard (the shared kit), with the effects the plugin's own default rules give", async () => {
+    const { TOOLS } = await import("../../src/browse-tools.js")
+    const problems = declarationProblems(ROOT, {
+      effectOf: effectFromRules(defaultRules()),
+      registered: TOOLS.map((tool) => `browse_${tool.name}`),
+    })
+    // The shared kit's key list predates Jelly's `actions`, `nativeData`, `inbox` and `notices` (Jelly's
+    // `PluginDeclarationSchema`); the personal-browser test below holds those fields. Any other problem fails.
+    const newer = ["actions", "nativeData", "inbox", "notices"].map((key) => `jelly.${key} is not a key Jelly knows`)
+    expect(problems.filter((problem) => !newer.includes(problem))).toEqual([])
+  })
+
   test("has every key Jelly reads, and no unknown ones", () => {
     expect(Object.keys(pkg.jelly).sort()).toEqual(["actions", "contributes", "icon", "inbox", "nativeData", "notices", "rpc", "signIns", "skills", "summary", "title", "tools", "views"].sort())
     expect(pkg.jelly.title).toBe("Browse")
@@ -114,6 +130,18 @@ describe("the Jelly declaration", () => {
       expect<string>(parseOptions({})[key]).toBe(setting.default as string)
       expect(settingValueIssue(setting, "write")).not.toBeNull()
       expect(() => parseOptions({ [key]: "write" })).toThrow(`The option "${key}" must be`)
+    }
+  })
+
+  test("docs/jelly.md follows the standard, names every tool, and lists none as asked or off at Allowed", () => {
+    expect(docProblems(ROOT)).toEqual([])
+    for (const tool of pkg.jelly.tools) expect(doc).toContain(`\`${tool.permission}\``)
+    expect(pkg.jelly.tools.every((tool: { effect: string }) => tool.effect === "allow")).toBe(true)
+    expect(doc).toContain("every one `allow`")
+    expect(doc).not.toMatch(/^- Ask: `/m)
+    expect(doc).not.toContain("deny it until")
+    for (const tool of pkg.jelly.tools.filter((item: { readOnly: boolean }) => !item.readOnly)) {
+      expect(doc.slice(doc.indexOf("- Changes"), doc.indexOf("- Off:"))).toContain(`\`${tool.permission}\``)
     }
   })
 

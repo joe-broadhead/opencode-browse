@@ -32,8 +32,8 @@ describe("the README", () => {
     const positions = order.map((heading) => README.indexOf(heading))
     for (const position of positions) expect(position).toBeGreaterThan(-1)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
-    expect(README).toContain("opencode plugin add github:joe-broadhead/opencode-browse#v0.0.1")
-    expect(README).toContain("opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.1")
+    expect(README).toContain("opencode plugin add github:joe-broadhead/opencode-browse#v0.0.2")
+    expect(README).toContain("opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.2")
     expect(README).toContain("`/etc/opencode/opencode.json` on Linux and `/Library/Application Support/opencode/opencode.json` on")
   })
 
@@ -123,7 +123,11 @@ describe("the docs", () => {
 
   test("jelly says what a Jelly agent can and cannot do", () => {
     expect(JELLY).toContain("18 tools")
-    expect(JELLY).toContain("cannot drive the browser at all unless the person allows `browse_execute`")
+    // Every tool is declared allow (the family default): the page says they run at Allowed, and that the person's own
+    // Chrome is still gated per task.
+    expect(JELLY).not.toContain("cannot drive the browser at all unless the person allows `browse_execute`")
+    expect(JELLY).toContain("every tool\nruns without a permission prompt")
+    expect(JELLY).toContain("only\nfor a task they allow")
     expect(JELLY).toContain("jelly.signIns")
     expect(JELLY).toContain("opencode.vendor")
   })
