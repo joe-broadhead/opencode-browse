@@ -3,6 +3,12 @@
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- The icon is now browse's own icon, Anomaly's `public/icons/logo.svg` from the browse repository, unmodified, in place of the family's Neutral slate tile; `opencode.vendor.mark` is `true`.
+
 ## [0.0.1] - 2026-11-13
 
 ### Added

@@ -6,8 +6,8 @@ JSON, without loading the plugin, when a person reviews the exact version, and u
 Jelly names the plugin **Browse** (`jelly.title`), with the package name and version beneath. Under that name it shows
 the one line in `jelly.summary`, and beside it the mark in `jelly.icon` (`assets/icon.svg`, shipped in the package):
 Jelly reads that file once, when it records the plugin, and keeps it only if it is a clean SVG of drawing elements,
-with no script, style, link or outside reference. The mark is the family's **Neutral slate** tile — a browser window
-with a pointer, drawn by us — and not Anomaly's, OpenCode's or any browser's mark.
+with no script, style, link or outside reference. The mark is browse's own icon, Anomaly's, from the browse
+repository; not OpenCode's mark.
 
 ## Icons and vendor
 
@@ -16,12 +16,12 @@ the clean SVG (`sizes: ["any"]`), a 128×128 PNG and a 256×256 PNG, each with i
 the package. `opencode.icons[0].src` equals `jelly.icon`, so the two declarations cannot drift. `exports` exposes the
 three files as `./icon.svg`, `./icon-128.png` and `./icon-256.png`, and all three ship in the tarball.
 
-`opencode.vendor` is `{ "id": "anomaly", "name": "Anomaly", "domain": "anoma.ly" }`: the service behind the plugin is
-Anomaly's browse, and `anoma.ly` is the vendor's own release domain, which browse's installer and release service
-already use. It is deliberately not `opencode.ai`, which would put OpenCode's mark on a browse entry. A display app that has decided to show the
-vendor's official mark reads the domain and fetches it from the vendor's own site, under the vendor's terms; the
-official mark never passes through this package, its tarball or a CDN. The package carries no vendor marks, colours or
-letterforms.
+`opencode.vendor` is `{ "id": "anomaly", "name": "Anomaly", "domain": "anoma.ly", "mark": true }`: the service behind
+the plugin is Anomaly's browse, and `anoma.ly` is the vendor's own release domain, which browse's installer and release
+service already use. It is deliberately not `opencode.ai`, which would put OpenCode's mark on a browse entry.
+`mark: true` says the icon is the vendor's own mark: browse's `public/icons/logo.svg`
+(https://github.com/anomalyco/browse), its rect and two paths unchanged in their 512×512 canvas, only unwrapped from
+the outer `<svg>` (which had no `viewBox`) and its `<style>`. The README carries the trademark line.
 
 ## Tools and permissions
 

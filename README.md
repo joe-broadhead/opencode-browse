@@ -5,6 +5,8 @@ and its extension, with a hand-back for logins, 2FA and payments.
 
 **Unofficial; not affiliated with Anomaly or OpenCode.**
 
+browse is a trademark of Anomaly Innovations, Inc.; this unofficial plugin is not endorsed by them.
+
 ## Requirements
 
 - OpenCode `>=2.2.3 <2.3.0` (tested on 2.2.3, 2.2.4, 2.2.5 and 2.2.6).

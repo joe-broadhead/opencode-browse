@@ -118,6 +118,6 @@ describe("the Jelly declaration", () => {
   })
 
   test("declares the vendor, because browse is not our product", () => {
-    expect(pkg.opencode.vendor).toEqual({ id: "anomaly", name: "Anomaly", domain: "anoma.ly" })
+    expect(pkg.opencode.vendor).toEqual({ id: "anomaly", name: "Anomaly", domain: "anoma.ly", mark: true })
   })
 })
