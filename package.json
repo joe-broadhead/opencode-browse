@@ -548,7 +548,8 @@
     "test:managed": "bun test ./test/managed",
     "browse:isolated": "node scripts/run-isolated.mjs",
     "bin:native": "node scripts/build-native.mjs",
-    "bin:ensure": "node scripts/build-native.mjs --ensure"
+    "bin:ensure": "node scripts/build-native.mjs --ensure",
+    "capture": "node scripts/capture-tools.mjs"
   },
   "devDependencies": {
     "@opencode/client": "2.2.3",
