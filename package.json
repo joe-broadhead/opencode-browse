@@ -21,7 +21,7 @@
     "url": "https://github.com/joe-broadhead/opencode-browse/issues"
   },
   "opencode": {
-    "host": ">=2.2.3 <2.3.0",
+    "host": ">=2.2.3 <2.4.0",
     "icons": [
       {
         "src": "assets/icon.svg",

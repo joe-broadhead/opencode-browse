@@ -66,8 +66,10 @@ describe("the README", () => {
   test("every \"tested on\" list in the docs is TESTED_HOSTS", () => {
     const expected = `${TESTED_HOSTS.slice(0, -1).join(", ")} and ${TESTED_HOSTS.at(-1)}`
     let found = 0
+    // The CHANGELOG's older sections are history: only its newest, Unreleased or the release being prepared, is current.
+    const current = (document: string) => (document === "CHANGELOG.md" ? (/\n## \[[^\]]+\][^\n]*([\s\S]*?)(?=\n## |$)/.exec(read(document))?.[1] ?? "") : read(document))
     for (const document of ["README.md", "AGENTS.md", "SECURITY.md", "docs/configuration.md", "CHANGELOG.md"]) {
-      const text = read(document).replace(/\s+/g, " ")
+      const text = current(document).replace(/\s+/g, " ")
       for (const phrase of ["tested on "]) {
         for (let at = text.indexOf(phrase); at !== -1; at = text.indexOf(phrase, at + 1)) {
           found += 1

@@ -13,7 +13,7 @@
 | `scope.allowedOrigins` | string[] | `[]` | Hosts or origins the session's tabs may load: `example.com`, `*.example.com`, `https://app.example.com`, `http://localhost:3000`. Empty means no allowlist, browse's own default. |
 | `scope.readOnly` | boolean | `false` | Pin a read-only session, whose input the relay refuses. `execute` then runs without asking. |
 | `verifyBinary` | boolean | `true` | Check the pinned binary's SHA-256 against the pin before running it. |
-| `allowUntestedHost` | boolean | `false` | Run on an OpenCode version outside `>=2.2.3 <2.3.0`, with a warning in status. |
+| `allowUntestedHost` | boolean | `false` | Run on an OpenCode version outside `>=2.2.3 <2.4.0`, with a warning in status. |
 
 An unknown option, a wrong type or an unsafe session name is `OPTIONS_INVALID`: the plugin sets nothing up and status
 shows the problem and the fix.

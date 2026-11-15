@@ -16,7 +16,7 @@ const FILES = ["bin", "dist", "manifest", "managed-extension", "skills", "views"
 const EXPORTS = { ".": "index", "./tui": "tui" }
 const ASSET_EXPORTS = { "./icon.svg": "assets/icon.svg", "./icon-128.png": "assets/icon-128.png", "./icon-256.png": "assets/icon-256.png" }
 const DIST = Object.values(EXPORTS).map((base) => `${base}.js`).sort()
-const HOST_RANGE = ">=2.2.3 <2.3.0"
+const HOST_RANGE = ">=2.2.3 <2.4.0"
 const HOST_DEV_PIN = "2.2.3"
 const ABSENT_FIELDS = ["dependencies", "optionalDependencies", "bundleDependencies", "bundledDependencies", "peerDependencies", "peerDependenciesMeta", "engines", "overrides"]
 const LIFECYCLE_SCRIPTS = ["preinstall", "install", "postinstall", "preprepare", "prepare", "postprepare", "prepublish", "prepublishOnly", "prepack", "postpack", "publish", "postpublish"]

@@ -3,6 +3,12 @@
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- The plugin admits OpenCode 2.3: the host range is `>=2.2.3 <2.4.0` (`opencode.host` and `SUPPORTED_HOST`), tested on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7 and 2.3.0 (`TESTED_HOSTS`); the host stage and the release's install check run every one. Below 2.2.3 or from 2.4.0 the plugin refuses with `HOST_UNTESTED`. Nothing in the plugin relied on what 2.3 changes: it starts no subagent and reads no `session.tool.failed` event. Each browse call already passes the tool's `signal`, joined with the jelly grant's, on to the browse server call; a stopped `execute` reports the cancellation, not the steps it had already run.
+
 ## [0.0.2] - 2026-11-14
 
 ### Changed

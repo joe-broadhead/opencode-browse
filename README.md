@@ -9,7 +9,7 @@ browse is a trademark of Anomaly Innovations, Inc.; this unofficial plugin is no
 
 ## Requirements
 
-- OpenCode `>=2.2.3 <2.3.0` (tested on 2.2.3, 2.2.4, 2.2.5 and 2.2.6).
+- OpenCode `>=2.2.3 <2.4.0` (tested on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7 and 2.3.0).
 - macOS (arm64 or x64) or Linux (x64 or arm64, glibc).
 - A Chromium-family browser (Chrome, Edge, Brave, Arc, Helium, Vivaldi, Opera or Chromium).
 - Node.js 22.19 or later, which OpenCode already needs.
@@ -349,7 +349,7 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 | `failed` | the binary does not match its digest, or a needed command failed | `/browse-doctor`, then reinstall |
 | `conflict` | `mcp.servers.browse` in your config is not a browse server | remove or rename that entry, then restart |
 | `disabled` | the `browse` server is disabled in `/mcps` | enable it, or remove `"disabled": true` |
-| `host untested` | OpenCode is outside the supported range | use `>=2.2.3 <2.3.0`, or set `allowUntestedHost` |
+| `host untested` | OpenCode is outside the supported range | use `>=2.2.3 <2.4.0`, or set `allowUntestedHost` |
 | `BINARY_MISSING` | the release binary is not installed yet | run `/browse-install`, then restart OpenCode |
 | `NOT_INSTALLED` | `/browse-stop-relay` has no pinned binary to identify the relay | reinstall the plugin |
 | `BINARY_UNVERIFIED` | the binary does not match its pinned SHA-256 | reinstall; set `verifyBinary: false` only if you trust the file |

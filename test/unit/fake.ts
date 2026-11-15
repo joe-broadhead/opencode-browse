@@ -1,5 +1,5 @@
 // Narrow fakes of the public plugin context: only the members a test touches, typed with Pick<> so they
-// stay valid against later 2.2.x context shapes.
+// stay valid against later 2.2 and 2.3 context shapes.
 import type { Plugin } from "@opencode/plugin"
 import type { Rule } from "../../src/permissions.js"
 

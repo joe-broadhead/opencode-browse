@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { buildStatus, formatStatus, registerStatusRpc, StatusRpc, type StatusFacts } from "../../src/status.js"
 import { defaultRules } from "../../src/permissions.js"
 
-const host = { version: "2.2.4", range: ">=2.2.3 <2.3.0", tested: true }
+const host = { version: "2.2.4", range: ">=2.2.3 <2.4.0", tested: true }
 const rules = { access: "all" as const, scoped: false, readOnly: false }
 const binary = { path: "/opt/browse", version: "0.0.15", source: "package" as const, verified: true, tested: true, supported: true }
 
@@ -73,7 +73,7 @@ describe("buildStatus", () => {
   })
 
   test("a host outside the range and no server is host untested", () => {
-    const status = buildStatus(facts({ host: { version: "2.1.0", range: ">=2.2.3 <2.3.0", tested: false } }))
+    const status = buildStatus(facts({ host: { version: "2.1.0", range: ">=2.2.3 <2.4.0", tested: false } }))
     expect(status.state).toBe("host_untested")
     expect(status.nextStep).toContain("allowUntestedHost")
   })
@@ -84,7 +84,7 @@ describe("review findings", () => {
     const options = buildStatus(facts({ fatal: "OPTIONS_INVALID: Unknown option \"nope\". Next step: Fix the plugin options in opencode.json." }))
     expect(options.state).toBe("failed")
     expect(options.nextStep).toContain("Fix the plugin options")
-    const hostOutside = buildStatus(facts({ fatal: "HOST_UNTESTED: This plugin supports OpenCode >=2.2.3 <2.3.0, found 2.1.0. Next step: Use OpenCode >=2.2.3 <2.3.0.", host: { version: "2.1.0", range: ">=2.2.3 <2.3.0", tested: false } }))
+    const hostOutside = buildStatus(facts({ fatal: "HOST_UNTESTED: This plugin supports OpenCode >=2.2.3 <2.4.0, found 2.1.0. Next step: Use OpenCode >=2.2.3 <2.4.0.", host: { version: "2.1.0", range: ">=2.2.3 <2.4.0", tested: false } }))
     expect(hostOutside.state).toBe("host_untested")
   })
 
