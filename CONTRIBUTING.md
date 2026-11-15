@@ -46,7 +46,7 @@ It runs with a throwaway HOME, XDG dirs and a free port, and stops the relay it 
 | `unit` | `bun test ./test/unit` |
 | `build` | esbuild: two self-contained bundles, no relative imports |
 | `icons` | the family icon contract |
-| `host` | the embedded OpenCode host on 2.2.3, 2.2.4, 2.2.5 and 2.2.6, against the fake browse |
+| `host` | the embedded OpenCode host on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7 and 2.3.0, against the fake browse |
 | `pack` | the tarball, the bundles, the release binary resolution and the tamper refusal |
 | `forbidden` | the list in `AGENTS.md` |
 | `copies` | the shared tools RPC outside its plugin block, the native installer, the jelly kit (`test/support/jelly-kit.ts`) and Jelly's setting rules (`test/support/jelly-settings.ts`) match the copies every plugin carries |
@@ -150,7 +150,7 @@ Before the approval, the workflow:
 - **verifies** on a fresh runner: the commit's identity, one parent on `master`, `package.json` exactly the parent's
   without the lifecycle scripts, only regular files in the allowed paths, no `package.json` under `dist/`, and a second,
   independent build of the parent (its own job) equal to the committed `dist/` byte for byte;
-- **installs** the release commit with `plugin add` on each stock OpenCode host (2.2.3 to 2.2.6);
+- **installs** the release commit with `plugin add` on each stock OpenCode host (2.2.3 to 2.2.7, and 2.3.0);
 - **packs** the commit before installing anything and keeps that tarball, then runs the pack stage against a copy;
 - **stages** the Release: verifies the attested native files, writes `SHA256SUMS` and the notes (the version's CHANGELOG
   section), and shows them all in the run summary with the sha256 of `SHA256SUMS`.
@@ -208,5 +208,5 @@ Each release has its own tag, and a Git install does not update by itself. To mo
 Or add the plugin to `opencode.json` instead, with the same spec:
 
 ```json
-{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.2" }] }
+{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.3" }] }
 ```

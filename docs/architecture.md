@@ -35,7 +35,7 @@ config file. Under jelly it gates the person's Chrome per task ([jelly.md](jelly
 ## Setup
 
 1. `parseOptions` validates the options; a bad one is kept for status, never thrown.
-2. `checkHost` compares `ctx.app.version` with `>=2.2.3 <2.3.0`; outside it nothing is set up unless
+2. `checkHost` compares `ctx.app.version` with `>=2.2.3 <2.4.0`; outside it nothing is set up unless
    `allowUntestedHost` is true.
 3. The skills are read from `../skills/`.
 4. `resolveBinary` finds the released binary in the cache (a first-use download runs only at access `all`), verifies its SHA-256 against the pin, and returns it. No

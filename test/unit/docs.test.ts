@@ -32,8 +32,8 @@ describe("the README", () => {
     const positions = order.map((heading) => README.indexOf(heading))
     for (const position of positions) expect(position).toBeGreaterThan(-1)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
-    expect(README).toContain("opencode plugin add github:joe-broadhead/opencode-browse#v0.0.2")
-    expect(README).toContain("opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.2")
+    expect(README).toContain("opencode plugin add github:joe-broadhead/opencode-browse#v0.0.3")
+    expect(README).toContain("opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.3")
     expect(README).toContain("`/etc/opencode/opencode.json` on Linux and `/Library/Application Support/opencode/opencode.json` on")
   })
 
@@ -66,8 +66,10 @@ describe("the README", () => {
   test("every \"tested on\" list in the docs is TESTED_HOSTS", () => {
     const expected = `${TESTED_HOSTS.slice(0, -1).join(", ")} and ${TESTED_HOSTS.at(-1)}`
     let found = 0
+    // The CHANGELOG's older sections are history: only its newest, Unreleased or the release being prepared, is current.
+    const current = (document: string) => (document === "CHANGELOG.md" ? (/\n## \[[^\]]+\][^\n]*([\s\S]*?)(?=\n## |$)/.exec(read(document))?.[1] ?? "") : read(document))
     for (const document of ["README.md", "AGENTS.md", "SECURITY.md", "docs/configuration.md", "CHANGELOG.md"]) {
-      const text = read(document).replace(/\s+/g, " ")
+      const text = current(document).replace(/\s+/g, " ")
       for (const phrase of ["tested on "]) {
         for (let at = text.indexOf(phrase); at !== -1; at = text.indexOf(phrase, at + 1)) {
           found += 1
