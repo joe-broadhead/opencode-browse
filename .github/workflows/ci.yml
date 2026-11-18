@@ -51,7 +51,7 @@ jobs:
             src/constants.ts
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.4 # the Bun inside stock OpenCode 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7 and 2.3.0
+          bun-version: 1.4.4 # the Bun inside stock OpenCode 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2
       - run: npm ci --ignore-scripts
       - name: Fetch and verify this runner's pinned browse binary, for the host and managed tests
         run: npm run bin:ensure

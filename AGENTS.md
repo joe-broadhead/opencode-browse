@@ -42,7 +42,7 @@ browse's MCP server; it never runs a browser itself.
 `forbidden`, `copies`, `jelly`, `whitelist` and `actionlint`. `npm run drift` compares the table with `test/fixtures/live-tools.json` (or `--bin <path>`).
 
 `node scripts/check.mjs <stage>` runs one stage. The host stage runs on 2.2.3 from the lockfile and installs 2.2.4,
-2.2.5, 2.2.6, 2.2.7 and 2.3.0 into a temp folder; `HOST_SDK_DIR` runs one SDK only.
+2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2 into a temp folder; `HOST_SDK_DIR` runs one SDK only.
 
 ## Commits
 

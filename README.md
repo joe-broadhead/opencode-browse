@@ -9,7 +9,7 @@ browse is a trademark of Anomaly Innovations, Inc.; this unofficial plugin is no
 
 ## Requirements
 
-- OpenCode `>=2.2.3 <2.4.0` (tested on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7 and 2.3.0).
+- OpenCode `>=2.2.3 <2.4.0` (tested on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2).
 - macOS (arm64 or x64) or Linux (x64 or arm64, glibc).
 - A Chromium-family browser (Chrome, Edge, Brave, Arc, Helium, Vivaldi, Opera or Chromium).
 - Node.js 22.19 or later, which OpenCode already needs.
@@ -21,19 +21,19 @@ browser** of its own (below) and install nothing.
 ## Install
 
 ```sh
-opencode plugin add github:joe-broadhead/opencode-browse#v0.0.3
+opencode plugin add github:joe-broadhead/opencode-browse#v0.0.4
 ```
 
 The binary is downloaded from this plugin's release on first use, and only at `access: "all"`, the default. Setup downloads it, checks it against its pinned SHA-256, and then registers the server. At `"ask-changes"` or `"read-only"` setup downloads nothing: it names `/browse-install`, which downloads and verifies the binary at any `access` value. Run it, then restart OpenCode, so the server registers.
 
 Restart OpenCode. Then add the extension and pair it:
 
-Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.2`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-browse#v<version>`.
+Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.3`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-browse#v<version>`.
 
 Or add the plugin to `opencode.json` instead, with the same spec:
 
 ```json
-{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.3" }] }
+{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.4" }] }
 ```
 
 1. Install **browse** from the Chrome Web Store and open its options page.
@@ -241,7 +241,7 @@ Options go in the plugin entry in `opencode.json`:
 {
   "plugins": [
     {
-      "package": "github:joe-broadhead/opencode-browse#v0.0.3",
+      "package": "github:joe-broadhead/opencode-browse#v0.0.4",
       "options": {
         // Pin the server to one browse session on these sites. Optional.
         "scope": { "session": "opencode", "allowedOrigins": ["github.com", "*.githubusercontent.com"], "readOnly": false },
@@ -278,7 +278,7 @@ ID or secret to distribute.
 {
   "plugins": [
     {
-      "package": "github:joe-broadhead/opencode-browse#v0.0.3",
+      "package": "github:joe-broadhead/opencode-browse#v0.0.4",
       "options": { "scope": { "allowedOrigins": ["*.your-company.com"], "readOnly": true } }
     }
   ]
@@ -389,7 +389,7 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 ## Uninstall
 
 ```sh
-opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.3
+opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.4
 ```
 
 That removes the plugin, its cached binary and its rules; it does not touch your browser. The extension is
