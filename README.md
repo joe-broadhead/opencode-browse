@@ -9,7 +9,7 @@ browse is a trademark of Anomaly Innovations, Inc.; this unofficial plugin is no
 
 ## Requirements
 
-- OpenCode `>=2.2.3 <2.4.0` (tested on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7 and 2.3.0).
+- OpenCode `>=2.2.3 <2.4.0` (tested on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2).
 - macOS (arm64 or x64) or Linux (x64 or arm64, glibc).
 - A Chromium-family browser (Chrome, Edge, Brave, Arc, Helium, Vivaldi, Opera or Chromium).
 - Node.js 22.19 or later, which OpenCode already needs.
