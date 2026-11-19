@@ -26,7 +26,7 @@ browse's MCP server; it never runs a browser itself.
   `permission.ask`).
 - `ctx.generate.text`, `experimental.policies`.
 - `@opencode/ai` imports; import only `@opencode/plugin`.
-- A `permission.hook("evaluate")` anywhere except the one place in `src/host/tools-rpc.ts` (and its bundle), where it
+- A `permission.hook("evaluate")` anywhere except the one place in `dist/index.js`, which bundles the source contract's tools RPC, where it
   turns an inner `ask` of a script's own call into a refusal.
 - Private host source, host checkouts, and `consumer-host`.
 - Machine-local absolute paths and `/tmp/` literals; make temp folders with `mkdtemp` under `realpathSync("/tmp")`.

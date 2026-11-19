@@ -10,8 +10,8 @@ const self = fileURLToPath(import.meta.url)
 const ROOTS = ["src", "test", "scripts", "dist"]
 const MEMBER = String.raw`\s*(?:\?\.|\.)\s*`
 const PERMISSION_HOOK = new RegExp(String.raw`\bpermission${MEMBER}hook\b`)
-/** The copy of the module shared by several plugins, and the bundle that inlines it. */
-const TOOLS_RPC = ["src/host/tools-rpc.ts", "dist/index.js"]
+/** The bundle that inlines the source contract's tools RPC module, the one place its evaluate hook may appear. */
+const TOOLS_RPC = ["dist/index.js"]
 
 const RULES = [
   { id: "fork-marker", pattern: /dispatch[-_ ]?lease|catalog[-_ ]?ownership|text[-_ ]?only[-_ ]?respons/i, why: "dispatch-lease, ownership and text-only markers are fork-only" },

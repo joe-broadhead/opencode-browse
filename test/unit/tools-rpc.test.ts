@@ -3,23 +3,8 @@
 import { describe, expect, test } from "bun:test"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import {
-  CLASSES,
-  hidden,
-  METHODS,
-  NEXT_STEPS,
-  PLUGIN_ID,
-  pluginError,
-  registerToolsRpc,
-  shapeInput,
-  shapeResult,
-  TOOLS_RPC_ID,
-  upstreamText,
-  type MethodSpec,
-  type PluginMethod,
-  type ToolCall,
-  type ToolsRpcOptions,
-} from "../../src/host/tools-rpc.js"
+import { CLASSES, hidden, registerToolsRpc, upstreamText, type MethodSpec, type PluginMethod, type ToolCall, type ToolsRpcOptions } from "@we-the-rebel-alliance/source-contract/tools-rpc"
+import { METHODS, NEXT_STEPS, PLUGIN_ID, pluginError, shapeInput, shapeResult, TOOLS_RPC_ID, PLUGIN } from "../../src/tools-rpc.js"
 
 type Effect = "allow" | "deny" | "ask"
 type Rule = { action: string; resource: string; effect: Effect }
@@ -201,7 +186,7 @@ async function setup(options: Setup = {}): Promise<Harness> {
   }
   // Read by destructuring, the idiom the module uses: no dotted access from the options object for a forbidden scan to match.
   const { shapers, mcp: withMcp = true, server = SERVER, managed = true, unavailableDetail, notRegistered } = options
-  const stop = await registerToolsRpc(ctx as never, {
+  const stop = await registerToolsRpc(ctx as never, { plugin: PLUGIN,
     methods,
     ...(shapers === undefined ? {} : { shapers }),
     ...(withMcp === false

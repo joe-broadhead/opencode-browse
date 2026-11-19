@@ -6,7 +6,7 @@ import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { PLUGIN_CODES } from "../../src/constants.js"
-import { NEXT_STEPS } from "../../src/host/tools-rpc.js"
+import { NEXT_STEPS } from "../../src/tools-rpc.js"
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url))
 const read = (file: string) => readFileSync(join(ROOT, file), "utf8")
