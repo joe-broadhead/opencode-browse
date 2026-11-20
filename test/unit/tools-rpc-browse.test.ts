@@ -3,7 +3,8 @@
 import { describe, expect, test } from "bun:test"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { METHODS, NEXT_STEPS, registerToolsRpc, type MethodSpec, type ToolCall } from "../../src/host/tools-rpc.js"
+import { registerToolsRpc, type MethodSpec, type ToolCall } from "@we-the-rebel-alliance/source-contract/tools-rpc"
+import { METHODS, NEXT_STEPS, PLUGIN } from "../../src/tools-rpc.js"
 import { defaultRules, insertRules, type Rule } from "../../src/permissions.js"
 
 type Effect = "allow" | "deny" | "ask"
@@ -64,7 +65,7 @@ async function harness(agentPermissions: Rule[], sessionPermissions: Rule[] = []
     },
     mcp: { list: async () => ({ data: [{ name: SERVER, status: { status: "connected" } }] }) },
   }
-  const stop = await registerToolsRpc(ctx as never, { methods: METHODS, mcp: { server: SERVER, managed: () => true } })
+  const stop = await registerToolsRpc(ctx as never, { plugin: PLUGIN, methods: METHODS, mcp: { server: SERVER, managed: () => true } })
   const context = { signal: new AbortController().signal, error: (type: string, message: string, data?: unknown) => ({ type, message, data }) }
   const call = (method: string, input: Record<string, unknown> = {}) => handlers[method]!({ sessionID: "ses_1", input }, context)
   return { call, executions, stop }

@@ -9,7 +9,8 @@ import { conflictRules, defaultRules, registerDefaultRules, type RuleSet } from 
 import { reasonOf, shortReason } from "./redact.js"
 import { loadSkills, registerSkills } from "./skills.js"
 import { buildStatus, readStatus as readStatusModel, registerStatusCommand, registerStatusRpc, type ServerSource, type Status } from "./status.js"
-import { registerToolsRpc, METHODS } from "./host/tools-rpc.js"
+import { registerToolsRpc } from "@we-the-rebel-alliance/source-contract/tools-rpc"
+import { METHODS, PLUGIN } from "./tools-rpc.js"
 import { registerDoctorCommand } from "./doctor.js"
 import { ManagedBrowser } from "./managed/browser.js"
 import { formatRelayStop, stopRelaySafely } from "./managed/relay.js"
@@ -412,7 +413,7 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
       }
       if (personal && (seam.changeNotices ?? RAISE_CHANGE_NOTICES)) changed = changeNotices(core, () => browserStatus(nativeDeps))
       await registerNativeRpc(ctx.rpc, nativeDeps)
-      const stopTools = await registerToolsRpc(ctx, { methods: METHODS, mcp: { server: SERVER_NAME, managed: () => source?.type !== "conflict" } })
+      const stopTools = await registerToolsRpc(ctx, { plugin: PLUGIN, methods: METHODS, mcp: { server: SERVER_NAME, managed: () => source?.type !== "conflict" } })
       return async () => {
         gate.dispose()
         stopWatching()

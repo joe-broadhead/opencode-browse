@@ -1,4 +1,4 @@
-# actionlint 1.7.7, the version CI downloads, predates GitHub's macOS 26 runner labels; the workflows use them on purpose.
+# Kept so an actionlint older than 1.7.12, which does not know GitHub's macOS 26 runner labels, still accepts the workflows.
 self-hosted-runner:
   labels:
     - macos-26
