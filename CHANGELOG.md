@@ -2,7 +2,8 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/).
-## [Unreleased]
+
+## [0.0.5] - 2026-11-23
 
 ### Changed
 
@@ -15,6 +16,13 @@ and this project uses [Semantic Versioning](https://semver.org/).
   hand no longer shares a concurrency group with a push on the same ref.
 - No host-support change: still tested on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2, with the supported range
   unchanged (`>=2.2.3 <2.4.0`).
+
+### Fixed
+
+- The package ships the pinned managed extension's MIT licence as `vendor/LICENSE.browse`. `NOTICE` names the extension
+  and the `solid-js` 1.9.18 and `solid-sonner` 0.3.1 components its bundles carry, records that the shipped tree adds the
+  local public manifest key, and no longer says that no other third-party code is bundled. No runtime, tool or permission
+  change.
 
 ## [0.0.4] - 2026-11-18
 
