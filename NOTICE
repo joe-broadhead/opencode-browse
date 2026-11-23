@@ -4,13 +4,90 @@ This package is MIT licensed; see LICENSE.
 
 ## browse
 
-The plugin ships the **browse** binary, built and published by Anomaly (https://github.com/anomalyco/browse), MIT,
-Copyright (c) 2025 opencode. It is not contained in this package: the release carries the pinned binary (gzipped) with its own `LICENSE.browse`,
-and `manifest/browse.json` records the release, the target, the binary's SHA-256 and its size. The pinned release
-is recorded in `manifest/browse.json` in this package, with the upstream tarball's URL, SHA-256 and size.
+The plugin runs the **browse** binary, built and published by Anomaly (https://github.com/anomalyco/browse), MIT,
+Copyright (c) 2025 opencode. The npm package does not contain it: each release carries the pinned binary (gzipped) with
+its own `LICENSE.browse`, and `manifest/browse.json` records the release, the target, the binary's SHA-256 and its size,
+with the upstream tarball's URL, SHA-256 and size.
 
-The browse browser extension is not shipped or bundled. It is installed by the user from the Chrome Web Store, under
-its own listing and terms, and it is licensed MIT by the same project.
+The package ships the pinned browse extension in `managed-extension/`, the vendor's built output for the managed
+browser, under the same MIT licence; its full licence text is `vendor/LICENSE.browse`. For a browser of the person's
+own, the extension is installed from the Chrome Web Store, under its own listing and terms.
+
+The shipped extension tree is the pinned stable ZIP unpacked, not the ZIP byte for byte: the local public manifest key
+is added to `managed-extension/manifest.json` so Chrome derives the extension id the relay expects. The key is public,
+not a secret, and is not reproduced here. `manifest/extension.json` records the upstream ZIP's SHA-256 and every shipped
+file's SHA-256.
+
+## solid-js 1.9.18
+
+The managed extension's scripts bundle the Solid runtime, marked `solid-proxy` and `solid-track`. The local bundle's
+root-disposer fingerprint matches `solid-js` 1.9.18: the 1.9.18 package has the separate `createDisposer` function,
+where 1.9.17 inlines it. The upstream `v0.0.15` lock at commit
+`b2c22c020b8e8f3930d8d15bfa3f8a52f25dc260` resolves `solid-js` 1.9.18. MIT, Copyright (c) 2016-2025 Ryan Carniato.
+Its licence:
+
+```
+MIT License
+
+Copyright (c) 2016-2025 Ryan Carniato
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## solid-sonner 0.3.1
+
+The managed extension's settings page contains Sonner-derived toast markup and CSS (`data-sonner-toast`,
+`data-sonner-toaster`, `.sonner-*`) in the bundle that carries the Solid runtime. That local fingerprint plus the
+upstream `v0.0.15` lock at commit `b2c22c020b8e8f3930d8d15bfa3f8a52f25dc260`, which resolves `solid-sonner` 0.3.1,
+identifies the component. The published `solid-sonner` README describes a Solid implementation of the React Sonner API
+and does not pin a React package; this NOTICE does not assert a React Sonner version. MIT, Copyright (c) 2022 Robert
+Soriano <https://github.com/wobsoriano>. Its licence:
+
+```
+MIT License
+
+Copyright (c) 2022 Robert Soriano <https://github.com/wobsoriano>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## Scope
+
+The local bundle fingerprints and the upstream `v0.0.15` lock identify the Solid and solid-sonner components above.
+This NOTICE does not claim to enumerate every module in the vendor build. The same lock names `@opencode/ui` 2.2.5;
+this checkout does not prove which of its modules are bundled, so it is not attributed separately here.
 
 ## @we-the-rebel-alliance/source-contract 0.3.0
 
@@ -40,7 +117,3 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
-
-## Nothing else
-
-No other third-party code is bundled. The release carries the binary and the licence texts above, and nothing else.

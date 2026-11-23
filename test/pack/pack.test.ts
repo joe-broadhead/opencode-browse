@@ -27,9 +27,27 @@ describe("the tarball", () => {
 
   test("ships the two bundles and the data files, and no source", () => {
     const listed = files()
-    for (const wanted of ["dist/index.js", "dist/tui.js", "bin/mcp.mjs", "managed-extension/manifest.json", "manifest/browse.json", "manifest/extension.json", "manifest/chromium.json", "NOTICE", "README.md", "LICENSE", "CHANGELOG.md", "skills/browse/SKILL.md", "skills/browse-capture/SKILL.md", "assets/icon.svg", "assets/icon-128.png", "assets/icon-256.png"]) {
+    for (const wanted of ["dist/index.js", "dist/tui.js", "bin/mcp.mjs", "managed-extension/manifest.json", "manifest/browse.json", "manifest/extension.json", "manifest/chromium.json", "NOTICE", "vendor/LICENSE.browse", "README.md", "LICENSE", "CHANGELOG.md", "skills/browse/SKILL.md", "skills/browse-capture/SKILL.md", "assets/icon.svg", "assets/icon-128.png", "assets/icon-256.png"]) {
       expect(listed, wanted).toContain(wanted)
     }
+    const notice = execFileSync("tar", ["-xzOf", tarball, "package/NOTICE"], { encoding: "utf8" })
+    expect(notice).toContain("managed-extension/")
+    expect(notice).toContain("vendor/LICENSE.browse")
+    expect(notice).toContain("not the ZIP byte for byte")
+    expect(notice).toContain("public manifest key")
+    expect(notice).toContain("solid-js 1.9.18")
+    expect(notice).toContain("Copyright (c) 2016-2025 Ryan Carniato")
+    expect(notice).toContain("b2c22c020b8e8f3930d8d15bfa3f8a52f25dc260")
+    expect(notice).toContain("solid-sonner 0.3.1")
+    expect(notice).toContain("Copyright (c) 2022 Robert Soriano")
+    expect(notice).toContain("does not assert a React Sonner version")
+    expect(notice).not.toContain("not complete for that component")
+    expect(notice).not.toContain("Required upstream material")
+    expect(notice).not.toContain("No other third-party code is bundled.")
+    // The manifest key is public, but the NOTICE describes its addition without printing it.
+    expect(notice).not.toMatch(/MIIB[A-Za-z0-9+/]{20,}/)
+    const licence = execFileSync("tar", ["-xzOf", tarball, "package/vendor/LICENSE.browse"], { encoding: "utf8" })
+    expect(licence).toContain("Copyright (c) 2025 opencode")
     expect(listed.filter((file) => file.startsWith("src/"))).toEqual([])
     expect(listed.filter((file) => file.endsWith(".d.ts"))).toEqual([])
     expect(existsSync(join(root, "dist", "index.js"))).toBe(true)
