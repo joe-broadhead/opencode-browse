@@ -27,7 +27,10 @@ the steps to reproduce.
   the machine or replace the pinned file. A file swapped while the plugin is running is caught at the next spawn or
   reload. The plugin never runs `browse install` or `browse update`; managed mode starts `browse pair` to mint its own
   one-time code.
-- **The extension is not shipped.** It is installed from the Chrome Web Store by the user, under that listing.
+- **The extension is pinned.** In managed mode the package's own copy, `managed-extension/`, is the vendor's pinned
+  build, copied into Chromium's managed folder and checked file by file against `manifest/extension.json`; its MIT
+  licence ships as `vendor/LICENSE.browse`. For a browser of the person's own, the extension is installed from the
+  Chrome Web Store, under that listing.
 - **No telemetry.** The plugin sends nothing. It reads local state: `browse status --json`, the pinned manifest, and (only when `scope` is set) the vendor CLI's session commands.
 - **What the browser handles is the vendor's.** Page content, cookies, stored site secrets, network captures,
   recordings and journals are browse's, on your computer. browse's own documentation describes them; the plugin does
