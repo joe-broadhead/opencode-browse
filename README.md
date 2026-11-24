@@ -20,13 +20,16 @@ its own, with nothing installed in your browser.
 
 ## Install
 
+Install from a release:
+
 ```sh
-opencode plugin add github:we-the-rebel-alliance/browse-plugin
+opencode plugin add github:we-the-rebel-alliance/browse-plugin#v<version>
 ```
 
-This installs the default branch until the first tagged release exists; after that, add `#v<version>` to pin one. The
-plugin is installed from Git, not npm, and a Git install does not update itself: remove the entry and add it again to
-move to a newer commit or tag.
+The first release on plugin-contract is v0.0.0 (phase 4b).
+
+The plugin is installed from Git, not npm, and a release install does not update itself: remove the entry and add the
+new release's tag.
 
 The binary is downloaded on first use, at `access: "all"` (the default). Setup verifies it against its pinned SHA-256
 and then registers the server. At `"ask-changes"` or `"read-only"` setup downloads nothing: run `/browse-install`, which
@@ -50,7 +53,8 @@ classifies every tool, adds its default permission rules to each agent, reports 
 - **browse** — when to use the user's browser, the session tools, the permission model, hand-back and credentials.
 - **browse-capture** — network captures, recordings and the flight recorder.
 
-The plugin never runs a browser itself, never edits a config file, and never runs `browse install`, `browse update` or
+Except in managed mode, the plugin never runs a browser itself, never edits a config file, and never runs `browse
+install` or `browse update`. Managed mode starts its own pinned Chromium in its own profile and pairs the extension with
 `browse pair`.
 
 ## The pinned binary

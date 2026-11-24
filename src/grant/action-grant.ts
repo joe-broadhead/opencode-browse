@@ -1,12 +1,13 @@
 import { createHash, createPublicKey, verify } from "node:crypto"
 
 /**
- * The check of a jelly action grant, written from jelly's published format (ADR 0023 section 4): a compact JWS with
+ * The check of a host-signed action grant, written from the published format (ADR 0023 section 4): a compact JWS with
  * the header `{ alg: "EdDSA", typ: "jelly-act+jwt", kid }` and the claims `iss`, `aud` (`<package>#engine`), `act`,
  * `in` (base64url SHA-256 of the input's canonical JSON), `dev`, `mbr`, `cls`, `iat`, `exp` (at most 60 s after
- * `iat`) and `jti`. jelly publishes the public half of its action key in the engine at
- * `globalThis[Symbol.for("jelly.action-key")]` as `{ kid, jwk }`. A grant allows one action, with exactly that input,
- * once, for a minute: the verifier spends each `jti`.
+ * `iat`) and `jti`. The host publishes the public half of its action key in the engine at
+ * `globalThis[Symbol.for("jelly.action-key")]` as `{ kid, jwk }`. The two string literals in this paragraph are
+ * fixed wire identifiers, not prose. A grant allows one action, with exactly that input, once, for a minute: the
+ * verifier spends each `jti`.
  */
 
 export const ACTION_GRANT_TYPE = "jelly-act+jwt"
@@ -52,7 +53,7 @@ export function actionInputDigest(input: unknown): string {
 
 export const actionAudience = (pkg: string) => `${pkg}#engine`
 
-/** The key jelly published in this engine, if any. */
+/** The key the host published in this engine, if any. */
 export function publishedActionKey(holder: Record<symbol, unknown> = globalThis as Record<symbol, unknown>): ActionPublicKey | undefined {
   const value = holder[ACTION_KEY_SYMBOL] as ActionPublicKey | undefined
   return value !== undefined && typeof value === "object" && typeof value.kid === "string" ? value : undefined
@@ -65,7 +66,7 @@ export function actionGrantVerifier(options: { readonly audience: string; readon
   return {
     verify(action: string, call: { readonly input: unknown; readonly grant: unknown }): ActionGrantClaims {
       const key = options.key()
-      if (key === undefined) throw new ActionGrantRefused("jelly handed this engine no action key.")
+      if (key === undefined) throw new ActionGrantRefused("the host handed this engine no action key.")
       const at = now()
       const claims = checkGrant(call.grant, key, at)
       if (claims.aud !== options.audience) throw new ActionGrantRefused("The grant is for another plugin.")

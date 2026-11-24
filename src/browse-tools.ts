@@ -1,6 +1,6 @@
 // Every fact the plugin keeps about browse's MCP tools: the 18 the server lists at 0.0.15, each with its
 // MCP annotation, its class for the tools RPC, and the default permission effect.
-// The default rules, the tools RPC's table, status's unknown tools, the Jelly declaration and the tests all derive
+// The default rules, the tools RPC's table, status's unknown tools, the package declaration and the tests all derive
 // from this file, so a tool cannot drift between them. Keep it free of runtime imports: scripts/check-browse-tools.mjs
 // and the drift job load it directly.
 //

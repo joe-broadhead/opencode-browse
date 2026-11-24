@@ -1,7 +1,7 @@
 # Repository rules
 
 This repository is the OpenCode plugin `@we-the-rebel-alliance/browse-plugin`. It ships the pinned browse binary and
-wraps browse's MCP server; it never runs a browser itself.
+wraps browse's MCP server; except in managed mode (its own pinned Chromium and pairing), it never runs a browser itself.
 
 ## Layout and purpose
 
@@ -12,8 +12,8 @@ wraps browse's MCP server; it never runs a browser itself.
   Chrome or profile from managed mode or its tests.
 - `src/grant/action-grant.ts` verifies a host-signed, single-use action grant. It does no I/O.
 - `manifest/browse.json` is the pin. `scripts/pin.mjs` writes it; `scripts/build-native.mjs` builds the release files.
-- The plugin never edits a config file, never runs `browse install`, `browse update` or `browse pair`, and never adds an
-  `OPENCODE_BROWSER_ALLOW_*` environment variable.
+- Except in managed mode, which starts its own Chromium and runs `browse pair`, the plugin never edits a config file,
+  never runs `browse install` or `browse update`, and never adds an `OPENCODE_BROWSER_ALLOW_*` environment variable.
 
 ## Forbidden in this repository
 
@@ -36,7 +36,7 @@ wraps browse's MCP server; it never runs a browser itself.
 ## Checks
 
 `npm run check` runs, in order: `typecheck`, `unit`, `kit`, `build`, `icons`, `host`, `pack`, `forbidden`, `copies`,
-`jelly`, `whitelist` and `actionlint`. `npm run drift` compares the Jelly declaration with `test/fixtures/live-tools.json`
+`jelly`, `whitelist` and `actionlint`. `npm run drift` compares `src/browse-tools.ts` with `test/fixtures/live-tools.json`
 (or `--bin <path>`).
 
 `node scripts/check.mjs <stage>` runs one stage. The host stage runs the embedded `@opencode/sdk` 2.4.1 from the

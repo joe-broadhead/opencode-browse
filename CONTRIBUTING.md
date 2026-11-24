@@ -51,7 +51,7 @@ It runs with a throwaway HOME, XDG dirs and a free port, and stops the relay it 
 | `forbidden` | the list in `AGENTS.md` |
 | `copies` | the native installer and the release kit match the copies every plugin carries |
 | `whitelist` | `package.json` and `dist/` shape |
-| `jelly` | the Jelly declaration against `package.json` |
+| `jelly` | the package declaration against `package.json` |
 | `actionlint` | the two workflows, linted as workflows when `actionlint` is installed |
 
 `npm run test:managed` is separate from `npm run check`, because it downloads Chrome for Testing (about 200 MB) into
@@ -221,5 +221,5 @@ Each release has its own tag, and a Git install does not update by itself. To mo
 Or add the plugin to `opencode.json` instead, with the same spec:
 
 ```json
-{ "plugins": [{ "package": "github:we-the-rebel-alliance/browse-plugin" }] }
+{ "plugins": [{ "package": "github:we-the-rebel-alliance/browse-plugin#v<version>" }] }
 ```

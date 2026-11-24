@@ -77,7 +77,7 @@ describe("what a grant may not be", () => {
     expect(() => verify("browser.stop", {}, {}, { alg: "RS256" })).toThrow("The grant is not one of this host's action grants.")
     expect(() => verify("browser.stop", {}, {}, { typ: "JWT" })).toThrow("The grant is not one of this host's action grants.")
     const noKey = actionGrantVerifier({ audience: AUDIENCE, key: () => undefined, now: () => NOW })
-    expect(() => noKey.verify("browser.stop", { input: {}, grant: grant("browser.stop", {}) })).toThrow("jelly handed this engine no action key.")
+    expect(() => noKey.verify("browser.stop", { input: {}, grant: grant("browser.stop", {}) })).toThrow("the host handed this engine no action key.")
   })
 
   test("expired, issued in the future, or longer-lived than a minute", () => {
