@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { renderDoctor } from "../../src/doctor.js"
 
-const host = { version: "2.2.4", range: ">=2.2.3 <2.4.0", tested: true }
+const host = { version: "2.4.1", range: ">=2.4.1 <2.5.0", tested: true }
 const binary = { path: "/opt/browse", version: "0.0.15", source: "package" as const, verified: true, tested: true, supported: true, pinned: true, platform: "darwin-arm64" }
 const live = {
   status: {

@@ -1,19 +1,16 @@
 # Repository rules
 
-This repository is the OpenCode plugin `@joe-broadhead/opencode-browse`. It ships the pinned browse binary and wraps
-browse's MCP server; it never runs a browser itself.
+This repository is the OpenCode plugin `@we-the-rebel-alliance/browse-plugin`. It ships the pinned browse binary and
+wraps browse's MCP server; it never runs a browser itself.
 
 ## Layout and purpose
 
 - `src/browse-tools.ts` is the single source of truth for the 18 tools, their annotations, classes and default effects.
-  The rules, the tools RPC, status, the Jelly section and the tests derive from it.
+  The rules, the tools RPC, status and the tests derive from it.
 - `bin/mcp.mjs` is the MCP entry; it re-verifies the pinned binary at every spawn. `src/managed/` is managed mode:
   Chrome for Testing in its own profile, the pinned extension, and browse's own pairing. Never touch the user's browser,
   Chrome or profile from managed mode or its tests.
-- `src/jelly/` is jelly's side: the per-task gate on the person's Chrome (`chrome-gate.ts`), the `personal-browser`
-  read and its two actions under the package's own RPC id (`native.ts`), and the action-grant check
-  (`action-grant.ts`). Under jelly, in real mode, no browse tool reaches the server for a session the person has not
-  allowed; never add a path to the server that skips the gate, and never persist a grant.
+- `src/grant/action-grant.ts` verifies a host-signed, single-use action grant. It does no I/O.
 - `manifest/browse.json` is the pin. `scripts/pin.mjs` writes it; `scripts/build-native.mjs` builds the release files.
 - The plugin never edits a config file, never runs `browse install`, `browse update` or `browse pair`, and never adds an
   `OPENCODE_BROWSER_ALLOW_*` environment variable.
@@ -34,31 +31,23 @@ browse's MCP server; it never runs a browser itself.
 - Writing under the user's config directory, or adding an `OPENCODE_BROWSER_ALLOW_*` variable.
 
 `scripts/check-forbidden.mjs` enforces the first list and the shell rule; the typecheck enforces what the public
-2.2.3 types reject.
+2.4.1 types reject.
 
 ## Checks
 
-`npm run check` runs, in order: `typecheck`, `unit`, `build`, `icons`, `host` (every SDK in `TESTED_HOSTS`), `pack`,
-`forbidden`, `copies`, `jelly`, `whitelist` and `actionlint`. `npm run drift` compares the table with `test/fixtures/live-tools.json` (or `--bin <path>`).
+`npm run check` runs, in order: `typecheck`, `unit`, `kit`, `build`, `icons`, `host`, `pack`, `forbidden`, `copies`,
+`jelly`, `whitelist` and `actionlint`. `npm run drift` compares the Jelly declaration with `test/fixtures/live-tools.json`
+(or `--bin <path>`).
 
-`node scripts/check.mjs <stage>` runs one stage. The host stage runs on 2.2.3 from the lockfile and installs 2.2.4,
-2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2 into a temp folder; `HOST_SDK_DIR` runs one SDK only.
+`node scripts/check.mjs <stage>` runs one stage. The host stage runs the embedded `@opencode/sdk` 2.4.1 from the
+lockfile; there is one tested host.
 
 ## Commits
 
-Conventional commits, one logical change each, signed, authored as
-`joe-broadhead <91376460+joe-broadhead@users.noreply.github.com>`; the release commit and tag are the release workflow's,
-as `github-actions[bot]`. No personal email in anything we publish. Before
-committing or tagging, check that `git config user.email` is that address: a fresh clone inherits the machine's global
-identity, which is not that address. Never commit, tag or publish with a work or personal address, or with a local
-hostname. Publish through a pull request on GitHub; never push to `master` directly.
+Conventional commits, one logical change each. No personal email in anything we publish. Publish through a pull request
+on GitHub; never push to `master` directly.
 
-Releases come only from `.github/workflows/release.yml` ("Releasing" in [CONTRIBUTING.md](CONTRIBUTING.md)). A
-release-prep PR sets `version` in `package.json` and the install specs and runs `node scripts/changelog.mjs release`;
-once it is on `master` and CI passed, run the `native` workflow on that commit
-(`gh workflow run native.yml --ref master`), then start the release with
-`gh workflow run release.yml --ref master -f sha=<its full sha> -f native_run=<the native run id>`. The workflow builds
-`dist/`, makes the release commit on a temporary `release/v<version>` branch, checks and stages everything, and waits
-for the owner to approve the `release` environment; only then does it create the tag `v<version>` and the GitHub
-Release. Never push a tag or a `release/*` branch, and never commit, tag or publish a release by hand. Agents never
-approve a release, never call the deployment-approval API, and never bypass a ruleset or the environment.
+Releases are cut from `.github/workflows/release.yml` when the release commit is ready, and the `native` workflow builds
+the platform binaries for it. Never push a tag or a `release/*` branch, and never commit, tag or publish a release by
+hand. Agents never approve a release, never call the deployment-approval API, and never bypass a ruleset or the
+environment.

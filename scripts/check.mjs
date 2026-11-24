@@ -1,23 +1,19 @@
 // The one local entry point: `npm run check` runs every stage in order and stops at the first failure.
 // `node scripts/check.mjs <stage>...` runs only the named stages, in the order given.
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { delimiter, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = fileURLToPath(new URL("..", import.meta.url))
 const env = { ...process.env, PATH: `${join(root, "node_modules", ".bin")}${delimiter}${process.env.PATH ?? ""}` }
-// The one list of tested OpenCode releases. Node loads src/constants.ts by stripping its types, so that file keeps to
-// type-only imports.
-const { TESTED_HOSTS } = await import(new URL("../src/constants.ts", import.meta.url).href)
-
 // The approved package shape. Change it here only together with the release policy.
-const FILES = ["bin", "dist", "manifest", "managed-extension", "skills", "views", "assets/icon.svg", "assets/icon-128.png", "assets/icon-256.png", "NOTICE", "vendor/LICENSE.browse", "README.md", "LICENSE", "CHANGELOG.md"]
+const FILES = ["bin", "dist", "manifest", "managed-extension", "skills", "assets/icon.svg", "assets/icon-128.png", "assets/icon-256.png", "NOTICE", "vendor/LICENSE.browse", "README.md", "LICENSE", "CHANGELOG.md"]
 const EXPORTS = { ".": "index", "./tui": "tui" }
 const ASSET_EXPORTS = { "./icon.svg": "assets/icon.svg", "./icon-128.png": "assets/icon-128.png", "./icon-256.png": "assets/icon-256.png" }
 const DIST = Object.values(EXPORTS).map((base) => `${base}.js`).sort()
-const HOST_RANGE = ">=2.2.3 <2.4.0"
-const HOST_DEV_PIN = "2.2.3"
+const HOST_RANGE = ">=2.4.1 <2.5.0"
+const HOST_DEV_PIN = "2.4.1"
 const ABSENT_FIELDS = ["dependencies", "optionalDependencies", "bundleDependencies", "bundledDependencies", "peerDependencies", "peerDependenciesMeta", "engines", "overrides"]
 const LIFECYCLE_SCRIPTS = ["preinstall", "install", "postinstall", "preprepare", "prepare", "postprepare", "prepublish", "prepublishOnly", "prepack", "postpack", "publish", "postpublish"]
 
@@ -63,42 +59,9 @@ function run(command, args, options = {}) {
   return result.status ?? 1
 }
 
-/**
- * The host suite on each tested release: the locked @opencode/sdk for HOST_DEV_PIN, and the others installed from npm
- * into a temp folder under the system's /tmp, outside the lockfile, once per run. HOST_SDK_DIR runs only that SDK.
- */
+/** The host suite on the one tested release: the locked `@opencode/sdk` 2.4.1 the plugin type-checks against. */
 function host() {
-  if (process.env.HOST_SDK_DIR) return run("bun", ["test", "./test/host"])
-  let ran = 0
-  for (const version of TESTED_HOSTS) {
-    console.log(`\n[check] host on @opencode/sdk ${version}`)
-    if (version === HOST_DEV_PIN) {
-      const code = run("bun", ["test", "./test/host"])
-      if (code !== 0) return code
-      ran += 1
-      continue
-    }
-    const dir = mkdtempSync(join(realpathSync("/tmp"), `browse-sdk-${version}-`))
-    try {
-      writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "browse-host-sdk", private: true }))
-      const code = run("npm", ["install", `@opencode/sdk@${version}`, "--ignore-scripts", "--no-audit", "--no-fund", "--prefer-offline"], { cwd: dir })
-        || run("bun", ["test", "./test/host"], { env: { HOST_SDK_DIR: dir } })
-      if (code !== 0) return code
-      ran += 1
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  }
-  // R11: every tested release must really run. In CI a gap is a failure; locally the line says which one.
-  if (ran !== TESTED_HOSTS.length) {
-    const message = `[check] host: ${ran} of ${TESTED_HOSTS.length} tested releases ran`
-    if (process.env.CI === "true" || process.env.CI === "1") {
-      console.error(message)
-      return 1
-    }
-    console.log(`${message}; set HOST_SDK_DIR or the network to run them all`)
-  }
-  return 0
+  return run("bun", ["test", "./test/host"])
 }
 
 /** R13: the workflows are linted as workflows, by actionlint when it is installed; a notice when it is not. */

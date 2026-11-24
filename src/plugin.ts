@@ -15,24 +15,11 @@ import { registerDoctorCommand } from "./doctor.js"
 import { ManagedBrowser } from "./managed/browser.js"
 import { formatRelayStop, stopRelaySafely } from "./managed/relay.js"
 import { detectRecording, type RecordingReadiness } from "./recording.js"
-import { ChromeGate, type ChromeAsk } from "./jelly/chrome-gate.js"
-import { browserStatus, changeNotices, extensionFact, noticeAsk, RAISE_CHANGE_NOTICES, registerGate, registerNativeRpc, underJelly, watchSessions, type NativeDeps } from "./jelly/native.js"
-import type { ActionPublicKey } from "./jelly/action-grant.js"
 
 /** Internal seam: tests point the plugin at their own skills and a shorter status timeout. */
 export interface BrowseSeam {
   readonly skillsDir?: string
   readonly statusTimeoutMs?: number
-  /** Whether this engine is jelly's; by default, whether jelly's engine hand-off is present. */
-  readonly jelly?: boolean
-  /** jelly's action key, instead of the one jelly publishes in the engine. */
-  readonly actionKey?: () => ActionPublicKey | undefined
-  /** The per-task ask's time limit. */
-  readonly askTimeoutMs?: number
-  /** jelly's core request, instead of the `jelly.core` RPC, for the ask's notice. */
-  readonly coreRequest?: (input: unknown, options?: { signal?: AbortSignal }) => Promise<unknown>
-  /** Raise the `personal-browser` change notice (B4); by default `RAISE_CHANGE_NOTICES`. */
-  readonly changeNotices?: boolean
 }
 
 /** The package root: `dist/`'s parent when built, the repository when loaded from `src/`. */
@@ -67,7 +54,7 @@ export function owned(command: unknown): boolean {
   if (parts.length !== command.length || parts.at(-1) !== "mcp") return false
   // Our wrapper: [wrapperPath, ("--pinned", sha256)?, binary, "mcp"]; the program is the entry before "mcp".
   const program = parts.at(-2) ?? ""
-  if (parts.some((part) => /[/\\]opencode-browse[/\\]bin[/\\]mcp\.mjs$/.test(part))) return true
+  if (parts.some((part) => /[/\\]browse-plugin[/\\]bin[/\\]mcp\.mjs$/.test(part))) return true
   return /(^|[/\\])browse(\.exe)?$/.test(program) || /[/\\]@opencode[/\\]browse[/\\]dist[/\\]cli\.m?js$/.test(program)
 }
 
@@ -383,40 +370,8 @@ export function createBrowsePlugin(seam: BrowseSeam = {}) {
           },
         }),
       )
-      // The person's Chrome, per task (issue #3): under jelly, in real mode, no browse tool reaches the server for a
-      // session the person has not allowed. Managed mode drives its own Chrome for Testing, not the person's.
-      const jelly = seam.jelly ?? underJelly()
-      const personal = jelly && options.browser === "real"
-      const core = seam.coreRequest ? { request: seam.coreRequest } : ctx.rpc
-      // B4: each change of the read tells jelly to read again, once jelly treats the notice as a signal.
-      let changed = () => undefined as void
-      const gate = new ChromeGate({
-        describe: async (sessionID) => (await ctx.session.get({ sessionID } as never)).title ?? "",
-        ...(jelly ? { asked: (ask: ChromeAsk) => noticeAsk(core, ask) } : {}),
-        changed: () => changed(),
-        ...(seam.askTimeoutMs !== undefined ? { askTimeoutMs: seam.askTimeoutMs } : {}),
-      })
-      let stopWatching = () => undefined as void
-      if (personal) {
-        await registerGate(ctx.tool, gate)
-        stopWatching = watchSessions(ctx.event, gate)
-      }
-      const nativeDeps: NativeDeps = {
-        gate,
-        available: () => personal && binary !== undefined && source?.type !== "conflict",
-        extensionConnected: async () => {
-          const timeout = new Promise<undefined>((resolve) => setTimeout(resolve, 3_000).unref?.())
-          const status = await Promise.race([read(), timeout])
-          return extensionFact(status)
-        },
-        ...(seam.actionKey ? { key: seam.actionKey } : {}),
-      }
-      if (personal && (seam.changeNotices ?? RAISE_CHANGE_NOTICES)) changed = changeNotices(core, () => browserStatus(nativeDeps))
-      await registerNativeRpc(ctx.rpc, nativeDeps)
       const stopTools = await registerToolsRpc(ctx, { plugin: PLUGIN, methods: METHODS, mcp: { server: SERVER_NAME, managed: () => source?.type !== "conflict" } })
       return async () => {
-        gate.dispose()
-        stopWatching()
         await managed?.stop()
         await stopTools()
       }

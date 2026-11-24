@@ -15,35 +15,9 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  workflows:
-    name: workflows
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      # actionlint parses the workflows as workflows, not as YAML. Version 1.7.12 knows the macos-26 runner labels; 1.7.7 does not.
-      - name: actionlint
-        run: |
-          set -euo pipefail
-          version=1.7.12
-          base="https://github.com/rhysd/actionlint/releases/download/v${version}"
-          curl -sSfLO "${base}/actionlint_${version}_linux_amd64.tar.gz"
-          curl -sSfLO "${base}/actionlint_${version}_checksums.txt"
-          grep " actionlint_${version}_linux_amd64.tar.gz$" "actionlint_${version}_checksums.txt" | sha256sum -c -
-          tar xzf "actionlint_${version}_linux_amd64.tar.gz" actionlint
-          ./actionlint -color .github/workflows/ci.yml .github/workflows/release.yml
-  check:
-    name: check (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        # Public GitHub-hosted runners: Linux x64 and arm64, macOS arm64.
-        # A pull request runs the two Linux runners; a push to master, or a run by hand, runs three: macOS arm64 too. macOS
-        # runs on master and for releases only, and the release planner requires that push run with every runner.
-        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-24.04","ubuntu-24.04-arm"]' || '["ubuntu-24.04","ubuntu-24.04-arm","macos-26"]') }}
-    runs-on: ${{ matrix.os }}
+  ci:
+    name: ci
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (vars.CI_RUNNER_PUBLIC || 'ubuntu-24.04') || 'ubuntu-24.04' }}
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -53,12 +27,24 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            src/constants.ts
+          cache-dependency-path: package-lock.json
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.4 # the Bun inside stock OpenCode 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2
+          bun-version: 1.4.4 # the Bun inside stock OpenCode 2.4.1
+      # actionlint parses the workflows as workflows, not as YAML, and `npm run check` runs it when it is installed.
+      # Version 1.7.12 knows the macOS runner labels the release workflow uses; 1.7.7 does not.
+      - name: Install actionlint
+        run: |
+          set -euo pipefail
+          version=1.7.12
+          base="https://github.com/rhysd/actionlint/releases/download/v${version}"
+          curl -sSfLO "${base}/actionlint_${version}_linux_amd64.tar.gz"
+          curl -sSfLO "${base}/actionlint_${version}_checksums.txt"
+          grep " actionlint_${version}_linux_amd64.tar.gz$" "actionlint_${version}_checksums.txt" | sha256sum -c -
+          tar xzf "actionlint_${version}_linux_amd64.tar.gz" actionlint
+          mkdir -p "$RUNNER_TEMP/bin"
+          mv actionlint "$RUNNER_TEMP/bin/actionlint"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - run: npm ci --ignore-scripts
       - name: Fetch and verify this runner's pinned browse binary, for the host and managed tests
         run: npm run bin:ensure

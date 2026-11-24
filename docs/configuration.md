@@ -13,7 +13,7 @@
 | `scope.allowedOrigins` | string[] | `[]` | Hosts or origins the session's tabs may load: `example.com`, `*.example.com`, `https://app.example.com`, `http://localhost:3000`. Empty means no allowlist, browse's own default. |
 | `scope.readOnly` | boolean | `false` | Pin a read-only session, whose input the relay refuses. `execute` then runs without asking. |
 | `verifyBinary` | boolean | `true` | Check the pinned binary's SHA-256 against the pin before running it. |
-| `allowUntestedHost` | boolean | `false` | Run on an OpenCode version outside `>=2.2.3 <2.4.0`, with a warning in status. |
+| `allowUntestedHost` | boolean | `false` | Run on an OpenCode version outside `>=2.4.1 <2.5.0`, with a warning in status. |
 
 An unknown option, a wrong type or an unsafe session name is `OPTIONS_INVALID`: the plugin sets nothing up and status
 shows the problem and the fix.
@@ -54,10 +54,10 @@ Then the MCP entry carries `OPENCODE_BROWSER_SESSION=<id>`, and the rule block b
 
 | Tool | Default profile | Scoped profile |
 | --- | --- | --- |
-| `session_new`, `session_use`, `session_adopt`, `session_delete` | ask | **deny** |
-| `session_allowlist` | ask | **deny** |
-| `execute` | ask | **allow** when `scope.readOnly`, else ask |
-| everything else | as the table in the README | unchanged |
+| `session_new`, `session_use`, `session_adopt`, `session_delete` | the `access` option's effect | **deny** |
+| `session_allowlist` | the `access` option's effect | **deny** |
+| `execute` | the `access` option's effect | **allow** when `scope.readOnly`, else ask |
+| everything else | the `access` option's effect | unchanged |
 
 `/browse-status` compares the live session with the option and says `drifted` when they differ; `/browse-doctor`
 re-applies the scope.
@@ -74,10 +74,9 @@ What that means in practice: `browse_execute` runs page actions with no prompt, 
 content to a path the agent chooses, and `browse_secrets_run` runs a local command with your stored credentials in its
 environment.
 
-`access` restricts it, and the README prints the block for each value: `"all"` (the default) as above,
-`"ask-changes"` (the four reads run, everything else asks, tab cleanup included) and `"read-only"` (the reads run,
-everything else is denied). An agent's own rules and your top-level `permissions` still win, and the names are the 18
-in `src/browse-tools.ts`.
+`access` restricts it: `"all"` (the default) as above, `"ask-changes"` (the four reads run, everything else asks,
+tab cleanup included) and `"read-only"` (the reads run, everything else is denied). `/browse-status` prints the block in
+force. An agent's own rules and your top-level `permissions` still win, and the names are the 18 in `src/browse-tools.ts`.
 
 To turn a capture off for one agent:
 
@@ -112,10 +111,6 @@ Every error is `CODE: What happened. Next step: What to do.` One next step, endi
 | `CHROMIUM_BRANDED` | `chromiumPath` is branded Google Chrome | point it at Chrome for Testing or Chromium |
 | `CHROMIUM_INSTALL_FAILED` | `/browse-install-browser` failed before or during the install | run `/browse-doctor` and fix the first failed check |
 | `EXTENSION_UNVERIFIED` | the bundled extension does not match its pin | reinstall the plugin |
-| `CHROME_NOT_ALLOWED` | under jelly, the person has not allowed their Chrome for this task (not answered in five minutes, the call cancelled, or stopped) | tell the person what the task needs and which sites, then try again: jelly asks them |
-| `CHROME_SCOPE` | under jelly, a session would reach sites the person did not allow for this task | keep to the allowed sites, or start a new task that names the others |
-| `REQUEST_EXPIRED` | under jelly, the person answered a request to use their Chrome that ran out, was answered, or is no longer known (the engine restarted) | ask the agent to try again |
-| `NOT_YOUR_REQUEST` | under jelly, the person answered an id this plugin could never have issued | answer it from the conversation that asked |
 | `UNSUPPORTED_PLATFORM` | no package ships for this OS or architecture | set `path` to your own browse binary |
 | `SERVER_LEGACY` | an `opencode-browser` entry remains | remove it, then restart |
 | `SERVER_NOT_REGISTERED` | the server transform failed | restart OpenCode |

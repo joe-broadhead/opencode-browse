@@ -4,14 +4,14 @@
 
 | OpenCode | Status |
 | --- | --- |
-| tested on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2 | supported |
-| other 2.2 or 2.3 releases | starts; status marks the host untested |
-| outside `>=2.2.3 <2.4.0` | status only, with `HOST_UNTESTED`, unless `allowUntestedHost` is true |
+| tested on 2.4.1 | supported |
+| other 2.4 releases inside the range | starts; status marks the host untested |
+| outside `>=2.4.1 <2.5.0` | status only, with `HOST_UNTESTED`, unless `allowUntestedHost` is true |
 
 ## Reporting a vulnerability
 
 Report privately through GitHub's vulnerability reporting on
-<https://github.com/joe-broadhead/opencode-browse/security/advisories/new>. Do not open a public issue for a
+<https://github.com/we-the-rebel-alliance/browse-plugin/security/advisories/new>. Do not open a public issue for a
 vulnerability. Please include the plugin version, the OpenCode version, the browse version from `/browse-status`, and
 the steps to reproduce.
 
@@ -81,7 +81,7 @@ To restrict it, set the plugin's `access` option: `"ask-changes"` runs the four 
 in `opencode.json` and a saved approval still win, and the tool names are the 18 in `src/browse-tools.ts`. Agents
 without a base allow get no rules: inserting the block there would turn a default deny into an ask.
 
-The four captures and their artifacts: a capture's `outputPath` is usually outside the project, so OpenCode asks for
+The captures and their artifacts: a capture's `outputPath` is usually outside the project, so OpenCode asks for
 `external_directory` on that folder as well as for the capture's own action. Allow it with
 `{ "action": "external_directory", "resource": "/path/to/captures/*", "effect": "allow" }`. A refusal that names
 `external_directory` costs nothing, because nothing was written.

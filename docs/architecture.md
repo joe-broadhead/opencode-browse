@@ -4,7 +4,7 @@ The plugin is a thin layer over the pinned browse binary. OpenCode owns the MCP 
 prompts and Code Mode; browse owns the relay, the extension and the browser. This plugin registers the server at
 runtime, ships the binary, classifies its 18 tools, sets default permission rules, reports status, ships two skills and
 lets scripts call the known tools. It adds no tool of its own, makes no browser call of its own, and never edits a
-config file. Under jelly it gates the person's Chrome per task ([jelly.md](jelly.md)).
+config file.
 
 ## Layout
 
@@ -24,8 +24,7 @@ config file. Under jelly it gates the person's Chrome per task ([jelly.md](jelly
 | `src/doctor.ts` | `/browse-doctor`: the vendor doctor, the binary checks, scope repair |
 | `src/skills.ts` | loading and registering `skills/` |
 | `src/tui.ts` | `/browse` and the palette command "Browse: Status" |
-| `src/jelly/` | jelly's side: the per-task gate on the person's Chrome (`chrome-gate.ts`), the gate on every server tool, the `personal-browser` read, its actions, the Inbox read and the ask's notice (`native.ts`), and the action-grant check (`action-grant.ts`); the read, the request, allow and decline, and the change notice follow jelly's asks B1–B4 (issue #5); see [jelly.md](jelly.md) |
-| `views/browser.html` | the `browser-native` page jelly shows: the state, the request, Allow for this task, Not now and Stop |
+| `src/grant/action-grant.ts` | the action-grant verifier: a signed, single-use grant bound to one action and its exact input |
 | `src/tools-rpc.ts` | Browse's part of the tools RPC; the transport is the source contract package, bundled into `dist/index.js` |
 | `manifest/browse.json` | the pin: version, channel, and each target's tarball URL, SHA-256, size, binary SHA-256 and size |
 | `scripts/pin.mjs` | downloads and verifies the pinned targets into `.cache/bin` |
@@ -35,7 +34,7 @@ config file. Under jelly it gates the person's Chrome per task ([jelly.md](jelly
 ## Setup
 
 1. `parseOptions` validates the options; a bad one is kept for status, never thrown.
-2. `checkHost` compares `ctx.app.version` with `>=2.2.3 <2.4.0`; outside it nothing is set up unless
+2. `checkHost` compares `ctx.app.version` with `>=2.4.1 <2.5.0`; outside it nothing is set up unless
    `allowUntestedHost` is true.
 3. The skills are read from `../skills/`.
 4. `resolveBinary` finds the released binary in the cache (a first-use download runs only at access `all`), verifies its SHA-256 against the pin, and returns it. No
@@ -49,11 +48,9 @@ config file. Under jelly it gates the person's Chrome per task ([jelly.md](jelly
 7. `ctx.agent.transform` inserts the default rules after each agent's base `* * allow`; the scoped profile applies
    when `scope` is set.
 8. With `scope`, `ensureScope` lists, creates or repairs the pinned session with the vendor CLI.
-9. Under jelly, in real mode, `ctx.tool.transform` puts the per-task gate in front of every executor of the browse server and the
-   plugin watches for deleted and archived sessions; the `personal-browser` RPC is registered under the package name.
-10. `ctx.skill.transform`, `/browse-status`, `/browse-doctor`, `/browse-install-browser`, the status RPC and the tools
+9. `ctx.skill.transform`, `/browse-status`, `/browse-doctor`, `/browse-install-browser`, the status RPC and the tools
    RPC are registered.
-11. With `"browser": "managed"`, a `ManagedBrowser` prepares the extension copy, mints a code through `browse pair`,
+10. With `"browser": "managed"`, a `ManagedBrowser` prepares the extension copy, mints a code through `browse pair`,
     writes it for the unpacked extension, launches Chrome for Testing and waits for the relay to report the extension
     connected. It is stopped on dispose. With invalid options or an untested host the plugin still loads: status only,
     with the deny nets in place.
@@ -92,7 +89,7 @@ Transforms are synchronous and never throw: a failure is kept for status and cle
 
 | Fact | Value |
 | --- | --- |
-| Host plugin API | `@opencode/plugin` 2.2.3 (the SDK the lockfile pins) |
+| Host plugin API | `@opencode/plugin` 2.4.1 (the SDK the lockfile pins) |
 | Local MCP server | `Mcp.LocalConfig { type: "local", command, cwd?, environment?, disabled?, codemode?, timeout?, protocol? }` |
 | Tool name | `<server>_<tool>`, so `browse_execute`; Code Mode groups them as `tools.browse.execute(...)` |
 | Permission evaluation | the last matching rule wins, resource `*` for MCP calls; no match asks |
@@ -107,6 +104,6 @@ a failure.
 
 ## The tools RPC
 
-`browse.tools` is the shared v2.1 module, `57377eb3…`, with this plugin's block: all 18 tools as MCP methods, each with
+`browse.tools` is the shared `tools-rpc` module from `@we-the-rebel-alliance/source-contract`, with this plugin's block: all 18 tools as MCP methods, each with
 its class, so a script gets the reads and is refused the rest unless a config rule allows them. `docs/scripting.md`
 lists the methods.

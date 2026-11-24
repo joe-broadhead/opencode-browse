@@ -62,9 +62,6 @@ work there needs the default allow or an explicit allow rule.
 
 Captures write real page content: see the `browse-capture` skill.
 
-In jelly the user allows their Chrome per task: your first call asks and waits (a status read asks for status only, others
-to act), so say why and name `allowedOrigins`. On `CHROME_NOT_ALLOWED` ask, never retry; on `CHROME_SCOPE` keep to the allowed sites.
-
 ## Hand back, never take over
 
 When only a person can proceed — a login, 2FA, a passkey, a captcha, a payment confirmation — call

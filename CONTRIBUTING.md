@@ -3,8 +3,8 @@
 ## Setup
 
 ```sh
-git clone https://github.com/joe-broadhead/opencode-browse.git
-cd opencode-browse
+git clone https://github.com/we-the-rebel-alliance/browse-plugin.git
+cd browse-plugin
 npm ci
 npm run bin:ensure   # fetches and verifies this computer's pinned binary into .cache/bin
 npm run build
@@ -20,7 +20,7 @@ Register the checkout's entry in a throwaway config, or point the plugin at the 
 
 ```json
 {
-  "plugins": [{ "package": "/absolute/path/to/opencode-browse/dist/index.js", "options": { "path": "/absolute/path/to/browse" } }]
+  "plugins": [{ "package": "/absolute/path/to/browse-plugin/dist/index.js", "options": { "path": "/absolute/path/to/browse" } }]
 }
 ```
 
@@ -46,10 +46,10 @@ It runs with a throwaway HOME, XDG dirs and a free port, and stops the relay it 
 | `unit` | `bun test ./test/unit` |
 | `build` | esbuild: two self-contained bundles, no relative imports |
 | `icons` | the family icon contract |
-| `host` | the embedded OpenCode host on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2, against the fake browse |
+| `host` | the embedded OpenCode 2.4.1 host, against the fake browse |
 | `pack` | the tarball, the bundles, the release binary resolution and the tamper refusal |
 | `forbidden` | the list in `AGENTS.md` |
-| `copies` | the shared tools RPC outside its plugin block, the native installer, the jelly kit (`test/support/jelly-kit.ts`) and Jelly's setting rules (`test/support/jelly-settings.ts`) match the copies every plugin carries |
+| `copies` | the native installer and the release kit match the copies every plugin carries |
 | `whitelist` | `package.json` and `dist/` shape |
 | `jelly` | the Jelly declaration against `package.json` |
 | `actionlint` | the two workflows, linted as workflows when `actionlint` is installed |
@@ -73,7 +73,7 @@ node scripts/check-browse-tools.mjs --bin .cache/bin/darwin-arm64/browse
 ```
 
 Classify any new tool in `src/browse-tools.ts`, re-capture `test/fixtures/live-tools.json` with
-`node test/fixtures/capture-tools.mjs`, and update the Jelly section and the docs in the same commit. The capture runs
+`node test/fixtures/capture-tools.mjs`, and update the declaration and the docs in the same commit. The capture runs
 the binary with a fresh `HOME`, `XDG_*` and `TMPDIR`, no installer and no pairing, and kills only its own child.
 
 ## Managed mode's pins
@@ -158,7 +158,7 @@ Before the approval, the workflow:
 - **verifies** on a fresh runner: the commit's identity, one parent on `master`, `package.json` exactly the parent's
   without the lifecycle scripts, only regular files in the allowed paths, no `package.json` under `dist/`, and a second,
   independent build of the parent (its own job) equal to the committed `dist/` byte for byte;
-- **installs** the release commit with `plugin add` on each stock OpenCode host (2.2.3 to 2.2.7, and 2.3.0 to 2.3.2);
+- **installs** the release commit with `plugin add` on the stock OpenCode 2.4.1 host;
 - **packs** the commit before installing anything, keeps that tarball and records its sha256, then runs the pack stage
   against a copy;
 - **runs the conformance kit** on the parent, for a plugin that declares sources (above), and uploads only its report;
@@ -188,7 +188,7 @@ exact `package.json`, the allowed paths and the byte-for-byte rebuild. Never rel
 **A rejected, expired or failed run** leaves nothing behind: the `cleanup` job deletes `release/v<version>` when it points
 at the parent or at that run's commit, and never touches another branch. No tag exists before the approval, so the
 version is not burned: fix `master` and start again. If `cleanup` itself failed, the next run refuses until the branch
-is deleted: `gh api -X DELETE repos/joe-broadhead/opencode-browse/git/refs/heads/release/v<version>`.
+is deleted: `gh api -X DELETE repos/we-the-rebel-alliance/browse-plugin/git/refs/heads/release/v<version>`.
 
 **Resume.** If the run fails after creating the tag and before the Release is complete, start it again with the same `sha`
 and `native_run`. The plan finds the kit's tag on a release commit on that sha with no published Release, and resumes:
@@ -203,8 +203,8 @@ tag, and restores the ruleset exactly as it was.
 
 **Known limit: a `v*` tag pushed by hand.** No ruleset limits who creates a `v*` tag, so anyone with write access can
 push one by hand, pointing at any commit. Such a tag has no published Release, the forward-only check ignores it, and
-Jelly installs only a published Release whose `SHA256SUMS` it verifies. But a user who installs
-`github:joe-broadhead/opencode-browse#v<x>` directly gets whatever that tag points at. Only the release workflow makes
+An app installs only a published Release whose `SHA256SUMS` it verifies. But a user who installs
+`github:we-the-rebel-alliance/browse-plugin#v<x>` directly gets whatever that tag points at. Only the release workflow makes
 release tags; never push one by hand.
 
 The release kit is these files, the same in every plugin: `scripts/release-rules.mjs`, `scripts/release-commit.mjs`,
@@ -216,10 +216,10 @@ pins each of the scripts whole by its sha256, so a plugin whose copy differs fro
 change the kit in every plugin at once, with the new hashes. Do not re-run the older `apply-release-kit.mjs`: it writes
 back the kit that could release only `v0.0.0`.
 
-Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-browse#v<old version>`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-browse#v<version>`.
+Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:we-the-rebel-alliance/browse-plugin#v<old version>`, then add the new tag with `opencode plugin add github:we-the-rebel-alliance/browse-plugin#v<version>`.
 
 Or add the plugin to `opencode.json` instead, with the same spec:
 
 ```json
-{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.5" }] }
+{ "plugins": [{ "package": "github:we-the-rebel-alliance/browse-plugin" }] }
 ```

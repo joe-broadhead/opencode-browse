@@ -104,11 +104,11 @@ export interface Status {
 }
 
 const NOTHING_TO_DO = "Nothing to do."
-const TESTED_TEXT = `${TESTED_HOSTS.slice(0, -1).join(", ")} or ${TESTED_HOSTS.at(-1)}`
+const TESTED_TEXT = TESTED_HOSTS.length === 1 ? TESTED_HOSTS[0]! : `${TESTED_HOSTS.slice(0, -1).join(", ")} or ${TESTED_HOSTS.at(-1)}`
 const LISTED_UNKNOWN = 20
 const SAFE_NAME = /^[a-z][a-z0-9_]{0,63}$/
 const RULES_NOT_ADDED = "RULES_NOT_ADDED:"
-const PLUGIN_NAME = "github:joe-broadhead/opencode-browse#v0.0.5"
+const PLUGIN_NAME = "github:we-the-rebel-alliance/browse-plugin"
 
 const STATE_OF = { connected: "connected", pending: "connecting", failed: "failed", disabled: "disabled", needs_auth: "failed" } as const
 
