@@ -31,6 +31,8 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.4 # the Bun inside stock OpenCode 2.4.1
+          # The public runner's restored Bun cache points at another HOME; install Bun fresh.
+          no-cache: true
       # actionlint parses the workflows as workflows, not as YAML, and `npm run check` runs it when it is installed.
       # Version 1.7.12 knows the macOS runner labels the release workflow uses; 1.7.7 does not.
       - name: Install actionlint
