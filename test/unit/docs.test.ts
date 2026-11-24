@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url"
 import { TESTED_HOSTS } from "../../src/constants.js"
 import { TOOLS } from "../../src/browse-tools.js"
 import { PLUGIN_CODES } from "../../src/constants.js"
-import { defaultRules } from "../../src/permissions.js"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
 const read = (path: string) => readFileSync(join(root, path), "utf8")
@@ -19,27 +18,25 @@ function files(folder: string): string[] {
 const README = read("README.md")
 const CONFIG = read("docs/configuration.md")
 const SCRIPTING = read("docs/scripting.md")
-const JELLY = read("docs/jelly.md")
 const SECURITY = read("SECURITY.md")
 
 const CODES = PLUGIN_CODES
 
 describe("the README", () => {
   test("follows the family order", () => {
-    expect(README.startsWith("# Browse for OpenCode\n")).toBe(true)
+    expect(README.startsWith("# Browse plugin\n")).toBe(true)
     expect(README).toContain("**Unofficial; not affiliated with Anomaly or OpenCode.**")
-    const order = ["## Requirements", "## Install", "## Use", "## Permissions", "## Configure", "## Organisation rollout", "## Troubleshooting", "## Uninstall"]
+    const order = ["## Requirements", "## Install", "## What it does", "## Access", "## Troubleshooting", "## Uninstall"]
     const positions = order.map((heading) => README.indexOf(heading))
     for (const position of positions) expect(position).toBeGreaterThan(-1)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
-    expect(README).toContain("opencode plugin add github:joe-broadhead/opencode-browse#v0.0.5")
-    expect(README).toContain("opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.5")
-    expect(README).toContain("`/etc/opencode/opencode.json` on Linux and `/Library/Application Support/opencode/opencode.json` on")
+    expect(README).toContain("opencode plugin add github:we-the-rebel-alliance/browse-plugin")
+    expect(README).toContain("opencode plugin remove github:we-the-rebel-alliance/browse-plugin")
   })
 
   test("has a row for every code the code raises, and the scripting refusals", () => {
     // The shared tools-RPC module raises its own codes (SESSION_UNKNOWN and the rest); docs/scripting.md lists them.
-    const raised = [...new Set(files("src").filter((path) => path !== "src/host/tools-rpc.ts" && !path.startsWith("src/native/")).flatMap((path) => [...read(path).matchAll(/\b(?:browseError|errorText|fail)\(\s*"([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)"/g)].map((match) => match[1]!)))]
+    const raised = [...new Set(files("src").filter((path) => !path.startsWith("src/native/")).flatMap((path) => [...read(path).matchAll(/\b(?:browseError|errorText|fail)\(\s*"([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)"/g)].map((match) => match[1]!)))]
     expect(raised.length).toBeGreaterThan(10)
     for (const code of raised) expect({ code, row: README.includes(`| \`${code}\``) }).toEqual({ code, row: true })
     for (const code of raised) expect({ code, doc: CONFIG.includes(`| \`${code}\``) }).toEqual({ code, doc: true })
@@ -53,23 +50,11 @@ describe("the README", () => {
     }
   })
 
-  test("prints the generated rules block in full for each access value, exactly as the code makes it", () => {
-    const fence = "```"
-    for (const access of ["all", "ask-changes", "read-only"] as const) {
-      const marker = new RegExp(`<!-- rules:${access} -->\\n${fence}json\\n(\\[[\\s\\S]*?\\])\\n${fence}\\n<!-- /rules:${access} -->`)
-      const block = marker.exec(README)?.[1]
-      expect({ access, found: block !== undefined }).toEqual({ access, found: true })
-      expect({ access, rules: JSON.parse(block!) }).toEqual({ access, rules: defaultRules({ access, scoped: false, readOnly: false }).map((rule) => ({ ...rule })) })
-    }
-  })
-
   test("every \"tested on\" list in the docs is TESTED_HOSTS", () => {
-    const expected = `${TESTED_HOSTS.slice(0, -1).join(", ")} and ${TESTED_HOSTS.at(-1)}`
+    const expected = TESTED_HOSTS.length === 1 ? TESTED_HOSTS[0]! : `${TESTED_HOSTS.slice(0, -1).join(", ")} and ${TESTED_HOSTS.at(-1)}`
     let found = 0
-    // The CHANGELOG's older sections are history: only its newest, Unreleased or the release being prepared, is current.
-    const current = (document: string) => (document === "CHANGELOG.md" ? (/\n## \[[^\]]+\][^\n]*([\s\S]*?)(?=\n## |$)/.exec(read(document))?.[1] ?? "") : read(document))
     for (const document of ["README.md", "AGENTS.md", "SECURITY.md", "docs/configuration.md", "CHANGELOG.md"]) {
-      const text = current(document).replace(/\s+/g, " ")
+      const text = read(document).replace(/\s+/g, " ")
       for (const phrase of ["tested on "]) {
         for (let at = text.indexOf(phrase); at !== -1; at = text.indexOf(phrase, at + 1)) {
           found += 1
@@ -80,11 +65,12 @@ describe("the README", () => {
     expect(found).toBeGreaterThan(2)
   })
 
-  test("names every tool, says every tool is allowed by default, and names the three ways to restrict", () => {
-    for (const tool of TOOLS) expect(README, tool.name).toContain(`browse_${tool.name}`)
+  test("says every tool is allowed by default, names the three ways to restrict, and names the two skills", () => {
     expect(README).toContain("**Every tool is allowed by default.**")
     for (const value of ["\"all\"", "\"ask-changes\"", "\"read-only\""]) expect(README).toContain(value)
-    expect(README).toContain("The three captures run without asking, by default.")
+    expect(README).toContain("browse_execute")
+    expect(README).toContain("skills/browse")
+    expect(README).toContain("browse-capture")
     expect(README).not.toMatch(/owner('s)? (decision|ruling)/i)
     expect(README).toContain("Managed browser (optional)")
     expect(README).toContain("its logins are separate")
@@ -92,7 +78,7 @@ describe("the README", () => {
   })
 
   test("links to repository files absolutely and carries no pre-release text", () => {
-    const links = [...README.matchAll(/\]\((https:\/\/github\.com\/joe-broadhead\/opencode-browse\/blob\/HEAD\/[^)]+)\)/g)]
+    const links = [...README.matchAll(/\]\((https:\/\/github\.com\/we-the-rebel-alliance\/browse-plugin\/blob\/master\/[^)]+)\)/g)]
     expect(links.length).toBeGreaterThan(4)
     for (const phrase of ["not published", "provisional", "private package", "work in progress"]) expect(README.toLowerCase()).not.toContain(phrase)
   })
@@ -123,17 +109,6 @@ describe("the docs", () => {
     expect(SCRIPTING).toContain("browse.tools")
   })
 
-  test("jelly says what a Jelly agent can and cannot do", () => {
-    expect(JELLY).toContain("18 tools")
-    // Every tool is declared allow (the family default): the page says they run at Allowed, and that the person's own
-    // Chrome is still gated per task.
-    expect(JELLY).not.toContain("cannot drive the browser at all unless the person allows `browse_execute`")
-    expect(JELLY).toContain("every tool\nruns without a permission prompt")
-    expect(JELLY).toContain("only\nfor a task they allow")
-    expect(JELLY).toContain("jelly.signIns")
-    expect(JELLY).toContain("opencode.vendor")
-  })
-
   test("security states the same-user, sandbox and capture facts", () => {
     expect(SECURITY).toContain("Same-user processes are trusted")
     expect(SECURITY).toContain("`execute` is not a sandbox")
@@ -144,14 +119,11 @@ describe("the docs", () => {
     expect(SECURITY).toContain("## Permissions")
   })
 
-  test("the changelog is the family's shape", () => {
+  test("the changelog restarts at 0.0.0", () => {
     const changelog = read("CHANGELOG.md")
     expect(changelog.startsWith("# Changelog\n")).toBe(true)
-    // One release heading: the GitHub release's own notes. browse was never on npm, so there is no npm history.
-    expect(changelog).toMatch(/^## \[0\.0\.0\] - \d{4}-\d{2}-\d{2}$/m)
-    // Notes for the next release wait under `## [Unreleased]`, above every release (scripts/changelog.mjs).
-    const unreleased = changelog.indexOf("## [Unreleased]")
-    if (unreleased !== -1) expect(unreleased).toBeLessThan(changelog.indexOf("## [0.0.0]"))
-    expect(changelog).toContain("### Added")
+    const headings = [...changelog.matchAll(/^## (.+)$/gm)].map((match) => match[1]!)
+    expect(headings).toEqual(["0.0.0 (unreleased)"])
+    expect(changelog).toContain("### Changed")
   })
 })

@@ -1,6 +1,6 @@
 // Every fact the plugin keeps about browse's MCP tools: the 18 the server lists at 0.0.15, each with its
 // MCP annotation, its class for the tools RPC, and the default permission effect.
-// The default rules, the tools RPC's table, status's unknown tools, the Jelly declaration and the tests all derive
+// The default rules, the tools RPC's table, status's unknown tools, the package declaration and the tests all derive
 // from this file, so a tool cannot drift between them. Keep it free of runtime imports: scripts/check-browse-tools.mjs
 // and the drift job load it directly.
 //
@@ -8,7 +8,7 @@
 // user restricts it. The `access` option (`all`, `ask-changes`, `read-only`) derives a
 // tighter effect from a tool's class, and scoped mode denies the session tools that could leave its pinned session.
 
-/** What a tool's worst case is, for the tools RPC and a Jelly approval. The rules, not the class, decide a call. */
+/** What a tool's worst case is, for the tools RPC. The rules, not the class, decide a call. */
 export type ToolClass = "read" | "write" | "export" | "destructive"
 
 /** The host's permission effect. */
@@ -239,7 +239,7 @@ export const TOOLS: readonly ToolSpec[] = [
 /** The 18 names, in table order. */
 export const TOOL_NAMES: readonly string[] = TOOLS.map((tool) => tool.name)
 
-/** The exact lookup a rule, the RPC and a Jelly entry use. Unknown names get DEFAULT_UNKNOWN. */
+/** The exact lookup a rule and the RPC use. Unknown names get DEFAULT_UNKNOWN. */
 export function effectOf(name: string): Effect {
   return TOOLS.find((tool) => tool.name === name)?.effect ?? DEFAULT_UNKNOWN
 }

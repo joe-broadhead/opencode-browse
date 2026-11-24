@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { setupView, viewMessage } from "../../src/tui.js"
 import { buildStatus } from "../../src/status.js"
 
-const host = { version: "2.2.4", range: ">=2.2.3 <2.4.0", tested: true }
+const host = { version: "2.4.1", range: ">=2.4.1 <2.5.0", tested: true }
 const binary = { path: "/opt/browse", version: "0.0.14", source: "package" as const, verified: true, tested: true, supported: true, pinned: true, platform: "darwin-arm64" }
 
 describe("the dialog's open and close path", () => {

@@ -2,14 +2,14 @@
 // environment, config, database and project directory all live there, and any fetch that leaves loopback fails the
 // run. The plugin is given the fake browse binary through its `path` option, and a probe plugin loaded after it lends
 // its context to the tests.
-import { HOST_SDK_DIR, RELAY_PORT, ROOT as root } from "./isolate.js"
+import { RELAY_PORT, ROOT as root } from "./isolate.js"
 import { assertIsolatedBrowseEnv, assertNoRelayLeft, stopRelay } from "../support/relays.js"
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import type { OpenCodeClient } from "@opencode/client"
 import { Plugin } from "@opencode/plugin"
-import { createBrowsePlugin, type BrowseSeam } from "../../src/plugin.js"
+import { createBrowsePlugin } from "../../src/plugin.js"
 import { SKILL_NAMES } from "../../src/skills.js"
 import { startFakeBinary, type FakeScenario } from "./fake-browse.js"
 import { pinnedBinary } from "../support/pinned.js"
@@ -23,7 +23,7 @@ type Client = Omit<OpenCodeClient, "plugin"> & {
   readonly close: () => Promise<void>
 }
 
-const SDK = HOST_SDK_DIR ? join(HOST_SDK_DIR, "node_modules", "@opencode", "sdk") : fileURLToPath(new URL("../../node_modules/@opencode/sdk", import.meta.url))
+const SDK = fileURLToPath(new URL("../../node_modules/@opencode/sdk", import.meta.url))
 export const HOST_VERSION = (JSON.parse(readFileSync(join(SDK, "package.json"), "utf8")) as { version: string }).version
 
 const offLoopback: string[] = []
@@ -59,8 +59,6 @@ export interface HostInput {
   readonly model?: boolean
   /** Use the packaged browse binary (the real server) instead of the fake. For managed-mode tests. */
   readonly packagedBinary?: boolean
-  /** The plugin's test seam, such as running as if under jelly. */
-  readonly seam?: Omit<BrowseSeam, "skillsDir" | "statusTimeoutMs">
 }
 
 let hosts = 0
@@ -80,7 +78,7 @@ export async function startHost(input: HostInput = {}) {
   mkdirSync(work, { recursive: true })
   const fake = startFakeBinary(input.fake)
   const model = input.model ? await startFakeModel() : undefined
-  const browse = createBrowsePlugin({ skillsDir, statusTimeoutMs: 5_000, ...(input.seam ?? {}) })
+  const browse = createBrowsePlugin({ skillsDir, statusTimeoutMs: 5_000 })
   const withOptions = Plugin.define({
     id: browse.id,
     setup: (ctx) => browse.setup({ ...ctx, options: { ...(input.packagedBinary ? { path: requirePinned() } : { path: fake.path }), ...(input.options ?? {}) } }),

@@ -1,7 +1,7 @@
-# Browse for OpenCode
+# Browse plugin
 
-Drive your real Chromium browser from OpenCode — your tabs, logins and extensions — through the browse MCP server
-and its extension, with a hand-back for logins, 2FA and payments.
+Drive the user's own signed-in Chromium browser from OpenCode, through the browse MCP server and its extension:
+their tabs, logins and 2FA, with a hand-back for logins, captchas and payments.
 
 **Unofficial; not affiliated with Anomaly or OpenCode.**
 
@@ -9,339 +9,103 @@ browse is a trademark of Anomaly Innovations, Inc.; this unofficial plugin is no
 
 ## Requirements
 
-- OpenCode `>=2.2.3 <2.4.0` (tested on 2.2.3, 2.2.4, 2.2.5, 2.2.6, 2.2.7, 2.3.0, 2.3.1 and 2.3.2).
+- OpenCode `>=2.4.1 <2.5.0` (tested on 2.4.1).
 - macOS (arm64 or x64) or Linux (x64 or arm64, glibc).
 - A Chromium-family browser (Chrome, Edge, Brave, Arc, Helium, Vivaldi, Opera or Chromium).
 - Node.js 22.19 or later, which OpenCode already needs.
 
 The plugin ships the pinned browse binary for your platform, so you do not install browse yourself. The browse
-browser extension is installed from the Chrome Web Store, and you pair it once — or let the plugin run a **managed
-browser** of its own (below) and install nothing.
+browser extension is installed from the Chrome Web Store and paired once — or the plugin runs a **managed browser** of
+its own, with nothing installed in your browser.
 
 ## Install
 
+Install from a release:
+
 ```sh
-opencode plugin add github:joe-broadhead/opencode-browse#v0.0.5
+opencode plugin add github:we-the-rebel-alliance/browse-plugin#v<version>
 ```
 
-The binary is downloaded from this plugin's release on first use, and only at `access: "all"`, the default. Setup downloads it, checks it against its pinned SHA-256, and then registers the server. At `"ask-changes"` or `"read-only"` setup downloads nothing: it names `/browse-install`, which downloads and verifies the binary at any `access` value. Run it, then restart OpenCode, so the server registers.
+The first release on plugin-contract is v0.0.0 (phase 4b).
 
-Restart OpenCode. Then add the extension and pair it:
+The plugin is installed from Git, not npm, and a release install does not update itself: remove the entry and add the
+new release's tag.
 
-Each release has its own tag, and a Git install does not update by itself. To move to a newer release, remove the old entry with `opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.3`, then add the new tag with `opencode plugin add github:joe-broadhead/opencode-browse#v<version>`.
+The binary is downloaded on first use, at `access: "all"` (the default). Setup verifies it against its pinned SHA-256
+and then registers the server. At `"ask-changes"` or `"read-only"` setup downloads nothing: run `/browse-install`, which
+downloads and verifies the binary at any access value, then restart OpenCode.
 
-Or add the plugin to `opencode.json` instead, with the same spec:
-
-```json
-{ "plugins": [{ "package": "github:joe-broadhead/opencode-browse#v0.0.5" }] }
-```
+Restart OpenCode, then pair the extension:
 
 1. Install **browse** from the Chrome Web Store and open its options page.
-2. Ask OpenCode to run `/browse-doctor`; it prints the pairing command and the state of the relay, the extension and
-   the pinned session.
-3. Run the `Pair:` command `/browse-doctor` prints (the plugin's own binary, with the full path), enter the code on
-   the extension's options page, and click **Pair**.
+2. Run `/browse-doctor`; it prints the pairing command and the state of the relay, the extension and the session.
+3. Run the `Pair:` command it prints, enter the code on the extension's options page, and click **Pair**.
 
-There is nothing to sign in to: no account, no OAuth, no `/connect` entry. Pairing is between your browser and the
-relay on your computer.
+There is nothing to sign in to: no account, no OAuth, no `/connect` entry.
+
+## What it does
+
+The plugin registers the pinned browse binary as the local `browse` MCP server, so the model and Code Mode see
+browse's 18 tools under `tools.browse.*` (the direct tools are `browse_status`, `browse_execute` and the rest). It
+classifies every tool, adds its default permission rules to each agent, reports status, and ships two skills
+(`skills/browse` and `skills/browse-capture`):
+
+- **browse** — when to use the user's browser, the session tools, the permission model, hand-back and credentials.
+- **browse-capture** — network captures, recordings and the flight recorder.
+
+Except in managed mode, the plugin never runs a browser itself, never edits a config file, and never runs `browse
+install` or `browse update`. Managed mode starts its own pinned Chromium in its own profile and pairs the extension with
+`browse pair`.
+
+## The pinned binary
+
+`manifest/browse.json` pins one browse release per platform: tarball URL, size, SHA-256 and the extracted binary's
+SHA-256. The release files are built by the `native` workflow and attached to the plugin release. A binary is
+resolved from the installed package's cache, verified against the pin at startup, and the MCP entry (`bin/mcp.mjs`)
+**re-checks the digest at every spawn**. A `path` option uses your own binary instead; it is reported unverified, and
+untested unless it is exactly the pinned version.
 
 ## Managed browser (optional)
 
-Set `"browser": "managed"` and the plugin runs a **separate Chromium** — Chrome for Testing, downloaded on demand —
-with **its own profile** in the plugin's data folder and browse's extension loaded unpacked and paired automatically.
-Nothing is installed in your own browser, and **its logins are separate**: the managed profile starts signed out of
-every site, so a task that needs your accounts belongs in the real browser.
+Set `"browser": "managed"` and the plugin runs a separate Chromium — Chrome for Testing, downloaded on demand — with
+its own profile and browse's extension loaded unpacked and paired automatically. Nothing is installed in your own
+browser, and its logins are separate: the profile starts signed out of every site. Run `/browse-install-browser` to
+download and verify it (about 150–210 MB). `"chromiumPath"` uses a Chromium or Chrome for Testing you already have;
+branded Google Chrome is refused because it will not load a preloaded unpacked extension.
 
-```jsonc
-{ "options": { "browser": "managed", "headless": false } }
-```
+## Access
 
-- Headed by default, so you can watch; `"headless": true` runs it without a window.
-- Run `/browse-install-browser` to download and verify the pinned Chrome for Testing (about 150–210 MB) and start it.
-  The plugin never downloads it on its own, and a digest mismatch is refused.
-- `"chromiumPath": "/path/to/chrome"` uses a Chromium or Chrome for Testing you already have instead; branded Google
-  Chrome is refused, because it will not load a preloaded unpacked extension.
-- The browser stops when the plugin is disposed (a reload or exit); a profile lock left by a crash is cleared on the
-  next start, and a browser a previous run left behind is stopped only when its command line names the executable this
-  plugin launched.
-- Permissions and the scoped profile are unchanged.
+**Every tool is allowed by default.** The plugin inserts, directly after each agent's base `* * allow`, a `browse_*`
+allow and one rule per known tool by exact name (`src/permissions.ts`). That means page actions, the three captures,
+the session tools and `browse_secrets_run` run without a prompt.
 
-## Use
+`access` restricts it:
 
-Ask for browser work the way you would a person:
+- `"all"` (the default): everything runs;
+- `"ask-changes"`: the four reads run (`status`, `session_list`, `secrets_list`, `secrets_status`), everything else
+  asks, tab cleanup included;
+- `"read-only"`: the reads run, everything else is denied.
 
-> Open news.ycombinator.com in my browser and tell me the top story.
+An agent's own rules, your `permissions` in `opencode.json` and a saved approval still win. `/browse-status` prints the
+block in force and names agents that were created after the plugin added its rules. The scoped profile (`scope` in the
+options) denies the session tools that could leave the pinned session and runs `execute` only when the session is
+read-only.
 
-> In my signed-in GitHub, find the pull request that touched `src/auth.ts` last week and summarise its review comments.
+A capture's `outputPath` is usually outside the project, so OpenCode also asks for `external_directory` on that folder.
+Allow it once, or keep captures inside the project. A refusal costs nothing: nothing was written.
 
-> Record a short demo of the checkout flow on staging, saved outside the repo.
+## Commands
 
-The agent opens its own background tabs in a collapsed group, works with Playwright, and hands the tab back when only
-you can continue: a login, 2FA, a passkey, a captcha or a payment. Only a real click on the card's **Continue**, or on
-the toolbar button, resumes the script.
-
-Every page action runs through `browse_execute`, and by default it runs without asking. The reads, tab cleanup and the
-captures do too; the `access` option below is how you restrict any of them.
-
-**The three captures run without asking, by default.** This is a deliberate default; read this before you rely on
-that default:
-
-- `browse_network` captures **authenticated request and response traffic** from your logged-in session, including
-  headers and bodies (credential-bearing fields become references; everything else is in clear). `stop` writes a
-  redacted HAR to a path the agent chooses.
-- `browse_recording` records **the real tab's pixels**, and the tab's **audio** in tab-capture mode, to a path the
-  agent chooses.
-- `browse_flight_recorder` keeps a rolling buffer of **the tab's pixels** in memory, and `save_last` writes a clip to a
-  path the agent chooses.
-
-Stored where the agent writes them, for as long as you keep the file. A recording or a HAR is real page content: write
-it outside the repository, and delete it when you are done.
-
-A capture's `outputPath` is usually outside the project, so OpenCode asks for `external_directory` on that folder as
-well as for the capture's own action. Allow it once to stop the second prompt, or keep the folder inside the project:
-
-```json
-{ "permissions": [{ "action": "external_directory", "resource": "/path/to/captures/*", "effect": "allow" }] }
-```
-
-A refusal that names `external_directory` costs nothing: nothing was written. To make one capture ask, or turn it off,
-in one agent:
-
-```json
-{ "agents": { "build": { "permissions": [
-  { "action": "browse_network", "resource": "*", "effect": "ask" },
-  { "action": "browse_recording", "resource": "*", "effect": "deny" }
-] } } }
-```
-
-A script can start a capture with no model turn and no prompt; `docs/scripting.md` repeats this.
-
-**Recording readiness.** `browse_recording` and `browse_flight_recorder` record an agent-opened tab through CDP, which
-needs `ffmpeg` on PATH. A tab you lend with the toolbar button records through the extension's tab-capture backend and
-needs nothing. `/browse-status`, `/browse-doctor` and the status RPC show both backends; when `ffmpeg` is missing the
-next step is `brew install ffmpeg` (or your package manager's), or lend a tab and record that.
-
-## Permissions
-
-**Every tool is allowed by default.** The plugin adds this block to every agent, directly after the agent's base rule
-that allows everything. `access: "all"` is the default, so this is the block in force:
-
-<!-- rules:all -->
-```json
-[
-  {"action": "browse_*", "resource": "*", "effect": "allow"},
-  {"action": "browse_status", "resource": "*", "effect": "allow"},
-  {"action": "browse_session_list", "resource": "*", "effect": "allow"},
-  {"action": "browse_secrets_list", "resource": "*", "effect": "allow"},
-  {"action": "browse_secrets_status", "resource": "*", "effect": "allow"},
-  {"action": "browse_tabs_cleanup", "resource": "*", "effect": "allow"},
-  {"action": "browse_execute", "resource": "*", "effect": "allow"},
-  {"action": "browse_session_new", "resource": "*", "effect": "allow"},
-  {"action": "browse_session_use", "resource": "*", "effect": "allow"},
-  {"action": "browse_session_adopt", "resource": "*", "effect": "allow"},
-  {"action": "browse_session_reset", "resource": "*", "effect": "allow"},
-  {"action": "browse_session_delete", "resource": "*", "effect": "allow"},
-  {"action": "browse_settings", "resource": "*", "effect": "allow"},
-  {"action": "browse_network", "resource": "*", "effect": "allow"},
-  {"action": "browse_recording", "resource": "*", "effect": "allow"},
-  {"action": "browse_flight_recorder", "resource": "*", "effect": "allow"},
-  {"action": "browse_secrets_run", "resource": "*", "effect": "allow"},
-  {"action": "browse_secrets_refresh", "resource": "*", "effect": "allow"},
-  {"action": "browse_session_allowlist", "resource": "*", "effect": "allow"}
-]
-```
-<!-- /rules:all -->
-
-With `access: "ask-changes"`, the reads still run and everything else asks, tab cleanup included. That is the block for it:
-
-<!-- rules:ask-changes -->
-```json
-[
-  {"action": "browse_*", "resource": "*", "effect": "ask"},
-  {"action": "browse_status", "resource": "*", "effect": "allow"},
-  {"action": "browse_session_list", "resource": "*", "effect": "allow"},
-  {"action": "browse_secrets_list", "resource": "*", "effect": "allow"},
-  {"action": "browse_secrets_status", "resource": "*", "effect": "allow"},
-  {"action": "browse_tabs_cleanup", "resource": "*", "effect": "ask"},
-  {"action": "browse_execute", "resource": "*", "effect": "ask"},
-  {"action": "browse_session_new", "resource": "*", "effect": "ask"},
-  {"action": "browse_session_use", "resource": "*", "effect": "ask"},
-  {"action": "browse_session_adopt", "resource": "*", "effect": "ask"},
-  {"action": "browse_session_reset", "resource": "*", "effect": "ask"},
-  {"action": "browse_session_delete", "resource": "*", "effect": "ask"},
-  {"action": "browse_settings", "resource": "*", "effect": "ask"},
-  {"action": "browse_network", "resource": "*", "effect": "ask"},
-  {"action": "browse_recording", "resource": "*", "effect": "ask"},
-  {"action": "browse_flight_recorder", "resource": "*", "effect": "ask"},
-  {"action": "browse_secrets_run", "resource": "*", "effect": "ask"},
-  {"action": "browse_secrets_refresh", "resource": "*", "effect": "ask"},
-  {"action": "browse_session_allowlist", "resource": "*", "effect": "ask"}
-]
-```
-<!-- /rules:ask-changes -->
-
-With `access: "read-only"`, the reads still run and everything else is denied:
-
-<!-- rules:read-only -->
-```json
-[
-  {"action": "browse_*", "resource": "*", "effect": "deny"},
-  {"action": "browse_status", "resource": "*", "effect": "allow"},
-  {"action": "browse_session_list", "resource": "*", "effect": "allow"},
-  {"action": "browse_secrets_list", "resource": "*", "effect": "allow"},
-  {"action": "browse_secrets_status", "resource": "*", "effect": "allow"},
-  {"action": "browse_tabs_cleanup", "resource": "*", "effect": "deny"},
-  {"action": "browse_execute", "resource": "*", "effect": "deny"},
-  {"action": "browse_session_new", "resource": "*", "effect": "deny"},
-  {"action": "browse_session_use", "resource": "*", "effect": "deny"},
-  {"action": "browse_session_adopt", "resource": "*", "effect": "deny"},
-  {"action": "browse_session_reset", "resource": "*", "effect": "deny"},
-  {"action": "browse_session_delete", "resource": "*", "effect": "deny"},
-  {"action": "browse_settings", "resource": "*", "effect": "deny"},
-  {"action": "browse_network", "resource": "*", "effect": "deny"},
-  {"action": "browse_recording", "resource": "*", "effect": "deny"},
-  {"action": "browse_flight_recorder", "resource": "*", "effect": "deny"},
-  {"action": "browse_secrets_run", "resource": "*", "effect": "deny"},
-  {"action": "browse_secrets_refresh", "resource": "*", "effect": "deny"},
-  {"action": "browse_session_allowlist", "resource": "*", "effect": "deny"}
-]
-```
-<!-- /rules:read-only -->
-
-That means page actions run in your real browser, the three captures run, and `browse_secrets_run` can run a local
-command with your stored credentials — all without a prompt. Nothing is off, and a tool browse adds later runs too.
-
-To restrict, choose one of three:
-
-1. **`access`**, one option for the plugin: `"all"` (the default), `"ask-changes"` (the four reads run, everything else
-   asks) or `"read-only"` (the four reads run, everything else is denied).
-2. **An agent's own rules**, such as a read-only agent:
-   `"permissions": [{ "action": "browse_*", "resource": "*", "effect": "deny" }, { "action": "browse_status", "resource": "*", "effect": "allow" }]`.
-3. **A per-tool rule** in your `opencode.json`: `{ "action": "browse_execute", "resource": "*", "effect": "ask" }`, or
-   `"deny"` to turn one tool off. The tool names are the 18 in
-   [`src/browse-tools.ts`](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/src/browse-tools.ts).
-
-Everything later than these rules still wins: an agent's own stricter rules (Plan and Explore cannot drive the
-browser), your `permissions` in `opencode.json`, and your saved "Always allow" answers.
-
-To keep one agent to one site, or to inspect only, use the scoped profile below: it denies the session tools that
-could leave the pinned session, and `execute` runs only when the session is read-only. That is a restriction you turn
-on, so it stays a deny whatever `access` says.
-
-Agents that exist only in your own config, and agents added by plugins that load later, are created after the plugin
-adds its rules, so Browse tools run there without asking. `/browse-status` names those agents and shows the block for
-the access value in force to put first in each one's own `permissions`. Do not put it in the top-level `permissions`,
-which would loosen Explore.
-
-## Configure
-
-Options go in the plugin entry in `opencode.json`:
-
-```jsonc
-{
-  "plugins": [
-    {
-      "package": "github:joe-broadhead/opencode-browse#v0.0.5",
-      "options": {
-        // Pin the server to one browse session on these sites. Optional.
-        "scope": { "session": "opencode", "allowedOrigins": ["github.com", "*.githubusercontent.com"], "readOnly": false },
-        // Check the pinned binary's SHA-256 before running it. On by default.
-        "verifyBinary": true
-        // Use your own browse binary instead of the pinned one. Reported unverified and untested.
-        // "path": "/Users/you/.local/bin/browse",
-        // Run on an OpenCode version outside the supported range, with a warning in status.
-        // "allowUntestedHost": false
-      }
-    }
-  ]
-}
-```
-
-**Scoped mode.** With `scope` set, the plugin creates (or repairs) that session at setup, pins the MCP server to it
-with `OPENCODE_BROWSER_SESSION`, and adds a stricter rule set: `session_new`, `session_use`, `session_adopt`,
-`session_delete` and `session_allowlist` are denied, so the agent cannot create an unrestricted session or adopt your
-tab. `execute` runs without asking when `readOnly` is true, because the relay refuses all input in a read-only
-session, and asks otherwise. `/browse-doctor` re-applies the scope if the session is deleted or widened.
-
-**Your own binary.** `path` bypasses the release binary. It is reported as unverified (no digest to compare) and
-untested (unless it is exactly the pinned version). A tool it lists that this plugin does not classify follows the `access` option, like every other tool.
-
-[Configuration](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/docs/configuration.md) has worked examples,
-every error code and the status RPC.
-
-## Organisation rollout
-
-A managed or system config pre-sets the options, so members install the plugin and pair a browser. There is no client
-ID or secret to distribute.
-
-```json
-{
-  "plugins": [
-    {
-      "package": "github:joe-broadhead/opencode-browse#v0.0.5",
-      "options": { "scope": { "allowedOrigins": ["*.your-company.com"], "readOnly": true } }
-    }
-  ]
-}
-```
-
-The paths are `/etc/opencode/opencode.json` on Linux and `/Library/Application Support/opencode/opencode.json` on
-macOS.
-
-## Your Chrome in jelly: per task
-
-In [jelly](https://heyjelly.ai) an agent uses the person's own Chrome only **for one task the person allows** — never
-by default, never for good. In real mode, every browse tool waits behind a gate until the person answers:
-
-1. The agent's first browse call in a conversation asks: jelly shows "<agent> wants to use your Chrome for this task",
-   with the task (the conversation's title), the sites (the `allowedOrigins` of a `browse_session_new`, or any
-   site) and the mode: "to check your Chrome's status only; it can't open or read pages" when the call is one of the
-   four status reads (`status`, `session_list`, `secrets_list`, `secrets_status`), "to read and act" otherwise. Until
-   browse has read-only page tools, a status-only grant cannot open or read a page; an act call asks again. It is also a jelly notice and an Inbox item, whatever the agent's access level. Nothing reaches the relay,
-   the extension or the browser meanwhile. Every tool the browse server exposes is gated, classified or not. While a
-   task holds the Chrome, Stop stays offered; a second conversation's ask is allowed from the notice's Inbox item or
-   the plugin's page, and ends as Not now after five minutes.
-2. **Allow for this task** is `browser.allow` for one request, or jelly's Connect (`browser.connect`), and **Not
-   now** is `browser.decline`; each is confirmed every time from an owner device, with a signed single-use grant the
-   plugin checks. The waiting call then runs, and so do the task's later calls.
-3. The grant ends when the agent calls `browse_session_reset` or `browse_session_delete`, when the person presses
-   Stop (`browser.stop`), when the conversation is deleted or archived, after an hour with no browse call, or when
-   the engine stops; a call still running is aborted with it. It lives only in memory: no rule, saved approval or file holds it, and another conversation asks
-   afresh. Under a grant with sites, a new session gets those sites and a wider allowlist is refused (`CHROME_SCOPE`).
-4. No answer in five minutes, or a cancelled turn, is "Not now": the call fails with `CHROME_NOT_ALLOWED`.
-
-Managed mode drives its own Chrome for Testing, not the person's, and is not gated. Outside jelly nothing changes: in
-real mode an agent drives the person's Chrome under OpenCode's own permission rules, which allow every browse tool by
-default (use `access` or your own rules to make them ask). [docs/jelly.md](docs/jelly.md) has the declaration and the contracts.
-
-## Known limits
-
-- **Parallel agents share one browse session.** This plugin pins browse `0.0.15`, whose build predates per-caller sessions
-  (browse commit `f66dce2`). OpenCode does send each agent's session id with every browse call, and the wrapper forwards
-  it, but `0.0.15` uses one current session for all of them: two agents working at the same time share one session and
-  its tab set. Each task must start its own: call `browse_session_new` with a name for the task at the start, pass its id
-  as `session` on later calls, and call `browse_session_delete` when the task is done. `skills/browse/SKILL.md` tells the
-  agent this. browse `0.0.16` keeps a session per caller, and this plugin will re-pin to it when it is released. Until
-  then, `npm run drift` prints `isolates: no`; that line is information, not a failure.
-- The browse binary downloads at setup only at `access: "all"`, because the server registers at setup and cannot ask at a tool call. At `"ask-changes"` or `"read-only"`, run `/browse-install`, then restart OpenCode.
-- **In jelly, a read grant is status only.** browse opens and reads pages only through `execute`, which can also click
-  and type, so a task allowed to read can check your Chrome's status (`status`, `session_list`, `secrets_list`,
-  `secrets_status`) but cannot open or read a page; any other call asks again, to act.
-- **In jelly, `asking` and the change notice wait on jelly.** With no task holding the Chrome, a waiting ask is reported
-  as `not-connected` (or `extension-needed`) until jelly draws `asking`, and the `personal-browser` change signal is
-  built but neither raised nor declared until jelly reads it as a signal. Allow for this task and Not now are on the
-  plugin's page, the notice and the Inbox, not on jelly's own card.
-- **In jelly, a tool browse adds later is not fenced from a read-only helper.** Jelly keeps a read-only helper away
-  only from declared tools not marked read-only; a tool browse adds after this release is not declared, so at Allowed
-  it runs there too, until a release declares it.
-- **Jelly.** The `access` and `browser` settings declare their choices, which only a jelly that includes app#1301
-  reads; an older jelly refuses the plugin's declaration.
-- Updates are not automatic for a Git install, and `opencode plugin update` and `opencode plugin check` do not work on one: to move to a newer release, remove the old entry and add the new tag.
+| Command | Does |
+| --- | --- |
+| `/browse-status` | the binary, relay, extension, scope, tools and one next step |
+| `/browse-doctor` | the vendor doctor, the binary checks and scope repair |
+| `/browse-install` | download and verify the pinned browse binary |
+| `/browse-install-browser` | download and verify Chrome for Testing for managed mode |
+| `/browse-stop-relay` | stop the relay this plugin's binary started |
+| `/browse` | the status dialog |
 
 ## Troubleshooting
-
-`/browse-status` shows the binary, the relay, the extension, the scope, the tools and one next step. `/browse-doctor`
-runs the vendor's own doctor plus this plugin's checks, and repairs the pinned session.
 
 | State or code | What it means | What to do |
 | --- | --- | --- |
@@ -349,7 +113,7 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 | `failed` | the binary does not match its digest, or a needed command failed | `/browse-doctor`, then reinstall |
 | `conflict` | `mcp.servers.browse` in your config is not a browse server | remove or rename that entry, then restart |
 | `disabled` | the `browse` server is disabled in `/mcps` | enable it, or remove `"disabled": true` |
-| `host untested` | OpenCode is outside the supported range | use `>=2.2.3 <2.4.0`, or set `allowUntestedHost` |
+| `host untested` | OpenCode is outside the supported range | use `>=2.4.1 <2.5.0`, or set `allowUntestedHost` |
 | `BINARY_MISSING` | the release binary is not installed yet | run `/browse-install`, then restart OpenCode |
 | `NOT_INSTALLED` | `/browse-stop-relay` has no pinned binary to identify the relay | reinstall the plugin |
 | `BINARY_UNVERIFIED` | the binary does not match its pinned SHA-256 | reinstall; set `verifyBinary: false` only if you trust the file |
@@ -361,16 +125,12 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 | `SCOPE_UNREACHABLE` | the session could not be created (relay down, CLI error) | pair the browser, then `/browse-doctor` |
 | `STATUS_UNAVAILABLE` | `browse status` did not answer | run `browse status` yourself, then press `r` |
 | `RELAY_FAILED` | the relay answered with an error rather than a health report | run `/browse-doctor` |
-| `RELAY_NOT_OURS` | the relay on the port was not started by this plugin's binary (another build, another install) | leave it, or stop it with the browse install that started it |
+| `RELAY_NOT_OURS` | the relay on the port was not started by this plugin's binary | leave it, or stop it with the browse install that started it |
 | `RELAY_STOP_FAILED` | the relay accepted the shutdown request but did not stop | run `/browse-doctor` |
 | `DOCTOR_FAILED` | the vendor doctor exited non-zero | read its checks, fix the first failure |
 | `HOST_UNTESTED` | as `host untested` above | use a supported OpenCode |
 | `OPTIONS_INVALID` | an option failed validation | fix the option the message names |
 | `SKILLS_INVALID` | a bundled skill could not load | reinstall the plugin |
-| Extension not paired | the browser has no key for this relay | run `browse pair`, enter the code on the options page |
-| Relay stopped | nothing has needed the browser yet | ask the agent to open a page, or run `browse status` |
-| Relay still running after OpenCode exits | real mode keeps it, so the browser stays paired (browse's design) | run `/browse-stop-relay`; it stops only the relay this plugin's binary started |
-| Protocol incompatible | the extension and binary are from different releases | update the extension in the browser |
 | `CHROMIUM_MISSING` | managed mode has no browser for this platform or path | run `/browse-install-browser`, or set `chromiumPath` |
 | `CHROMIUM_UNSUPPORTED` | managed mode has no Chrome for Testing build for this platform | set `chromiumPath`, or use the real browser |
 | `CHROMIUM_DOWNLOAD_FAILED` | the Chrome for Testing download failed | check the network, then run `/browse-install-browser` again |
@@ -380,29 +140,25 @@ runs the vendor's own doctor plus this plugin's checks, and repairs the pinned s
 | `CHROMIUM_BRANDED` | `chromiumPath` is branded Google Chrome, which will not load the unpacked extension | point it at Chromium or Chrome for Testing |
 | `CHROMIUM_INSTALL_FAILED` | `/browse-install-browser` failed before or during the install | run `/browse-doctor` and fix the first failed check |
 | `EXTENSION_UNVERIFIED` | the bundled extension does not match its pin | reinstall the plugin |
-| `CHROME_NOT_ALLOWED` | under jelly, the person has not allowed their Chrome for this task (not answered in five minutes, the call cancelled, or stopped) | tell the person what the task needs and which sites, then try again: jelly asks them |
-| `CHROME_SCOPE` | under jelly, a session would reach sites the person did not allow for this task | keep to the allowed sites, or start a new task that names the others |
-| `REQUEST_EXPIRED` | under jelly, the person answered a request to use their Chrome that ran out, was answered, or is no longer known (the engine restarted) | ask the agent to try again |
-| `NOT_YOUR_REQUEST` | under jelly, the person answered an id this plugin could never have issued | answer it from the conversation that asked |
-| Recording needs ffmpeg | an agent-opened tab records through CDP, which needs `ffmpeg` on PATH | `brew install ffmpeg`, or click the toolbar button on a tab and record that |
+| Extension not paired | the browser has no key for this relay | run the `Pair:` command `/browse-doctor` prints |
+| Relay stopped | nothing has needed the browser yet | ask the agent to open a page, or run `browse status` |
+| Recording needs ffmpeg | an agent-opened tab records through CDP, which needs `ffmpeg` on PATH | install `ffmpeg`, or lend a tab and record that |
 
 ## Uninstall
 
 ```sh
-opencode plugin remove github:joe-broadhead/opencode-browse#v0.0.5
+opencode plugin remove github:we-the-rebel-alliance/browse-plugin
 ```
 
 That removes the plugin, its cached binary and its rules; it does not touch your browser. The extension is
 uninstalled from your browser's extensions page. Managed mode's profile and Chrome for Testing are in
-`~/.local/share/opencode-browse/managed` and `~/.cache/opencode-browse`; delete those folders to remove them. If you also ran the vendor's installer in the past, `browse uninstall`
-removes the files it left behind.
+`~/.local/share/opencode-browse/managed` and `~/.cache/opencode-browse`; delete those folders to remove them.
 
 ## Links
 
-- [Architecture](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/docs/architecture.md)
-- [Configuration](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/docs/configuration.md)
-- [Scripts](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/docs/scripting.md)
-- [Jelly](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/docs/jelly.md)
-- [Security](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/SECURITY.md)
-- [Changelog](https://github.com/joe-broadhead/opencode-browse/blob/HEAD/CHANGELOG.md)
+- [Architecture](https://github.com/we-the-rebel-alliance/browse-plugin/blob/master/docs/architecture.md)
+- [Configuration](https://github.com/we-the-rebel-alliance/browse-plugin/blob/master/docs/configuration.md)
+- [Scripts](https://github.com/we-the-rebel-alliance/browse-plugin/blob/master/docs/scripting.md)
+- [Security](https://github.com/we-the-rebel-alliance/browse-plugin/blob/master/SECURITY.md)
+- [Changelog](https://github.com/we-the-rebel-alliance/browse-plugin/blob/master/CHANGELOG.md)
 - [browse](https://github.com/anomalyco/browse), the upstream project

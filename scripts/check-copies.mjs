@@ -2,8 +2,7 @@
 //   node scripts/check-copies.mjs          check the copies this plugin has
 //   node scripts/check-copies.mjs --print  print each copy's hash, after a change made in every plugin at once
 // Each plugin keeps its own copy, because each bundle and each test suite stands alone. The hashes below name the one
-// version all plugins carry: the icon kit's check whole, Jelly's
-// setting rules whole, and the declaration test kit whole. The tools RPC is not a copy
+// version all plugins carry. The tools RPC is not a copy
 // here: it comes from the source contract package, pinned in package-lock.json and bundled into dist/index.js.
 import { createHash } from "node:crypto"
 import { existsSync, readFileSync } from "node:fs"
@@ -12,10 +11,6 @@ import { existsSync, readFileSync } from "node:fs"
 const COPIES = [
   // The release-binary installer, byte-identical across the native plugins (NATIVE-DESIGN.md section 2).
   { path: "src/native/install.ts", optional: false, sha256: "8ce0d8505f7577dc793ad2b279117f1118de404bbfacf08a8bd70b976425159a", part: (text) => text },
-  // The declaration test kit (Jelly's plugin authors' standard), whole.
-  { path: "test/support/jelly-kit.ts", optional: false, sha256: "de4bed563f37e39a596ba50908cac32f596a1d616b068daa327c2942e3f0aed5", part: (text) => text },
-  // Jelly's setting rules, restated without zod (the file's header says what it restates and how to update it).
-  { path: "test/support/jelly-settings.ts", optional: false, sha256: "966aeac7eddce490da51e8e46780f1fbcfaf9b3e892bd62f2c3952c2a6111383", part: (text) => text },
   // The release kit, whole: one version in every plugin (CONTRIBUTING.md, Releasing). Change it in every plugin at once.
   { path: "scripts/attach-native.mjs", optional: false, sha256: "835b12b5d4e95fe87f61a2656f7be0baf8c805299cadff7110a16a6f2b475f8e", part: (text) => text },
   { path: "scripts/capture-tools.mjs", optional: false, sha256: "bf1276b41979c94519f4d42c580ebf8b077b66cb969fa234063a241d0073fa63", part: (text) => text },
@@ -23,13 +18,13 @@ const COPIES = [
   { path: "scripts/check-drift.mjs", optional: false, sha256: "328217e149e6e840facfd6297d8b3d4d2effbbd8ba7f5a1c7dfa6e54f47550a4", part: (text) => text },
   { path: "scripts/check-release-plugin-add.sh", optional: false, sha256: "557fda41255c0b9fd0d3be3e7fc9518fc2cb097cd8fc9766b76fa0b3c3620f89", part: (text) => text },
   { path: "scripts/check-release-shape.mjs", optional: false, sha256: "cca057c01cbbd1c3caead2b769b47fae9037243d3e3e4f322d7dfab02d3b3f46", part: (text) => text },
-  { path: "scripts/drift-kit.test.mjs", optional: false, sha256: "e7246a66dd6d328dd375c825c481c9ebcfa5cd9f84ba87e095a0d1b8fb65fb66", part: (text) => text },
+  { path: "scripts/drift-kit.test.mjs", optional: false, sha256: "f8e937b1c1d2a300ae23a669037aa4de142797d0ef02629321d3cf432d777fc1", part: (text) => text },
   { path: "scripts/jelly-family-block.md", optional: false, sha256: "100a42223681d3d0b06db1abd5f218cb33ea7d4733fb2131151ebf725e637564", part: (text) => text },
   { path: "scripts/native-manifest.mjs", optional: false, sha256: "4dc1025825b2802cc6afc31e597745f89dd1da9a50856ca69b3f3322844ecfc7", part: (text) => text },
   { path: "scripts/publish-release.mjs", optional: false, sha256: "9615e2eaab236a8ba01c133be87a2428d17a5612716a4df05c788ff1be7668a1", part: (text) => text },
   { path: "scripts/release-commit.mjs", optional: false, sha256: "fb08f19a3bf659eeff960944fa4eb53b4cf74f94c4e12e123c2d104185667f44", part: (text) => text },
   { path: "scripts/release-github.mjs", optional: false, sha256: "44b7c768be3fb0e8f0f42f17a47c582df873ae9cf4074449d588692a2b9e2de7", part: (text) => text },
-  { path: "scripts/release-kit.test.mjs", optional: false, sha256: "57ef690684bbe020913db40611c089565513194ef57ac5e30ff7116e6569c411", part: (text) => text },
+  { path: "scripts/release-kit.test.mjs", optional: false, sha256: "8ddaee0635335dfebe98c7e93bbea963e2e3660dcb05164614e92c437b885c8e", part: (text) => text },
   { path: "scripts/release-pack.mjs", optional: false, sha256: "47400eb783dbdcb710efa7073619ac577c044434681113daf782271538cf8e22", part: (text) => text },
   { path: "scripts/release-rules.mjs", optional: false, sha256: "7a9f985fe5ccb3c1c30c6727d6390329b07fdb30d25bf8de5838dcbb36883c63", part: (text) => text },
   { path: "scripts/release-version.mjs", optional: false, sha256: "24c2b5f9caca6f381cbadd069178a4c3522c09a8f7a6acb06ce1b347f1c4994b", part: (text) => text },

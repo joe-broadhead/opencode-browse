@@ -87,15 +87,15 @@ describe("resolution", () => {
     if (options.manifest !== false) {
       writeFileSync(join(root, "manifest", "native.json"), JSON.stringify({
         schema: 1,
-        plugin: "opencode-browse",
-        repository: "joe-broadhead/opencode-browse",
+        plugin: "browse-plugin",
+        repository: "we-the-rebel-alliance/browse-plugin",
         tag: "v0.0.0",
         built: { commit: "0".repeat(40), run: 1, workflow: "native" },
         modules: {
           browse: {
             [key]: {
               name: `browse-${key}.gz`,
-              url: `https://github.com/joe-broadhead/opencode-browse/releases/download/v0.0.0/browse-${key}.gz`,
+              url: `https://github.com/we-the-rebel-alliance/browse-plugin/releases/download/v0.0.0/browse-${key}.gz`,
               bytes: 1,
               sha256: "a".repeat(64),
               executable: { name: "browse", bytes: Buffer.byteLength(binary), sha256: sha(binary) },

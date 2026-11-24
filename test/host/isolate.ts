@@ -6,10 +6,8 @@
 // from a location, and stops at the repository's root, so it never finds the agents or skills of whoever runs the test.
 import { spawnSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, realpathSync } from "node:fs"
-import { join, resolve } from "node:path"
+import { join } from "node:path"
 
-/** A folder whose node_modules holds another @opencode/sdk 2.2 or 2.3 release, such as 2.2.4, to host the suite instead. */
-export const HOST_SDK_DIR = process.env.HOST_SDK_DIR ? resolve(process.env.HOST_SDK_DIR) : undefined
 export const ROOT = realpathSync(mkdtempSync(join(realpathSync("/tmp"), "browse-host-")))
 const init = spawnSync("git", ["init", "--quiet", ROOT], { encoding: "utf8" })
 if (init.status !== 0) throw new Error(`git init ${ROOT} failed: ${init.stderr}`)

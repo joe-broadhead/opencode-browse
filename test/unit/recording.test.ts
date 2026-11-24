@@ -9,7 +9,7 @@ import { buildStatus } from "../../src/status.js"
 const root = realpathSync(mkdtempSync(join(realpathSync("/tmp"), "browse-recording-")))
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 
-const host = { version: "2.2.5", range: ">=2.2.3 <2.4.0", tested: true }
+const host = { version: "2.4.1", range: ">=2.4.1 <2.5.0", tested: true }
 const rules = { access: "all" as const, scoped: false, readOnly: false }
 const binary = { path: "/opt/browse", version: "0.0.15", source: "package" as const, verified: true, tested: true, supported: true, pinned: true, platform: "darwin-arm64" }
 
