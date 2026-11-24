@@ -12,6 +12,8 @@ const root = fileURLToPath(new URL("../..", import.meta.url))
 const work = realpathSync(mkdtempSync(join(realpathSync("/tmp"), "browse-pack-")))
 const tarball = (() => {
   if (process.env.PACK_TARBALL) return process.env.PACK_TARBALL
+  // A checkout with core.fileMode off loses the executable bit; the package's wrapper needs it in the tarball.
+  chmodSync(join(root, "bin", "mcp.mjs"), 0o755)
   const out = execFileSync("npm", ["pack", "--ignore-scripts", "--pack-destination", work], { cwd: root, encoding: "utf8" })
   return join(work, out.trim().split("\n").at(-1)!)
 })()
@@ -86,7 +88,7 @@ describe("the tarball", () => {
     }
     // The MCP wrapper is executable in the tarball: OpenCode spawns the path directly.
     const listing = execFileSync("tar", ["-tvzf", tarball, "package/bin/mcp.mjs"], { encoding: "utf8" })
-    expect(listing.startsWith("-rwxr-xr-x")).toBe(true)
+    expect(listing.trim()).toStartWith("-rwxr-xr-x")
     expect(execFileSync("tar", ["-xzOf", tarball, "package/bin/mcp.mjs"], { encoding: "utf8" }).startsWith("#!/usr/bin/env node")).toBe(true)
   })
 
