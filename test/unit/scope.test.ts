@@ -11,9 +11,9 @@ const base = (): PermissionRule[] => [{ action: "*", resource: "*", effect: "all
 
 
 describe("the scoped profile", () => {
-  test("denies the five session tools that could leave the pinned session", () => {
+  test("denies the six session tools that could leave or sweep the pinned session", () => {
     const rules = scopeRules({ session: "opencode", allowedOrigins: [], readOnly: false })
-    for (const tool of ["session_new", "session_use", "session_adopt", "session_delete", "session_allowlist"]) {
+    for (const tool of ["session_new", "session_use", "session_adopt", "session_delete", "session_allowlist", "tabs_cleanup"]) {
       expect(rules).toContainEqual({ action: `browse_${tool}`, resource: "*", effect: "deny" })
     }
     expect(rules).toContainEqual({ action: "browse_execute", resource: "*", effect: "ask" })
@@ -24,8 +24,14 @@ describe("the scoped profile", () => {
     expect(rules.some((rule) => rule.action === "browse_execute")).toBe(false)
   })
 
-  test("never emits allow: it can only narrow the contract's rules", () => {
+  test("scope narrows, never widens: it emits deny/ask only and never turns a rule into allow", () => {
     for (const readOnly of [true, false]) for (const rule of scopeRules({ session: "opencode", allowedOrigins: [], readOnly })) expect(rule.effect).not.toBe("allow")
+    const rules = base()
+    const generated = rulesFor(manifest as Manifest, "all")
+    const allows = rules.filter((rule) => rule.effect === "allow").length
+    insertScopeRules(rules, generated, scopeRules({ session: "opencode", allowedOrigins: [], readOnly: false }))
+    expect(rules.filter((rule) => rule.effect === "allow")).toHaveLength(allows)
+    expect(rules).toContainEqual({ action: "browse_tabs_cleanup", resource: "*", effect: "deny" })
   })
 })
 

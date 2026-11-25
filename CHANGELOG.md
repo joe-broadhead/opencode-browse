@@ -7,9 +7,9 @@ The first release on plugin-contract v0.
 - A `capabilities` manifest: plugin identity and vendor, the host range `>=2.4.1 <2.5.0` with `2.4.1` tested, the
   options schema, and a `methods` table of 20 entries — `status`, `report`, and the browse server's 18 pass-through
   tools as `mcp:<tool>`, each with its class and `accounts: "none"`.
-- The pinned `browse` MCP server: its binary is resolved from the release, checked against its SHA-256 at startup and
-  at every use, and served through the verifying wrapper `bin/mcp.mjs`. The binary's first-use download runs at
-  `access: "all"`; `/browse-install` downloads it at any level.
+- The pinned `browse` MCP server: its binary is resolved from the committed release manifest `manifest/native.json`,
+  checked against its SHA-256 at startup and at every use, and served through the verifying wrapper `bin/mcp.mjs`. The
+  binary's first-use download runs at `access: "all"`; `/browse-install` downloads it at any level.
 - `status` through the contract's `statusAnswer` (`NO_ACCOUNTS`), and `report`, the diagnostic answer the status dialog
   and `/browse-status` read: binary, relay, extension, scope, managed browser, recording readiness and the next step.
 - One `register` call for the agent tool, Code Mode and the RPC id `browse`; access rules generated from `methods` and

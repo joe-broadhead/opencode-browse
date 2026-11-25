@@ -8,12 +8,12 @@ import type { Manifest } from "@we-the-rebel-alliance/plugin-contract/manifest"
 import { SERVER_NAME } from "./constants.js"
 import type { Options, ScopeOptions } from "./options.js"
 
-/** The session tools that could leave or widen the pinned session. */
-const SESSION_TOOLS = ["session_new", "session_use", "session_adopt", "session_delete", "session_allowlist"] as const
+/** The session tools that could leave or widen the pinned session; `tabs_cleanup` sweeps every session. */
+const SESSION_TOOLS = ["session_new", "session_use", "session_adopt", "session_delete", "session_allowlist", "tabs_cleanup"] as const
 
 const same = (left: PermissionRule, right: PermissionRule) => left.action === right.action && left.resource === right.resource && left.effect === right.effect
 
-/** The narrowing for one scope: the five session tools off, and `execute` asking unless the session refuses input. */
+/** The narrowing for one scope: the six session tools off, and `execute` asking unless the session refuses input. */
 export function scopeRules(scope: ScopeOptions): readonly PermissionRule[] {
   const rules: PermissionRule[] = SESSION_TOOLS.map((tool) => ({ action: toolAction(SERVER_NAME, tool), resource: "*", effect: "deny" }))
   if (!scope.readOnly) rules.push({ action: toolAction(SERVER_NAME, "execute"), resource: "*", effect: "ask" })

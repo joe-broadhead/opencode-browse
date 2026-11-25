@@ -84,7 +84,7 @@ export interface ResolveInput {
   readonly signal?: AbortSignal
 }
 
-/** The folder the installed package is in: this file is src/engine.ts or dist/index.js, one level below it. */
+/** The folder the installed package is in: the bundle is dist/index.js, one level below it. */
 export const packageRootDefault = (): string => join(dirname(fileURLToPath(import.meta.url)), "..")
 
 /** The plugin's cache folder: $XDG_CACHE_HOME/browse-plugin, or ~/Library/Caches/browse-plugin on macOS. */

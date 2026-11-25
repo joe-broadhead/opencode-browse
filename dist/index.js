@@ -21156,7 +21156,7 @@ async function createProvider(ctx, manifest2, parsed) {
 }
 
 // src/scope.ts
-var SESSION_TOOLS = ["session_new", "session_use", "session_adopt", "session_delete", "session_allowlist"];
+var SESSION_TOOLS = ["session_new", "session_use", "session_adopt", "session_delete", "session_allowlist", "tabs_cleanup"];
 var same = (left, right) => left.action === right.action && left.resource === right.resource && left.effect === right.effect;
 function scopeRules(scope2) {
   const rules = SESSION_TOOLS.map((tool) => ({ action: toolAction(SERVER_NAME, tool), resource: "*", effect: "deny" }));

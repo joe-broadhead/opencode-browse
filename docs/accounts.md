@@ -4,7 +4,7 @@ Browse signs in to nothing. It is a local plugin: there is no provider account, 
 `accounts` option.
 
 - The manifest has no `accounts` key, so every method is declared `accounts: "none"` and takes no `account` field. A
-  call that passes one is refused with `INPUT_INVALID`.
+  call that passes one is refused by the RPC envelope with `rpc.invalid_input`.
 - `status` lists no accounts. `NO_ACCOUNTS` is an empty list, never an invented `default`.
 - There is no `probe`: a probe reports a signed-in owner, and browse has none.
 

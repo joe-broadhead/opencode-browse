@@ -3,8 +3,11 @@ name: release
 # Publishes the tag's build. The lead cuts the tag with `npx plugin-kit release <version>` on a master commit CI passed.
 # The `check` job re-runs the full check on that commit with a read-only token; only `publish` holds a write token, so
 # repository and dependency code never runs with one. The release carries the packed tarball, the conformance report and
-# SHA256SUMS. The native browse binary's assets are built by native.yml, and attaching them, the owner's approval and the
-# stock-host `opencode plugin add` check are the release owner's steps.
+# SHA256SUMS. The native browse binary's assets are built by native.yml; the release owner attaches them by name after
+# this job (never a glob or directory; native.json is the committed manifest/native.json):
+#   gh release upload "$TAG" browse-darwin-arm64.gz browse-darwin-x64.gz browse-linux-arm64-gnu.gz \
+#     browse-linux-x64-gnu.gz LICENSE.browse manifest/native.json --repo "$GITHUB_REPOSITORY"
+# The owner's approval and the stock-host `opencode plugin add` check are also the release owner's steps.
 
 on:
   push:

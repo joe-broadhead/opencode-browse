@@ -30,9 +30,9 @@ The 18 browser tools belong to the browse server. To classify a new one, add it 
 The release workflow publishes exactly three assets: the package tarball, `conformance.json` and `SHA256SUMS`. The
 release owner separately attaches the native assets built by `native.yml`, named individually:
 `browse-darwin-arm64.gz`, `browse-darwin-x64.gz`, `browse-linux-arm64-gnu.gz`, `browse-linux-x64-gnu.gz`,
-`LICENSE.browse` and the candidate manifest `native.json`. They are attached because they are the pinned browse
-binaries the plugin verifies against the SHA-256 pins in `manifest/browse.json`; never attach them with a directory or
-wildcard.
+`LICENSE.browse` and the committed `manifest/native.json` (uploaded under its release name `native.json`). They are
+attached because they are the pinned browse binaries the plugin verifies against the SHA-256 pins in
+`manifest/browse.json`; never attach them with a directory or wildcard.
 
 ## A pull request
 

@@ -1,12 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { execFileSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { realpathSync } from "node:fs"
+import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { PINNED_VERSION } from "../../src/constants.js"
 import { resolveBinary } from "../../src/provider/binary.js"
+import { cachePath, readNativeManifest } from "../../src/provider/native.js"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
 const work = realpathSync(mkdtempSync(join(realpathSync("/tmp"), "browse-pack-")))
@@ -18,8 +19,18 @@ const tarball = (() => {
   return join(work, out.trim().split("\n").at(-1)!)
 })()
 
+const unpacked = join(work, "unpacked")
+const packageRoot = join(unpacked, "package")
+const unpack = () => {
+  rmSync(unpacked, { recursive: true, force: true })
+  mkdirSync(unpacked, { recursive: true })
+  execFileSync("tar", ["-xzf", tarball, "-C", unpacked])
+  return packageRoot
+}
+
 beforeAll(() => {
   if (!existsSync(join(root, "dist", "index.js"))) execFileSync("node", ["scripts/build.mjs"], { cwd: root })
+  unpack()
 })
 
 afterAll(() => rmSync(work, { recursive: true, force: true }))
@@ -29,7 +40,7 @@ describe("the tarball", () => {
 
   test("ships the two bundles and the data files, and no source", () => {
     const listed = files()
-    for (const wanted of ["dist/index.js", "dist/tui.js", "bin/mcp.mjs", "managed-extension/manifest.json", "manifest/browse.json", "manifest/extension.json", "manifest/chromium.json", "NOTICE", "vendor/LICENSE.browse", "README.md", "LICENSE", "CHANGELOG.md", "skills/browse/SKILL.md", "skills/browse-capture/SKILL.md", "assets/icon.svg", "assets/icon-128.png", "assets/icon-256.png"]) {
+    for (const wanted of ["dist/index.js", "dist/tui.js", "bin/mcp.mjs", "managed-extension/manifest.json", "manifest/browse.json", "manifest/native.json", "manifest/extension.json", "manifest/chromium.json", "NOTICE", "vendor/LICENSE.browse", "README.md", "LICENSE", "CHANGELOG.md", "skills/browse/SKILL.md", "skills/browse-capture/SKILL.md", "assets/icon.svg", "assets/icon-128.png", "assets/icon-256.png"]) {
       expect(listed, wanted).toContain(wanted)
     }
     const notice = execFileSync("tar", ["-xzOf", tarball, "package/NOTICE"], { encoding: "utf8" })
@@ -49,6 +60,7 @@ describe("the tarball", () => {
     expect(notice).not.toContain("not complete for that component")
     expect(notice).not.toContain("Required upstream material")
     expect(notice).not.toContain("No other third-party code is bundled.")
+    expect(notice).not.toContain("@we-the-rebel-alliance/source-contract")
     // The manifest key is public, but the NOTICE describes its addition without printing it.
     expect(notice).not.toMatch(/MIIB[A-Za-z0-9+/]{20,}/)
     const licence = execFileSync("tar", ["-xzOf", tarball, "package/vendor/LICENSE.browse"], { encoding: "utf8" })
@@ -106,47 +118,42 @@ describe("the tarball", () => {
       expect(target.bytes).toBeGreaterThan(0)
     }
   })
+
+  test("the release manifest covers every platform and pins the upstream binaries", () => {
+    const native = JSON.parse(execFileSync("tar", ["-xzOf", tarball, "package/manifest/native.json"], { encoding: "utf8" }))
+    const pin = JSON.parse(execFileSync("tar", ["-xzOf", tarball, "package/manifest/browse.json"], { encoding: "utf8" }))
+    expect(native.repository).toBe("we-the-rebel-alliance/browse-plugin")
+    expect(native.tag).toBe("v0.0.0")
+    expect(Object.keys(native.modules.browse).sort()).toEqual(["darwin-arm64", "darwin-x64", "linux-arm64-gnu", "linux-x64-gnu"])
+    for (const [platform, entry] of Object.entries(native.modules.browse) as [string, { executable: { sha256: string; bytes: number } }][]) {
+      expect(entry.executable.sha256).toBe(pin.targets[platform].sha256)
+      expect(entry.executable.bytes).toBe(pin.targets[platform].bytes)
+    }
+  })
 })
 
 describe("the released binary", () => {
   const key = process.platform === "darwin" ? (process.arch === "arm64" ? "darwin-arm64" : "darwin-x64") : process.arch === "arm64" ? "linux-arm64-gnu" : "linux-x64-gnu"
-  const binary = "fake-browse-binary-for-pack-test"
-  const sha = (bytes: string) => createHash("sha256").update(bytes).digest("hex")
+  const cacheRoot = join(work, "cache")
 
-  /** A package root with the upstream pin and a release manifest for this platform, and the released binary cached. */
-  const install = (pinned: string) => {
-    const packageRoot = join(work, "release")
-    rmSync(packageRoot, { recursive: true, force: true })
-    mkdirSync(join(packageRoot, "manifest"), { recursive: true })
-    writeFileSync(join(packageRoot, "manifest", "browse.json"), JSON.stringify({ version: PINNED_VERSION, upstream: "https://github.com/anomalyco/browse", licence: "MIT", targets: { [key]: { target: "test", sha256: pinned, bytes: binary.length } } }))
-    writeFileSync(
-      join(packageRoot, "manifest", "native.json"),
-      JSON.stringify({
-        schema: 1,
-        plugin: "browse-plugin",
-        repository: "we-the-rebel-alliance/browse-plugin",
-        tag: "v0.0.0",
-        built: { commit: "0".repeat(40), run: 1, workflow: "native" },
-        modules: { browse: { [key]: { name: `browse-${key}.gz`, url: `https://github.com/we-the-rebel-alliance/browse-plugin/releases/download/v0.0.0/browse-${key}.gz`, bytes: 1, sha256: "a".repeat(64), executable: { name: "browse", bytes: binary.length, sha256: sha(binary) } } } },
-      }),
-    )
-    const cached = join(packageRoot, "cache", "native", "v0.0.0", "browse", key, "browse")
-    mkdirSync(join(cached, ".."), { recursive: true })
-    writeFileSync(cached, binary)
+  test("the packed install's manifest resolves this platform's released binary", async () => {
+    const manifest = await readNativeManifest(packageRoot)
+    expect(manifest).toBeDefined()
+    const cached = cachePath({ manifest: manifest!, module: "browse", key, cacheRoot, installCommand: "/browse-install" })
+    mkdirSync(dirname(cached), { recursive: true })
+    writeFileSync(cached, "fake-browse-binary-for-pack-test")
     chmodSync(cached, 0o755)
-    return packageRoot
-  }
-
-  test("resolves the cached release binary and verifies it against the pin", async () => {
-    const packageRoot = install(sha(binary))
-    const info = await resolveBinary({ packageRoot, cacheRoot: join(packageRoot, "cache") })
-    expect(info).toMatchObject({ source: "package", version: PINNED_VERSION, verified: true, tested: true })
-    expect(statSync(info.path).size).toBe(binary.length)
+    const info = await resolveBinary({ packageRoot, cacheRoot, verify: false })
+    expect(info).toMatchObject({ source: "package", version: PINNED_VERSION, pinned: true, tested: true })
+    expect(info.path).toBe(cached)
   })
 
-  test("refuses a release whose manifest does not pin the upstream binary, before anything runs", async () => {
-    const packageRoot = install("0".repeat(64))
-    await expect(resolveBinary({ packageRoot, cacheRoot: join(packageRoot, "cache") })).rejects.toMatchObject({ code: "BINARY_UNVERIFIED" })
+  test("a packed install without manifest/native.json is refused", async () => {
+    const copy = join(work, "no-native")
+    cpSync(packageRoot, copy, { recursive: true })
+    rmSync(join(copy, "manifest", "native.json"))
+    expect(await readNativeManifest(copy)).toBeUndefined()
+    await expect(resolveBinary({ packageRoot: copy, cacheRoot, verify: false })).rejects.toMatchObject({ code: "BINARY_MISSING" })
   })
 
   test("the pin records this platform's digest and size, and the cached bytes match it", () => {

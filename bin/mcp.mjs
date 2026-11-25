@@ -5,7 +5,7 @@
 //
 //   <node> bin/mcp.mjs [--pinned <sha256>] <binary> mcp
 //
-// The released binary is downloaded on first use and cached (src/engine.ts); the plugin passes its pinned SHA-256 here.
+// The released binary is downloaded on first use and cached (src/provider/native.ts); the plugin passes its pinned SHA-256 here.
 // A binary the user named with the `path` option is passed without `--pinned` and runs as given (status reports it
 // unverified). A digest that does not match prints BINARY_UNVERIFIED and exits 78 before any browser code runs.
 import { createHash } from "node:crypto"

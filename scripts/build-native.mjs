@@ -105,7 +105,9 @@ export async function ensureBinary(platform) {
 export async function buildRelease(dir, { tag, repository, commit, run }) {
   mkdirSync(dir, { recursive: true })
   const modules = { [MODULE]: {} }
-  for (const [platform, target] of Object.entries(pin.targets)) {
+  // Sorted platforms and a no-name, zero-mtime gzip (Node writes the same header as `gzip -n`) make the release files
+  // and the candidate manifest byte-identical across runs, so the committed manifest matches native.yml's.
+  for (const [platform, target] of Object.entries(pin.targets).sort(([left], [right]) => left.localeCompare(right))) {
     const binary = await ensureBinary(platform)
     const bytes = readFileSync(binary)
     const gz = gzipSync(bytes, { level: 9 })
