@@ -3,7 +3,7 @@ import { createHash } from "node:crypto"
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { parseJsonOutput, parseStatus, parseVersion, platformKey, resolveBinary, verifyBinaryNow } from "../../src/engine.js"
+import { parseJsonOutput, parseStatus, parseVersion, platformKey, resolveBinary, verifyBinaryNow } from "../../src/provider/binary.js"
 
 describe("platform mapping", () => {
   test("names the four packages", () => {

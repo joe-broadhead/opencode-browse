@@ -1,26 +1,28 @@
-# Changelog
+# CHANGELOG
 
-All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project uses [Semantic Versioning](https://semver.org/).
+## [0.0.0]
 
-## 0.0.0 (unreleased)
-
-### Changed
-
-- The plugin is rebuilt under the new name `@we-the-rebel-alliance/browse-plugin`, at version `0.0.0`, with every
-  repository link and install line pointing at `we-the-rebel-alliance/browse-plugin`.
-- OpenCode `>=2.4.1 <2.5.0`, tested on 2.4.1 only: `@opencode/client`, `@opencode/plugin` and `@opencode/sdk` are
-  exact `2.4.1` devDependencies, and the test matrix for older hosts is gone.
-- The `browse` namespace line is the short fixed-context text: the user's own signed-in browser, the browse skill
-  first, `tools.browse.execute({ code })`, a hand-back for logins and payments, and what browse is not for.
-
-### Removed
-
-- The Jelly-only surface: the per-task personal-Chrome gate, the `browser.status` / `browser.ask` / `browser.inbox` RPC,
-  the `browser.connect` / `allow` / `decline` / `stop` actions, the `browser-native` view, `nativeData`, the inbox, the
-  notices and their tests and docs. The action-grant verifier stays in `src/grant/action-grant.ts`.
-- The Jelly-only error codes `CHROME_NOT_ALLOWED`, `CHROME_SCOPE`, `REQUEST_EXPIRED` and `NOT_YOUR_REQUEST`.
+The first release on plugin-contract v0.
 
 ### Added
 
-- The first release is `0.0.0`, unreleased.
+- A `capabilities` manifest: plugin identity and vendor, the host range `>=2.4.1 <2.5.0`, the options schema, and a
+  `methods` table that classifies all 18 browser tools plus the plugin's own `status` and `report`.
+- `status`, the contract's short answer (host range, state, empty account list, next step), and `report`, the
+  diagnostic answer the status dialog and `/browse-status` show.
+- A generated `docs/` set and two skills, written for v0.
+
+### Changed
+
+- The plugin is one `contract.register` call: the tools, the RPC id `browse` and the access rules come from the
+  contract. The RPC id was `browse.tools`.
+- Access rules come from the contract's `access` module; the `scope` option only narrows them.
+- The plugin's entry is `./server` (`dist/index.js`), with `./tui` for the dialog.
+
+### Removed
+
+- The copied tools-RPC transport and its `browse.tools` RPC id.
+- The copied action-grant verifier: the contract's `grant` module replaces it, and browse has no action that needs one.
+- The copied release, drift, copies, icons, forbidden, tested-hosts, capture-tools and changelog scripts; `plugin-kit`
+  provides them.
+- The legacy app key, the `sources` key and the `opencode` key in `package.json`.

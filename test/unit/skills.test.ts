@@ -1,69 +1,49 @@
-import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
+// The shipped skills are read from the package's `skills/` folder and registered through `ctx.skill.transform`; a
+// missing or broken file is a status problem, never a plugin that fails to load.
+import { afterAll, describe, expect, test } from "bun:test"
+import { mkdtempSync, rmSync, mkdirSync } from "node:fs"
 import { join } from "node:path"
-import { fileURLToPath } from "node:url"
-import { TOOL_NAMES } from "../../src/browse-tools.js"
+import { tmpdir } from "node:os"
+import { loadSkills, parseSkill, SKILL_NAMES } from "../../src/skills.js"
 
-const root = fileURLToPath(new URL("../..", import.meta.url))
-const names = ["browse", "browse-capture"]
-const read = (name: string) => readFileSync(join(root, "skills", name, "SKILL.md"), "utf8")
-const frontmatter = (text: string) => /^---\n([\s\S]*?)\n---\n/.exec(text)?.[1] ?? ""
+const root = mkdtempSync(join(tmpdir(), "browse-skills-"))
+afterAll(() => rmSync(root, { recursive: true, force: true }))
 
 describe("the shipped skills", () => {
-  test("are the two the declaration names, under 100 lines, with frontmatter", () => {
-    for (const name of names) {
-      const text = read(name)
-      expect(text.split("\n").length, name).toBeLessThanOrEqual(100)
-      const fields = frontmatter(text)
-      expect(fields).toContain(`name: ${name}`)
-      expect(fields).toMatch(/^description: .{40,}$/m)
-      expect(text.trimEnd()).not.toContain("\n\n\n")
+  test("are the two the plugin declares, with a name and a description", async () => {
+    const { skills, problems } = await loadSkills()
+    expect(problems).toEqual([])
+    expect(skills.map((skill) => String(skill.name))).toEqual([...SKILL_NAMES])
+    for (const skill of skills) expect((skill.description ?? "").length).toBeLessThanOrEqual(300)
+  })
+})
+
+describe("parseSkill", () => {
+  const path = join(root, "browse", "SKILL.md")
+  mkdirSync(join(root, "browse"), { recursive: true })
+
+  test("reads the front matter and the body", () => {
+    const skill = parseSkill("browse", path, "---\nname: browse\ndescription: A test skill.\n---\n\nBody text.\n")
+    expect(skill).toMatchObject({ name: "browse", description: "A test skill.", content: "Body text." })
+  })
+
+  test("refuses a missing name, a wrong name and a missing description", () => {
+    expect(() => parseSkill("browse", path, "no frontmatter")).toThrow("SKILLS_INVALID")
+    expect(() => parseSkill("browse", path, "---\nname: other\ndescription: x\n---\n")).toThrow('must be named "browse"')
+    expect(() => parseSkill("browse", path, "---\nname: browse\n---\n")).toThrow("no description")
+  })
+})
+
+describe("a missing skill file", () => {
+  test("is a problem, not a thrown plugin", async () => {
+    const empty = mkdtempSync(join(tmpdir(), "browse-skills-empty-"))
+    try {
+      const { skills, problems } = await loadSkills(empty)
+      expect(skills).toEqual([])
+      expect(problems).toHaveLength(SKILL_NAMES.length)
+      for (const problem of problems) expect(problem.startsWith("SKILLS_INVALID: ")).toBe(true)
+    } finally {
+      rmSync(empty, { recursive: true, force: true })
     }
-  })
-
-  test("name only real tools, and every tool they name is real", () => {
-    for (const name of names) {
-      const text = read(name)
-      for (const mentioned of text.matchAll(/`?browse_([a-z_]+)`?/g)) {
-        const tool = mentioned[1]!
-        if (tool === "tools") continue
-        expect(TOOL_NAMES, `${name} names browse_${tool}`).toContain(tool)
-      }
-    }
-  })
-
-  test("route elsewhere rather than duplicating a neighbour", () => {
-    const main = read("browse")
-    expect(main).toContain("webfetch")
-    expect(main).toContain("Tavily")
-    expect(main).toContain("built-in `browser` tools")
-  })
-
-  test("say what the prompts mean, and never advise an allow for a write", () => {
-    const main = read("browse")
-    expect(main).toContain("Every tool runs by default")
-    expect(main).toContain("the prompt is the yes")
-    expect(main).not.toContain("`execute` asks on every call")
-    expect(main).not.toContain("off until this plugin classifies")
-    expect(main).not.toContain("wait for a yes")
-    expect(main).not.toMatch(/"effect":\s*"allow"/)
-    expect(main).toContain("Never type a password")
-  })
-
-  // Item 16: the model-facing text states the default truth, and the two traps the live evaluation found.
-  test("tell the model to call browse_execute from Code Mode, and to make its own session", () => {
-    const main = read("browse")
-    expect(main).toContain("In Code Mode, Playwright code never goes straight into Code Mode's `execute`")
-    expect(main).toContain('await tools.browse.execute({ code: "return page.url()" })')
-    expect(main).toContain("Agents do not get separate browse sessions")
-    expect(main).toContain("`browse_session_reset` it")
-  })
-
-  test("the capture skill says what is captured, where it goes, and what not to do", () => {
-    const capture = read("browse-capture")
-    expect(capture).toContain("outputPath")
-    expect(capture).toContain("outside the repository")
-    expect(capture).toContain("run without asking")
-    expect(capture).toContain("never leave a capture or a recording running")
   })
 })

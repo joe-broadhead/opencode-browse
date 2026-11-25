@@ -6,7 +6,7 @@ import { join } from "node:path"
 import { realpathSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { PINNED_VERSION } from "../../src/constants.js"
-import { resolveBinary } from "../../src/engine.js"
+import { resolveBinary } from "../../src/provider/binary.js"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
 const work = realpathSync(mkdtempSync(join(realpathSync("/tmp"), "browse-pack-")))

@@ -2,7 +2,7 @@ import { Plugin } from "@opencode/plugin/tui"
 import { shortReason } from "./redact.js"
 import { createSignal } from "solid-js"
 import { errorText, SERVER_NAME } from "./constants.js"
-import { formatStatus, StatusRpc, type Status } from "./status.js"
+import { formatReport, ReportRpc, type Report } from "./report.js"
 
 const TUI_ID = "browse.tui"
 const TITLE = "Browse status"
@@ -11,12 +11,12 @@ const KEYS = "r refresh · esc close"
 type Context = Plugin.Context
 
 /** The view's text: the /browse-status report without its heading, which the dialog title carries, and the keys. */
-export function viewMessage(result: { readonly status: Status } | { readonly error: unknown }) {
+export function viewMessage(result: { readonly status: Report } | { readonly error: unknown }) {
   return `${reportOf(result)}\n\n${KEYS}`
 }
 
-function reportOf(result: { readonly status: Status } | { readonly error: unknown }) {
-  if ("status" in result) return formatStatus(result.status).split("\n").slice(1).join("\n")
+function reportOf(result: { readonly status: Report } | { readonly error: unknown }) {
+  if ("status" in result) return formatReport(result.status).split("\n").slice(1).join("\n")
   const { error } = result
   const type = typeof error === "object" && error !== null && "type" in error ? error.type : undefined
   // The server part could not read the status; it says why and what to do.
@@ -59,10 +59,6 @@ export function setupView(context: ViewContext) {
       // Status events can be missed while the TUI is reconnecting.
       context.data.on("server.connected", refresh),
       context.data.on("agent.updated", refresh),
-      // Signing in, out or switching accounts changes the account and the sign-in state.
-      context.data.on("integration.updated", refresh),
-      context.data.on("credential.updated", refresh),
-      context.data.on("credential.switched", refresh),
     ]
   }
   // The refresh key is live only while the view is open, so `r` never reaches it from anywhere else.
@@ -73,10 +69,10 @@ export function setupView(context: ViewContext) {
     const request = ++latest
     const location = context.location
     const result = await context.client
-      .rpc(StatusRpc)
-      .status({}, location ? { location } : {})
+      .rpc(ReportRpc)
+      .report({}, location ? { location } : {})
       // The host validates the output against the contract's schema before it answers.
-      .then((status) => ({ status: status as Status }), (error: unknown) => ({ error }))
+      .then((status) => ({ status: status as Report }), (error: unknown) => ({ error }))
     // The newest request wins, and a refresh never reopens a view the user closed meanwhile.
     if (request !== latest || (refresh && open === undefined)) return
     open = request

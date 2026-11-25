@@ -1,12 +1,12 @@
 import { readFile } from "node:fs/promises"
 import { join } from "node:path"
-import { fileURLToPath } from "node:url"
 import { Skill, type Plugin } from "@opencode/plugin"
 import { errorText, browseError } from "./constants.js"
+import { packageRoot } from "./package.js"
 import { reasonOf } from "./redact.js"
 
 /** `skills/` at the package root, next to `dist/` (and next to `src/` in the repository). */
-export const SKILLS_DIR = fileURLToPath(new URL("../skills/", import.meta.url))
+export const SKILLS_DIR = join(packageRoot, "skills")
 
 /** The skills the plugin ships: the main one and the one for captures. */
 export const SKILL_NAMES: readonly string[] = ["browse", "browse-capture"]
@@ -14,7 +14,11 @@ export const SKILL_NAMES: readonly string[] = ["browse", "browse-capture"]
 const notLoaded = (name: string, problem: string) => `The "${name}" skill was not loaded: skills/${name}/SKILL.md ${problem}.`
 const REINSTALL = "Reinstall the plugin."
 
-/** Parses `---` frontmatter with `name` and `description`; the body after it is the skill's content. */
+/**
+ * Parses `---` frontmatter with `name` and `description`; the body after it is the skill's content. OpenCode 2.4.1
+ * loads skills a plugin registers through `ctx.skill.transform`; it does not scan a plugin package's `skills/` folder,
+ * so the files are read here and registered in setup.
+ */
 export function parseSkill(name: string, path: string, text: string): Skill.Info {
   const fail = (problem: string) => browseError("SKILLS_INVALID", notLoaded(name, problem), REINSTALL)
   const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(text.replace(/\r\n/g, "\n"))
@@ -30,7 +34,7 @@ export function parseSkill(name: string, path: string, text: string): Skill.Info
 
 /**
  * Reads the skills before the synchronous transform needs them. A missing or broken skill file does not stop the
- * plugin, because the server and the permission rules still work; it is reported as a problem in status instead.
+ * plugin, because the server and the access rules still work; it is reported as a problem in status instead.
  */
 export async function loadSkills(directory = SKILLS_DIR) {
   const skills: Skill.Info[] = []

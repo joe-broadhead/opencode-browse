@@ -43,8 +43,8 @@ jobs:
       - name: Build the release files for every platform
         run: node scripts/build-native.mjs --release "$RUNNER_TEMP/native" --tag "v$(node -p 'require("./package.json").version')" --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" --run "$GITHUB_RUN_ID"
 
-      # The licence file is attested with the executables: the release job's attach-native.mjs verifies an attestation for
-      # every file it attaches, licences included.
+      # The licence file is attested with the executables, so the release owner can verify an attestation for every
+      # file the release attaches, licences included.
       - name: Attest the executables and the licence file
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
