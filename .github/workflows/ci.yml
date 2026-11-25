@@ -37,12 +37,15 @@ jobs:
         # The contract is a public repository, and an older lock records its GitHub dependency over ssh; a runner has no key.
         run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
       - run: npm ci --ignore-scripts
+      # dist/ is committed: a source change without a rebundle fails here, before the rest of the gate.
+      - name: The committed dist/ is current
+        run: npm run bundle && git diff --exit-code -- dist
       # The plugin's own host and pack tests run the real server: fetch and verify this runner's pinned binary.
       - name: Fetch and verify this runner's pinned browse binary
         run: npm run bin:ensure
       # Some self-hosted runners check out with core.fileMode off; the packaged wrapper must stay executable.
       - name: Restore the MCP wrapper's executable bit
         run: chmod +x bin/mcp.mjs
-      # The plugin's own typecheck, build, unit and pack tests, then plugin-kit check (conformance T0/T1, docs drift,
+      # The plugin's own typecheck, bundle, unit and pack tests, then plugin-kit check (conformance T0/T1, docs drift,
       # forbidden patterns, no bundled kit).
       - run: npm run check
