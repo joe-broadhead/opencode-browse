@@ -11,7 +11,7 @@ fresh `npm ci` needs no SSH key.
 
 ```sh
 npm ci --ignore-scripts
-npm run check          # typecheck, bundle, unit, pack, plugin-kit check, docs --check
+npm run check          # typecheck, bundle, unit, pack, skills host, plugin-kit check, docs --check
 npm run bin:ensure     # fetches and verifies the pinned binary, for the host and managed suites
 npm run test:host      # the plugin in a real OpenCode 2.4.1 host (slow)
 ```

@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises"
+import { readdir, readFile } from "node:fs/promises"
 import { join } from "node:path"
 import { Skill, type Plugin } from "@opencode/plugin"
 import { errorText, browseError } from "./constants.js"
@@ -7,9 +7,6 @@ import { reasonOf } from "./redact.js"
 
 /** `skills/` at the package root, next to `dist/` (and next to `src/` in the repository). */
 export const SKILLS_DIR = join(packageRoot, "skills")
-
-/** The skills the plugin ships: the main one and the one for captures. */
-export const SKILL_NAMES: readonly string[] = ["browse", "browse-capture"]
 
 const notLoaded = (name: string, problem: string) => `The "${name}" skill was not loaded: skills/${name}/SKILL.md ${problem}.`
 const REINSTALL = "Reinstall the plugin."
@@ -29,17 +26,31 @@ export function parseSkill(name: string, path: string, text: string): Skill.Info
   if (fields.get("name") !== name) throw fail(`must be named "${name}" in its frontmatter`)
   const description = fields.get("description")
   if (!description) throw fail("has no description")
-  return { id: Skill.ID.make(name), name: Skill.Name.make(name), description, path: Skill.Info.fields.path.make(path), content: match[2]!.trim() }
+  const content = match[2]!.trim()
+  if (content === "") throw fail("has an empty body")
+  return { id: Skill.ID.make(name), name: Skill.Name.make(name), description, path: Skill.Info.fields.path.make(path), content }
 }
 
 /**
- * Reads the skills before the synchronous transform needs them. A missing or broken skill file does not stop the
- * plugin, because the server and the access rules still work; it is reported as a problem in status instead.
+ * Reads every directory under `skills/` and its `SKILL.md` before the synchronous transform needs it. A missing or
+ * broken file does not stop the plugin, because the server and the access rules still work; it is recorded as a
+ * status problem instead. The directory is the source of truth: a skill directory that exists is always looked at.
  */
 export async function loadSkills(directory = SKILLS_DIR) {
   const skills: Skill.Info[] = []
   const problems: string[] = []
-  for (const name of SKILL_NAMES) {
+  let names: string[]
+  try {
+    const entries = await readdir(directory, { withFileTypes: true })
+    names = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort()
+  } catch (error) {
+    const code = (error as { code?: unknown }).code
+    return {
+      skills,
+      problems: [errorText("SKILLS_INVALID", `The plugin's skills folder cannot be read (${code === "ENOENT" ? "it is missing" : typeof code === "string" ? code : reasonOf(error)}).`, REINSTALL)],
+    }
+  }
+  for (const name of names) {
     const path = join(directory, name, "SKILL.md")
     try {
       skills.push(parseSkill(name, path, await readFile(path, "utf8")))
@@ -51,8 +62,9 @@ export async function loadSkills(directory = SKILLS_DIR) {
   return { skills, problems }
 }
 
+/** Adds each skill with the exact `Skill.Info` shape OpenCode 2.4.1's skill editor takes. */
 export function registerSkills(skill: Pick<Plugin.Context["skill"], "transform">, skills: readonly Skill.Info[]) {
   return skill.transform((editor) => {
-    for (const info of skills) editor.add(info)
+    for (const info of skills) editor.add({ id: info.id, name: info.name, description: info.description, path: info.path, content: info.content })
   })
 }

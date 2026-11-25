@@ -7,4 +7,5 @@ release/
 .DS_Store
 
 .cache/
+test/.skills-host-*/
 dist-packages/

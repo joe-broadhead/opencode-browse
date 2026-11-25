@@ -13077,11 +13077,10 @@ function parseScope(raw) {
 }
 
 // src/skills.ts
-import { readFile as readFile2 } from "node:fs/promises";
+import { readdir, readFile as readFile2 } from "node:fs/promises";
 import { join as join6 } from "node:path";
 import { Skill } from "@opencode/plugin";
 var SKILLS_DIR = join6(packageRoot, "skills");
-var SKILL_NAMES = ["browse", "browse-capture"];
 var notLoaded = (name, problem) => `The "${name}" skill was not loaded: skills/${name}/SKILL.md ${problem}.`;
 var REINSTALL = "Reinstall the plugin.";
 function parseSkill(name, path, text3) {
@@ -13094,12 +13093,25 @@ function parseSkill(name, path, text3) {
   if (fields.get("name") !== name) throw fail2(`must be named "${name}" in its frontmatter`);
   const description = fields.get("description");
   if (!description) throw fail2("has no description");
-  return { id: Skill.ID.make(name), name: Skill.Name.make(name), description, path: Skill.Info.fields.path.make(path), content: match[2].trim() };
+  const content = match[2].trim();
+  if (content === "") throw fail2("has an empty body");
+  return { id: Skill.ID.make(name), name: Skill.Name.make(name), description, path: Skill.Info.fields.path.make(path), content };
 }
 async function loadSkills(directory = SKILLS_DIR) {
   const skills = [];
   const problems = [];
-  for (const name of SKILL_NAMES) {
+  let names;
+  try {
+    const entries = await readdir(directory, { withFileTypes: true });
+    names = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+  } catch (error2) {
+    const code = error2.code;
+    return {
+      skills,
+      problems: [errorText("SKILLS_INVALID", `The plugin's skills folder cannot be read (${code === "ENOENT" ? "it is missing" : typeof code === "string" ? code : reasonOf2(error2)}).`, REINSTALL)]
+    };
+  }
+  for (const name of names) {
     const path = join6(directory, name, "SKILL.md");
     try {
       skills.push(parseSkill(name, path, await readFile2(path, "utf8")));
@@ -13112,7 +13124,7 @@ async function loadSkills(directory = SKILLS_DIR) {
 }
 function registerSkills(skill, skills) {
   return skill.transform((editor) => {
-    for (const info of skills) editor.add(info);
+    for (const info of skills) editor.add({ id: info.id, name: info.name, description: info.description, path: info.path, content: info.content });
   });
 }
 
