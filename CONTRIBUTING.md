@@ -25,6 +25,15 @@ suite needs `npm run bin:ensure` first and fails without it, rather than skippin
 The 18 browser tools belong to the browse server. To classify a new one, add it to `capabilities.methods` in
 `package.json`, refresh `test/fixtures/live-tools.json`, then run `npm run drift` and `npm run docs`.
 
+## Releasing and native assets
+
+The release workflow publishes exactly three assets: the package tarball, `conformance.json` and `SHA256SUMS`. The
+release owner separately attaches the native assets built by `native.yml`, named individually:
+`browse-darwin-arm64.gz`, `browse-darwin-x64.gz`, `browse-linux-arm64-gnu.gz`, `browse-linux-x64-gnu.gz`,
+`LICENSE.browse` and the candidate manifest `native.json`. They are attached because they are the pinned browse
+binaries the plugin verifies against the SHA-256 pins in `manifest/browse.json`; never attach them with a directory or
+wildcard.
+
 ## A pull request
 
 - One change per pull request, with the manifest's declaration and its code and tests.

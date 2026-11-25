@@ -40,6 +40,13 @@ jobs:
       - run: npm run bin:ensure
       - run: chmod +x bin/mcp.mjs
       - run: npm run check
+      - name: The tag names this package's version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          test "v${version}" = "$TAG"
       - name: Pack, conformance report and sums
         run: |
           set -euo pipefail
