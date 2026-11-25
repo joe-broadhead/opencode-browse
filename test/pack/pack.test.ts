@@ -163,10 +163,6 @@ describe("the released binary", () => {
     expect(target!.sha256).toMatch(/^[0-9a-f]{64}$/)
     expect(target!.bytes).toBeGreaterThan(0)
     const platform = join(root, ".cache", "bin", key, "browse")
-    if (!existsSync(platform)) {
-      console.log("the pinned binary is not cached here; run npm run bin:ensure to compare the cached bytes")
-      return
-    }
     expect(createHash("sha256").update(readFileSync(platform)).digest("hex")).toBe(target!.sha256)
     expect(statSync(platform).size).toBe(target!.bytes)
     // Hashes the whole pinned binary (about 115 MB) in the test body; a loaded runner needs more than the default 5 seconds.

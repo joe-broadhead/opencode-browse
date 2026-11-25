@@ -11,14 +11,13 @@ fresh `npm ci` needs no SSH key.
 
 ```sh
 npm ci --ignore-scripts
-npm run check          # typecheck, bundle, unit, pack, skills and parity host, plugin-kit check, docs --check
-npm run bin:ensure     # fetches and verifies the pinned binary, for the host and managed suites
+npm run check          # fetches the pinned binary, then typecheck, bundle, unit, pack, skills/parity host, kit checks
 npm run test:host      # the plugin in a real OpenCode 2.4.1 host (slow)
 ```
 
 `npm run check` must pass with no findings. `npm run bundle` writes the committed `dist/`; CI fails when it is stale (`npm run bundle && git diff --exit-code dist/`), so commit the built files with a source change. The kit's T0 and T1 are hard gates: the namespace line, the skill
 descriptions, the manifest, the generated docs, the real host, the access levels and the forbidden patterns. The host
-suite needs `npm run bin:ensure` first and fails without it, rather than skipping a test.
+suite needs the pinned binary, which `npm run check` fetches, and fails without it rather than skipping a test.
 
 ## Changing a tool
 
@@ -27,12 +26,13 @@ The 18 browser tools belong to the browse server. To classify a new one, add it 
 
 ## Releasing and native assets
 
-The release workflow publishes exactly three assets: the package tarball, `conformance.json` and `SHA256SUMS`. The
-release owner separately attaches the native assets built by `native.yml`, named individually:
-`browse-darwin-arm64.gz`, `browse-darwin-x64.gz`, `browse-linux-arm64-gnu.gz`, `browse-linux-x64-gnu.gz`,
-`LICENSE.browse` and the committed `manifest/native.json` (uploaded under its release name `native.json`). They are
-attached because they are the pinned browse binaries the plugin verifies against the SHA-256 pins in
-`manifest/browse.json`; never attach them with a directory or wildcard.
+The release workflow publishes the package tarball, `conformance.json`, `SHA256SUMS`, the four
+`browse-<platform>.gz` files, `LICENSE.browse` and a tag-time `native.json`. Its `native` job runs
+`scripts/build-native.mjs` at the tag, then `scripts/verify-native.mjs` checks every asset against
+`manifest/native.json`: the committed size and SHA-256, and the decompressed executable's size and SHA-256. It attests
+the gzips and licence, and `publish` attaches all six native files by exact name; there is no owner upload. The
+`check` job runs `npm run check`, which starts with `bin:ensure`, so the pinned binary is present for the pack and host
+checks.
 
 ## A pull request
 

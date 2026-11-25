@@ -240,7 +240,7 @@
     "test:host": "bun test ./test/host",
     "test:pack": "bun test ./test/pack",
     "test:managed": "bun test ./test/managed",
-    "check": "npm run typecheck && npm run bundle && npm run test && npm run test:pack && npm run test:skills && npm run test:parity && npx plugin-kit check && npm run docs:check",
+    "check": "npm run bin:ensure && npm run typecheck && npm run bundle && npm run test && npm run test:pack && npm run test:skills && npm run test:parity && npx plugin-kit check && npm run docs:check",
     "docs": "npx plugin-kit docs",
     "conformance": "npx plugin-kit conformance",
     "drift": "node scripts/check-browse-tools.mjs",

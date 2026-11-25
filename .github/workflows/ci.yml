@@ -40,9 +40,6 @@ jobs:
       # dist/ is committed: a source change without a rebundle fails here, before the rest of the gate.
       - name: The committed dist/ is current
         run: npm run bundle && git diff --exit-code -- dist
-      # The plugin's own host and pack tests run the real server: fetch and verify this runner's pinned binary.
-      - name: Fetch and verify this runner's pinned browse binary
-        run: npm run bin:ensure
       # Some self-hosted runners check out with core.fileMode off; the packaged wrapper must stay executable.
       - name: Restore the MCP wrapper's executable bit
         run: chmod +x bin/mcp.mjs

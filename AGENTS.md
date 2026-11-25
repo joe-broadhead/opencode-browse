@@ -26,11 +26,11 @@ OpenCode and reports its state. There are no accounts, no sources and no actions
 | Command | Does |
 |---|---|
 | `npm ci` | installs dev tooling only; there are no runtime dependencies |
-| `npm run check` | typecheck, bundle, unit, pack, the skills and parity host tests, `npx plugin-kit check` (conformance T0/T1, docs drift, forbidden patterns, no bundled kit), then `npm run docs:check` |
+| `npm run check` | fetch and verify the pinned binary, then typecheck, bundle, unit, pack, the skills and parity host tests, `npx plugin-kit check` (conformance T0/T1, docs drift, forbidden patterns, no bundled kit), then `npm run docs:check` |
 | `npm run bundle` | builds `dist/index.js` and `dist/tui.js` with esbuild; the committed `dist/` must match |
 | `npm run docs` | regenerates the generated doc sections from the manifest |
 | `npm run docs:check` | fails when a generated section does not match the manifest |
-| `npm run test:host` | the plugin's own host suite against `@opencode/sdk` 2.4.1, after `npm run bin:ensure` |
+| `npm run test:host` | the plugin's own host suite against `@opencode/sdk` 2.4.1; run `npm run check` or `npm run bin:ensure` first |
 | `npm run test:skills` | the skills on the real 2.4.1 host: every `skills/*/SKILL.md` registers, and a broken one is skipped and reported (part of `npm run check`) |
 | `npm run test:parity` | the v0.0.5 set on the real 2.4.1 host: 18 MCP tool names, both skills, five commands, status/report, every agent's rules and the local identity (part of `npm run check`) |
 | `npm run test:managed` | managed mode's download and pairing checks (network, slow) |

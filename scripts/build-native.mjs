@@ -5,8 +5,8 @@
 //       <dir>/LICENSE.browse, and <dir>/native-manifest.json: the candidate manifest/native.json the release commit pins.
 // A binary comes from the URL the pin names. Its tarball and its binary are checked against the pin's sizes and SHA-256s
 // before anything is written, so a wrong file never reaches a release. The pin is only read here: scripts/pin.mjs is the
-// one that rewrites it. The release run is the native workflow on master (.github/workflows/native.yml), which runs on
-// ubuntu and fetches the pinned tarballs; a local run uses .cache/bin when it already verifies.
+// one that rewrites it. The release run is .github/workflows/release.yml on the tag, which runs this and then
+// scripts/verify-native.mjs; a local run uses .cache/bin when it already verifies.
 import { execFileSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { chmodSync, copyFileSync, createWriteStream, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
@@ -106,7 +106,7 @@ export async function buildRelease(dir, { tag, repository, commit, run }) {
   mkdirSync(dir, { recursive: true })
   const modules = { [MODULE]: {} }
   // Sorted platforms and a no-name, zero-mtime gzip (Node writes the same header as `gzip -n`) make the release files
-  // and the candidate manifest byte-identical across runs, so the committed manifest matches native.yml's.
+  // and the candidate manifest byte-identical across runs, so the committed manifest matches the release workflow's.
   for (const [platform, target] of Object.entries(pin.targets).sort(([left], [right]) => left.localeCompare(right))) {
     const binary = await ensureBinary(platform)
     const bytes = readFileSync(binary)
