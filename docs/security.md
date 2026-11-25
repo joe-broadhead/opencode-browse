@@ -26,8 +26,8 @@ Only the binary its release pins is run:
 - the release manifest must name the same executable as the upstream pin, by size and SHA-256;
 - the cached file must be a regular file, not a link, with owner read and execute and no permission outside `0755`;
 - the file is re-hashed at every use when `verifyBinary` is on (the default);
-- a `path` option is the person's own binary: it is reported unverified and untested, and the plugin still refuses to
-  run a directory or a non-executable.
+- a `path` option is the person's own binary: it is reported unverified and untested, and is never hashed against the
+  pin. Choose it only for a binary you built or trust.
 
 The MCP wrapper (`bin/mcp.mjs`) re-verifies the pin at every spawn, so a stale file never reaches the server.
 

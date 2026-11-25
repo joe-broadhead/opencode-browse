@@ -60,8 +60,8 @@ Managed mode, headed, with a Chromium you built yourself:
 
 - **`access`** generates the default rules for every agent: `all` runs everything, `ask-changes` asks before a method
   that is not a read, and `read-only` turns those methods off. See the README's table.
-- **`path`** runs a browse binary you name instead of the pinned release. It is reported unverified and untested, and
-  the plugin still refuses to run it if it is a directory or not executable.
+- **`path`** runs a browse binary you name instead of the pinned release. It is reported unverified and untested; only
+  the pinned release is checked against a digest.
 - **`browser`** chooses the person's browser (through the extension) or a separate Chromium the plugin starts and stops.
 - **`chromiumPath`** uses your own Chromium build for managed mode; the pinned Chrome for Testing is used otherwise.
 - **`headless`** hides the managed browser's window. Headed is the default so the person can watch.
