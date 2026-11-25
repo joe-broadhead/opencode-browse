@@ -233,7 +233,7 @@ export function registerInstallCommands(ctx: CommandContext, provider: BrowsePro
   const installBrowser = ctx.command.transform((editor) =>
     editor.add({
       name: "browse-install-browser",
-      description: "Download and verify Chrome for Testing for managed mode (about 150-210 MB), then start it",
+      description: "Download and verify Chrome for Testing for managed mode (about 195-210 MB), then start it",
       execute: async ({ sessionID }) => {
         let text: string
         if (provider.managed === undefined) {

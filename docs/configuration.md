@@ -73,6 +73,6 @@ Managed mode, headed, with a Chromium you built yourself:
 - **`allowUntestedHost`** starts on an OpenCode release outside `>=2.4.1 <2.5.0`. Status says the host is untested.
   Leave it off.
 
-An unknown option, a wrong type or an unreadable value is refused with `OPTIONS_INVALID`, and status says which option
-it was; the plugin stays loaded so you can read the report and fix it. The one exception is `access`: an invalid level
+An unknown option, a wrong type or an unreadable value is refused with `OPTIONS_INVALID`, and the diagnostic report
+says which option it was; the plugin stays loaded so you can read the report and fix it. The one exception is `access`: an invalid level
 is refused at startup by the contract's access module, because a plugin may not fall back to a wider level.

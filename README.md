@@ -14,14 +14,15 @@ An unofficial plugin. It is not affiliated with OpenCode or with the browse prod
 
 ## Install
 
-The first release on plugin-contract is `v0.0.0`. Once it is tagged:
+This repository's first release on plugin-contract is `v0.0.0`. Once it is tagged:
 
 ```sh
 opencode plugin add github:we-the-rebel-alliance/browse-plugin#v0.0.0
 ```
 
-The binary is downloaded and verified on first use, or with `/browse-install` (about 115-135 MB). Managed mode's pinned
-Chrome for Testing is downloaded with `/browse-install-browser` (about 150-210 MB).
+The binary is downloaded and verified on first use at `access: "all"` (the default), or with `/browse-install` at any
+access level (about 115-135 MB). Managed mode's pinned Chrome for Testing is downloaded with `/browse-install-browser`
+(about 195-210 MB).
 
 ## What it does
 
@@ -38,7 +39,8 @@ The browse server's 18 tools do the work: `execute` runs Playwright code on a se
 manage named sessions, `settings` reads or changes browse's own settings, and `network`, `recording`, `flight_recorder`,
 `secrets_list`, `secrets_status`, `secrets_run` and `secrets_refresh` capture traffic, record video and use stored
 credentials. The plugin adds two reads of its own: `status` (the contract's short answer) and `report` (the diagnostic
-report the status dialog shows).
+report the status dialog shows). `browse_status` is the plugin's `status`: the server's own `status` tool has the same
+effective name on OpenCode 2.4.1, so `report` carries the relay, extension and browser details.
 
 ## Access
 

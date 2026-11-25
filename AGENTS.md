@@ -40,7 +40,9 @@ OpenCode and reports its state. There are no accounts, no sources and no actions
 src/index.ts        one register call, assertHost, setup's disposal
 src/handlers/       status and report: the plugin's own methods
 src/provider/       the binary, the MCP server, managed mode, the relay, recording
-src/report.ts       the diagnostic report model and the dialog's RPC definition
+src/report.ts       the report's types, its formatting and the dialog's RPC definition
+src/report-build.ts the report's builder and the manifest's access counts
+src/skills.ts       the two shipped skills, registered through ctx.skill
 src/scope.ts        the scope option's narrowing of the contract's rules
 src/commands.ts     the five slash commands
 src/tui.ts          the status dialog

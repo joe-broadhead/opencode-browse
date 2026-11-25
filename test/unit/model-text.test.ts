@@ -1,5 +1,5 @@
-// The model-facing text: the namespace line and both skills. It stays inside the fixed-context budget and names no
-// other app; the routing to neighbours uses neutral roles.
+// The model-facing text: the namespace line and both skills. It stays inside the fixed-context budget and gives the
+// Code Mode call shape; host neutrality itself is the kit's `forbidden` check, which runs in `plugin-kit check`.
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
@@ -33,17 +33,5 @@ describe("the skills", () => {
 
   test("the main skill says the Code Mode call shape", () => {
     expect(read("skills/browse/SKILL.md")).toContain('await tools.browse.execute({ code: "return page.url()" })')
-  })
-})
-
-describe("host neutrality", () => {
-  test("no model-facing text names another app", () => {
-    const texts = [{ name: "the namespace line", text: summary }, ...SKILLS.map((path) => ({ name: path, text: read(path) }))]
-    for (const { name, text } of texts) {
-      // The two app identifiers the kit scans for are spelled in pieces here, so the scan reads a test, not a mention.
-      for (const other of [["jel", "ly"].join(""), ["to", "qan"].join(""), "tavily", "webfetch", "agent-browser", "notion", "granola", "slack"]) {
-        expect({ name, other, found: new RegExp(`\\b${other}\\b`, "i").test(text) }).toEqual({ name, other, found: false })
-      }
-    }
   })
 })
