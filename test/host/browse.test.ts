@@ -280,6 +280,10 @@ describe("the relay a real-mode host starts", () => {
       // paired extension; what this test is about is the relay the call starts.
       expect(started.asked).toBeUndefined()
       await until("the relay answers", async () => (await relayVersion()) !== undefined, 60_000)
+      // The cleanup helper's process pattern is real: the relay the call started is one of this HOME's `browse serve` pids.
+      const relay = await relayVersion()
+      expect(relay?.pid ?? 0).toBeGreaterThan(1)
+      expect(relayPidsForHome()).toContain(relay!.pid!)
 
       const binary = await resolveBinary({ optionPath: pinned })
       const refused = await stopRelaySafely({ expectedVersion: "0.0.0", binaryPath: binary.path })

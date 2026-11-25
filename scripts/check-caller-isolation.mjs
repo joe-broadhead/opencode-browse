@@ -109,7 +109,7 @@ try {
   }
   if (!up) throw new Error("the relay did not start")
 
-  client.send({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "opencode-browse-isolation", version: "0.0.0" } } })
+  client.send({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "browse-plugin-isolation", version: "0.0.0" } } })
   const initialized = await client.answer(1, 20_000)
   client.send({ jsonrpc: "2.0", method: "notifications/initialized" })
   const version = initialized.result?.serverInfo?.version ?? "unknown"

@@ -20,7 +20,7 @@ export function assertIsolatedBrowseEnv() {
   if (port > 65_535) throw new Error(`OPENCODE_BROWSER_PORT ${port} is not a port`)
   const home = process.env.HOME ?? ""
   const xdg = process.env.XDG_DATA_HOME ?? ""
-  if (!/@|browse-(host|pack|managed|test)|opencode-browse-test/.test(home) || !(/tmp|private\/var\/folders/.test(home))) {
+  if (!/@|browse-(host|pack|managed|test)/.test(home) || !(/tmp|private\/var\/folders/.test(home))) {
     throw new Error(`tests and scripts must run browse with an isolated HOME, not ${home}`)
   }
   if (!xdg.includes(home)) throw new Error(`XDG_DATA_HOME must live inside the isolated HOME, not ${xdg}`)
@@ -64,7 +64,7 @@ function environmentOf(pid: number): string {
 export function relayPidsForHome(home = process.env.HOME ?? ""): number[] {
   let listing = ""
   try {
-    listing = execFileSync("pgrep", ["-f", "opencode-browse-bin.*serve"], { encoding: "utf8" })
+    listing = execFileSync("pgrep", ["-f", "[/\\\\]browse(\\.exe)? serve"], { encoding: "utf8" })
   } catch {
     return []
   }
