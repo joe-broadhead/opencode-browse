@@ -20,3 +20,16 @@ The first release on plugin-contract v0.
   `/browse-stop-relay`), two skills (`browse`, `browse-capture`), a status dialog, and freshly written docs.
 - Tests: unit, the plugin's own suite against the real `@opencode/sdk` 2.4.1 host, managed mode against the real
   Chrome for Testing, the packed tarball, and the contract's conformance kit (T0 and T1).
+
+### Removed since v0.0.5
+
+- **The `browse.tools` RPC.** Contract v0's `register` does not proxy a vendor MCP server's tools over RPC. The 18
+  pass-through tools remain agent tools and Code Mode entries, and the plugin's own `status` and `report` are on the
+  `browse` RPC. The old RPC's `describe` method goes with it.
+- **The old data and cache folders `opencode-browse`** are not migrated to `browse-plugin`. v0.0.0 is greenfield; a first
+  run recreates them, so a managed profile made by v0.0.5 is not carried over.
+- **The server's own `status` tool is not separately callable.** OpenCode 2.4.1 gives it and the plugin's required
+  `status` the same effective name (`browse_status`), so the plugin's `status` owns that name; the server's relay,
+  extension and connected-browser detail is in `report`.
+- **The old detailed status RPC response** is split into the contract's `status` (the short answer) and the plugin's
+  `report` (the binary, relay, extension, scope, managed browser, recording and next step).
