@@ -1,6 +1,7 @@
 // The contract's `status` (contract §11): the short answer an app reads, built by `statusAnswer` from the manifest,
-// the versions, the empty account list and the problems setup recorded. Browse has no accounts, so the answer lists
-// none; the next step comes from the diagnostic report, which knows the relay, the extension and the binary.
+// the versions, the empty account list, the problems setup recorded and what `call.unguardedAgents()` answered. Browse
+// has no accounts, so the answer lists none; the next step comes from the diagnostic report, which knows the relay, the
+// extension and the binary.
 import { NO_ACCOUNTS, redactReason, STATUS_SCHEMA, statusAnswer } from "@we-the-rebel-alliance/plugin-contract/accounts"
 import type { Manifest } from "@we-the-rebel-alliance/plugin-contract/manifest"
 import type { MethodHandler } from "@we-the-rebel-alliance/plugin-contract/register"
@@ -30,7 +31,7 @@ export function statusHandler(parts: StatusParts): MethodHandler {
         hostVersion: parts.hostVersion,
         accounts: NO_ACCOUNTS,
         problems: report.problems,
-        unguardedAgents: agents.agents,
+        unguardedAgents: agents.result,
       })
       // The report's next step is the actionable line; when it has nothing to add, a recorded problem is the line.
       const nextStep = report.nextStep === "Nothing to do." ? (report.problems.length > 0 ? redactReason(report.problems[0]!) : null) : redactReason(report.nextStep)

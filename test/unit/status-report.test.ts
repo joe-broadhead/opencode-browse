@@ -4,6 +4,7 @@ import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import type { UnguardedAgentsResult } from "@we-the-rebel-alliance/plugin-contract/access"
 import type { Manifest } from "@we-the-rebel-alliance/plugin-contract/manifest"
 import { createHandlers } from "../../src/handlers/index.js"
 import { manifest } from "../../src/manifest.js"
@@ -45,24 +46,24 @@ function ready(agents: readonly string[] = []): Report {
   })
 }
 
-const call = (unguardedAgents: () => Promise<readonly string[]>) => ({ unguardedAgents }) as never
+const call = (unguardedAgents: () => Promise<UnguardedAgentsResult>) => ({ unguardedAgents }) as never
 
 describe("the status method", () => {
   const handlers = (report: (agents: readonly string[], extra?: readonly string[]) => Promise<Report>) => createHandlers({ manifest: manifest as Manifest, version: "0.0.0", hostVersion: "2.4.1", report })
 
   test("answers the contract's shape, and the fixture is what it answered", async () => {
-    const status = await handlers(async (agents, extra) => noBinary(agents, extra)).status.run({}, call(async () => []))
+    const status = await handlers(async (agents, extra) => noBinary(agents, extra)).status.run({}, call(async () => ({ ok: true, agents: [] })))
     expect(status).toEqual(fixture.events.status)
   })
 
   test("is ready with no next step when nothing is wrong, and lists no accounts", async () => {
-    const status = (await handlers(async (agents) => ready(agents)).status.run({}, call(async () => []))) as Record<string, unknown>
+    const status = (await handlers(async (agents) => ready(agents)).status.run({}, call(async () => ({ ok: true, agents: [] })))) as Record<string, unknown>
     expect(status).toMatchObject({ name: "browse", version: "0.0.0", state: "ready", accounts: [], unguardedAgents: [], nextStep: null })
     expect(status["host"]).toEqual({ version: "2.4.1", range: ">=2.4.1 <2.5.0", tested: ["2.4.1"] })
   })
 
   test("names the agents that lack the generated rules", async () => {
-    const status = (await handlers(async (agents) => ready(agents)).status.run({}, call(async () => ["build", "plan"]))) as Record<string, unknown>
+    const status = (await handlers(async (agents) => ready(agents)).status.run({}, call(async () => ({ ok: true, agents: ["build", "plan"] })))) as Record<string, unknown>
     expect(status["unguardedAgents"]).toEqual(["build", "plan"])
   })
 
@@ -78,7 +79,7 @@ describe("the status method", () => {
       problems: [...extra],
       unguardedAgents: agents,
     })
-    const status = (await handlers(withExtra).status.run({}, call(async () => Promise.reject(new Error("the host refused"))))) as Record<string, unknown>
+    const status = (await handlers(withExtra).status.run({}, call(async () => ({ ok: false, error: "the host refused" })))) as Record<string, unknown>
     expect(status["state"]).toBe("error")
     expect(status["unguardedAgents"]).toEqual([])
     expect(String(status["nextStep"])).toContain("UNAVAILABLE")
@@ -89,7 +90,7 @@ describe("the status method", () => {
 describe("the report method", () => {
   test("answers the diagnostic report, with the agents its own call read", async () => {
     const handlers = createHandlers({ manifest: manifest as Manifest, version: "0.0.0", hostVersion: "2.4.1", report: async (agents) => ready(agents) })
-    const report = (await handlers.report.run({}, call(async () => ["build"]))) as Record<string, unknown>
+    const report = (await handlers.report.run({}, call(async () => ({ ok: true, agents: ["build"] })))) as Record<string, unknown>
     expect(report).toMatchObject({ version: "0.0.0", state: "connected", mode: "real", unguardedAgents: ["build"] })
     expect(report["access"]).toEqual({ run: 18, ask: 0, off: 0 })
   })
