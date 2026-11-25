@@ -4,9 +4,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Drive the user's real Chromium browser from OpenCode, with the browse extension: their tabs, logins and extensions, and a hand-back for logins, 2FA and payments",
+  "description": "Give an agent the person's own browser through the browse extension: their tabs, logins and 2FA.",
   "keywords": [
     "opencode",
+    "plugin-contract",
     "opencode-plugin",
     "browse",
     "browser"
@@ -19,6 +20,9 @@
   "homepage": "https://github.com/we-the-rebel-alliance/browse-plugin#readme",
   "bugs": {
     "url": "https://github.com/we-the-rebel-alliance/browse-plugin/issues"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "capabilities": {
     "version": 1,
@@ -218,16 +222,14 @@
     "./tui": "./dist/tui.js"
   },
   "files": [
-    "bin",
     "dist",
+    "skills",
+    "assets",
+    "bin",
     "manifest",
     "managed-extension",
-    "skills",
-    "assets/icon.svg",
-    "assets/icon-128.png",
-    "assets/icon-256.png",
-    "NOTICE",
     "vendor/LICENSE.browse",
+    "NOTICE",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
@@ -239,7 +241,7 @@
     "test:host": "bun test ./test/host",
     "test:pack": "bun test ./test/pack",
     "test:managed": "bun test ./test/managed",
-    "check": "npm run typecheck && npm run build && npm run test && npm run test:pack && npx plugin-kit check",
+    "check": "npm run typecheck && npm run build && npm run test && npm run test:pack && npx plugin-kit check && npm run docs:check",
     "docs": "npx plugin-kit docs",
     "conformance": "npx plugin-kit conformance",
     "drift": "node scripts/check-browse-tools.mjs",
@@ -247,7 +249,8 @@
     "bin:native": "node scripts/build-native.mjs",
     "bin:ensure": "node scripts/build-native.mjs --ensure",
     "managed:pin": "node scripts/pin-managed.mjs",
-    "browse:isolated": "node scripts/run-isolated.mjs"
+    "browse:isolated": "node scripts/run-isolated.mjs",
+    "docs:check": "npx plugin-kit docs --check"
   },
   "devDependencies": {
     "@opencode/client": "2.4.1",

@@ -24,6 +24,12 @@ The binary is downloaded and verified on first use at `access: "all"` (the defau
 access level (about 115-135 MB). Managed mode's pinned Chrome for Testing is downloaded with `/browse-install-browser`
 (about 195-210 MB).
 
+## Sign in
+
+Browse is local: it signs in to nothing. There are no accounts, no OAuth and no `/connect` entry, and it never asks for
+the browser profile's own logins. In real mode, pair the browse extension once: `/browse-doctor` prints the `browse pair`
+command to run, and its next step says whether the extension is connected. Managed mode pairs its own copy.
+
 ## What it does
 
 - **Real mode** (default) drives the browser the person already uses, through the browse extension: their tabs, their
@@ -60,6 +66,22 @@ not in this manifest until the plugin's next release; it follows the agent's own
 
 The generated rules are inserted after each agent's base allow. An agent that lacks them is named in `status`; the
 plugin never patches it behind the person's back.
+
+## Options
+
+Every option is optional, and the generated table with titles and descriptions is in
+[Configuration](docs/configuration.md).
+
+| Option | Default | Meaning |
+|---|---|---|
+| `access` | `all` | `all`, `ask-changes` or `read-only`, as above. |
+| `allowUntestedHost` | `false` | Start on an OpenCode release outside `>=2.4.1 <2.5.0`. |
+| `path` | none | A browse binary to run instead of the pinned release; reported unverified and untested. |
+| `browser` | `real` | `real` uses the person's browser through the extension; `managed` runs a separate Chromium. |
+| `chromiumPath` | none | A Chromium or Chrome for Testing binary for managed mode, instead of the pinned download. |
+| `headless` | `false` | Run the managed browser headless; headed by default so the person can watch. |
+| `verifyBinary` | `true` | Check the pinned binary's SHA-256 before running it. |
+| `scope` | none | Pin the server to one session (`session`, `allowedOrigins`, `readOnly`). |
 
 ## Capabilities
 
@@ -159,8 +181,28 @@ Browse's own codes:
 | `CHROMIUM_INSTALL_FAILED` | managed mode's browser could not be installed; run `/browse-doctor` |
 | `EXTENSION_UNVERIFIED` | the managed extension copy does not match its pin; reinstall the plugin |
 
+## Troubleshooting
+
+- **Start here.** `/browse-status` shows the binary, relay, extension, scope and the one next step; `/browse-doctor`
+  runs the vendor doctor, repairs the pinned session and prints the pairing command.
+- **`browse_status` is the plugin's `status`.** The server's own `status` tool has the same effective name on OpenCode
+  2.4.1; read `browse_report` for the relay, extension and connected-browser detail.
+- **The binary is missing or unverified.** Run `/browse-install`, then restart OpenCode. On a platform with no pinned
+  build, set `path` to a browse binary you built or trust (reported unverified).
+- **The relay is stopped.** The first browser call starts it. If the extension is not connected, pair it with the
+  `Pair:` command `/browse-doctor` prints; an extension that is out of date says so in `status`.
+- **A `browse` MCP entry is a conflict.** If `mcp.servers.browse` in your config is not this plugin's command, its tools
+  are denied: remove or rename the entry, then restart OpenCode. An older `opencode-browser` entry is denied for the same
+  reason.
+- **Managed mode will not start.** `/browse-install-browser` downloads and verifies the pinned Chrome for Testing;
+  `chromiumPath` uses your own Chromium (branded Google Chrome is refused). The managed profile starts signed out.
+- **Recording needs ffmpeg.** An agent-opened tab records through CDP and needs `ffmpeg` on `PATH`; a tab the person
+  lends records through the toolbar button and needs nothing.
+
 ## Docs
 
+- [plugin-contract](https://github.com/we-the-rebel-alliance/plugin-contract): the manifest, doors, access, status and
+  bus semantics this plugin implements
 - [Capabilities](docs/capabilities.md)
 - [Configuration](docs/configuration.md)
 - [Accounts](docs/accounts.md): browse signs in to nothing

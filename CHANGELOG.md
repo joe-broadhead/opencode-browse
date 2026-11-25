@@ -1,28 +1,22 @@
-# CHANGELOG
+# Changelog
 
-## [0.0.0]
+## 0.0.0 (2026-11-25)
 
 The first release on plugin-contract v0.
 
-### Added
-
-- A `capabilities` manifest: plugin identity and vendor, the host range `>=2.4.1 <2.5.0`, the options schema, and a
-  `methods` table that classifies all 18 browser tools plus the plugin's own `status` and `report`.
-- `status`, the contract's short answer (host range, state, empty account list, next step), and `report`, the
-  diagnostic answer the status dialog and `/browse-status` show.
-- A generated `docs/` set and two skills, written for v0.
-
-### Changed
-
-- The plugin is one `contract.register` call: the tools, the RPC id `browse` and the access rules come from the
-  contract. The RPC id was `browse.tools`.
-- Access rules come from the contract's `access` module; the `scope` option only narrows them.
-- The plugin's entry is `./server` (`dist/index.js`), with `./tui` for the dialog.
-
-### Removed
-
-- The copied tools-RPC transport and its `browse.tools` RPC id.
-- The copied action-grant verifier: the contract's `grant` module replaces it, and browse has no action that needs one.
-- The copied release, drift, copies, icons, forbidden, tested-hosts, capture-tools and changelog scripts; `plugin-kit`
-  provides them.
-- The legacy app key, the `sources` key and the `opencode` key in `package.json`.
+- A `capabilities` manifest: plugin identity and vendor, the host range `>=2.4.1 <2.5.0` with `2.4.1` tested, the
+  options schema, and a `methods` table of 20 entries — `status`, `report`, and the browse server's 18 pass-through
+  tools as `mcp:<tool>`, each with its class and `accounts: "none"`.
+- The pinned `browse` MCP server: its binary is resolved from the release, checked against its SHA-256 at startup and
+  at every use, and served through the verifying wrapper `bin/mcp.mjs`. The binary's first-use download runs at
+  `access: "all"`; `/browse-install` downloads it at any level.
+- `status` through the contract's `statusAnswer` (`NO_ACCOUNTS`), and `report`, the diagnostic answer the status dialog
+  and `/browse-status` read: binary, relay, extension, scope, managed browser, recording readiness and the next step.
+- One `register` call for the agent tool, Code Mode and the RPC id `browse`; access rules generated from `methods` and
+  the `access` option by the contract's `access` module, with `scope` narrowing them to a pinned session.
+- Managed mode: a separate Chromium (pinned Chrome for Testing) with its own profile, the extension loaded unpacked and
+  paired through browse's own protocol, started and stopped with the plugin.
+- Five commands (`/browse-status`, `/browse-doctor`, `/browse-install`, `/browse-install-browser`,
+  `/browse-stop-relay`), two skills (`browse`, `browse-capture`), a status dialog, and freshly written docs.
+- Tests: unit, the plugin's own suite against the real `@opencode/sdk` 2.4.1 host, managed mode against the real
+  Chrome for Testing, the packed tarball, and the contract's conformance kit (T0 and T1).

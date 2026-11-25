@@ -33,6 +33,9 @@ jobs:
         with:
           bun-version: 1.4.4 # the Bun inside stock OpenCode 2.4.1
           no-cache: true
+      - name: Fetch the contract over HTTPS
+        # The contract is a public repository, and an older lock records its GitHub dependency over ssh; a runner has no key.
+        run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
       - run: npm ci --ignore-scripts
       # The plugin's own host and pack tests run the real server: fetch and verify this runner's pinned binary.
       - name: Fetch and verify this runner's pinned browse binary

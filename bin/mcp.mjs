@@ -46,7 +46,7 @@ if (pinned !== undefined) {
     mtimeNs: stat.mtimeNs.toString(),
     ctimeNs: stat.ctimeNs.toString(),
   }
-  const cacheFile = join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "opencode-browse", "cache", "binary-integrity.json")
+  const cacheFile = join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "browse-plugin", "cache", "binary-integrity.json")
   const cached = (() => {
     try {
       const all = JSON.parse(readFileSync(cacheFile, "utf8"))

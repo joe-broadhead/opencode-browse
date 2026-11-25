@@ -2,8 +2,9 @@ name: release
 
 # Publishes the tag's build. The lead cuts the tag with `npx plugin-kit release <version>` on a master commit CI passed.
 # The `check` job re-runs the full check on that commit with a read-only token; only `publish` holds a write token, so
-# repository and dependency code never runs with one. The native browse binary's assets are built by native.yml, and
-# attaching them, the owner's approval and the stock-host `opencode plugin add` check are the release owner's steps.
+# repository and dependency code never runs with one. The release carries the packed tarball, the conformance report and
+# SHA256SUMS. The native browse binary's assets are built by native.yml, and attaching them, the owner's approval and the
+# stock-host `opencode plugin add` check are the release owner's steps.
 
 on:
   push:
@@ -25,28 +26,29 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: package-lock.json
+          package-manager-cache: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.4
           no-cache: true
+      - name: Fetch the contract over HTTPS
+        run: git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
       - run: npm ci --ignore-scripts
       - run: npm run bin:ensure
       - run: chmod +x bin/mcp.mjs
       - run: npm run check
-      - name: Pack and sum
+      - name: Pack, conformance report and sums
         run: |
           set -euo pipefail
-          npm pack --pack-destination "$RUNNER_TEMP"
-          cd "$RUNNER_TEMP"
-          sha256sum ./*.tgz > SHA256SUMS
+          mkdir -p "$RUNNER_TEMP/release"
+          npx plugin-kit check --json > "$RUNNER_TEMP/release/conformance.json"
+          npm pack --pack-destination "$RUNNER_TEMP/release"
+          cd "$RUNNER_TEMP/release"
+          sha256sum ./*.tgz conformance.json > SHA256SUMS
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-files
-          path: |
-            ${{ runner.temp }}/*.tgz
-            ${{ runner.temp }}/SHA256SUMS
+          path: ${{ runner.temp }}/release
           if-no-files-found: error
 
   publish:
@@ -67,4 +69,4 @@ jobs:
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/release-files"
-          gh release create "${GITHUB_REF_NAME}" ./*.tgz SHA256SUMS --repo "$GITHUB_REPOSITORY" --verify-tag --title "${GITHUB_REF_NAME}" --generate-notes
+          gh release create "${GITHUB_REF_NAME}" ./*.tgz conformance.json SHA256SUMS --repo "$GITHUB_REPOSITORY" --verify-tag --title "${GITHUB_REF_NAME}" --generate-notes

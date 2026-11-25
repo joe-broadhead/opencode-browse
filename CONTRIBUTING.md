@@ -6,15 +6,19 @@ Read [AGENTS.md](AGENTS.md) first; it says how the repository is laid out and wh
 
 ## Before a pull request
 
+You need Node 24. The contract is a public repository; the committed `package-lock.json` records it over HTTPS, so a
+fresh `npm ci` needs no SSH key.
+
 ```sh
-npm ci
-npm run check          # typecheck, build, unit, pack, plugin-kit check
-npm run docs -- --check
+npm ci --ignore-scripts
+npm run check          # typecheck, build, unit, pack, plugin-kit check, docs --check
+npm run bin:ensure     # fetches and verifies the pinned binary, for the host and managed suites
 npm run test:host      # the plugin in a real OpenCode 2.4.1 host (slow)
 ```
 
 `npm run check` must pass with no findings. The kit's T0 and T1 are hard gates: the namespace line, the skill
-descriptions, the manifest, the generated docs, the real host, the access levels and the forbidden patterns.
+descriptions, the manifest, the generated docs, the real host, the access levels and the forbidden patterns. The host
+suite needs `npm run bin:ensure` first and fails without it, rather than skipping a test.
 
 ## Changing a tool
 

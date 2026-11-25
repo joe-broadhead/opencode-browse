@@ -90,7 +90,7 @@ test(
       expect(status.chromium.verified).toBe(true)
       expect(status.extension.version).toBe("0.0.15")
       expect(status.pid).toBeGreaterThan(1)
-      expect(status.profile).toBe(join(process.env.XDG_DATA_HOME!, "opencode-browse", "managed", "profile"))
+      expect(status.profile).toBe(join(process.env.XDG_DATA_HOME!, "browse-plugin", "managed", "profile"))
 
       // Drive the managed browser through the pinned CLI, which uses the relay the pairing started.
       const title = await runBinary(binary.path, ["execute", `await page.goto(${JSON.stringify(url)}); return await page.title()`], { timeoutMs: 90_000 })
@@ -103,7 +103,7 @@ test(
       expect(readFileSync(shot).subarray(1, 4).toString("latin1")).toBe("PNG")
 
       // The state file names the browser this plugin launched, in its own profile.
-      const state = JSON.parse(readFileSync(join(process.env.XDG_DATA_HOME!, "opencode-browse", "managed", "browser.json"), "utf8")) as { pid: number; executable: string }
+      const state = JSON.parse(readFileSync(join(process.env.XDG_DATA_HOME!, "browse-plugin", "managed", "browser.json"), "utf8")) as { pid: number; executable: string }
       expect(status.chromium.path).not.toBeNull()
       expect(state.executable).toBe(status.chromium.path!)
       expect(state.pid).toBe(status.pid as number)
@@ -121,7 +121,7 @@ test(
         }
       }
       expect(alive).toBe(false)
-      expect(existsSync(join(process.env.XDG_DATA_HOME!, "opencode-browse", "managed", "browser.json"))).toBe(false)
+      expect(existsSync(join(process.env.XDG_DATA_HOME!, "browse-plugin", "managed", "browser.json"))).toBe(false)
       expect(existsSync(join(status.profile, "SingletonLock"))).toBe(false)
       // The relay the pairing started is stopped with the browser: browse's own shutdown, then nothing left at all.
       expect(await relayVersion()).toBeUndefined()

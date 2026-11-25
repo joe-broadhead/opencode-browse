@@ -268,15 +268,9 @@ describe("Code Mode", () => {
 
 describe("the relay a real-mode host starts", () => {
   test("is stopped by the plugin's own command, and another version is refused first", async () => {
-    // The pinned binary is fetched and verified into .cache/bin by `npm run bin:ensure`. Without it the host cannot start:
-    // say so out loud rather than fail a fresh clone (CI runs bin:ensure first, so there it fails instead of skipping).
+    // The pinned binary is fetched and verified into .cache/bin by `npm run bin:ensure`; the relay test requires it.
     const pinned = pinnedBinary()
-    if (pinned === undefined) {
-      const message = "skip: the pinned browse binary is not in .cache/bin; run npm run bin:ensure"
-      if (process.env.CI === "true" || process.env.CI === "1") throw new Error(message)
-      console.log(message)
-      return
-    }
+    if (pinned === undefined) throw new Error("the pinned browse binary is not in .cache/bin: run npm run bin:ensure")
     const host = await startHost({ packagedBinary: true })
     try {
       const sessionID = await session(host)

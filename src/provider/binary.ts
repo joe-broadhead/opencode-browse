@@ -87,10 +87,10 @@ export interface ResolveInput {
 /** The folder the installed package is in: this file is src/engine.ts or dist/index.js, one level below it. */
 export const packageRootDefault = (): string => join(dirname(fileURLToPath(import.meta.url)), "..")
 
-/** The plugin's cache folder: $XDG_CACHE_HOME/opencode-browse, or ~/Library/Caches/opencode-browse on macOS. */
+/** The plugin's cache folder: $XDG_CACHE_HOME/browse-plugin, or ~/Library/Caches/browse-plugin on macOS. */
 export function defaultCacheRoot(env: Readonly<Record<string, string | undefined>> = process.env, home: string = homedir(), platform: string = process.platform): string {
   const base = env.XDG_CACHE_HOME ?? (platform === "darwin" ? join(home, "Library", "Caches") : join(home, ".cache"))
-  return join(base, "opencode-browse")
+  return join(base, "browse-plugin")
 }
 
 const sha256 = (path: string) => createHash("sha256").update(readFileSync(path)).digest("hex")

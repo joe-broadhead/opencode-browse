@@ -3258,7 +3258,7 @@
     },
     {
       "name": "secrets_list",
-      "description": "List what agents may type without seeing: site secrets the user stored (names, kinds and allowed origins; type them with secrets.type(target, name) in execute; only the user adds them with `/Users/someone/opencode-browse-wt/relay-stop/node_modules/@joe-broadhead/opencode-browse-bin-darwin-arm64/bin/browse secrets add`).",
+      "description": "List what agents may type without seeing: site secrets the user stored (names, kinds and allowed origins; type them with secrets.type(target, name) in execute; only the user adds them with `browse secrets add`).",
       "inputSchema": {
         "type": "object",
         "properties": {

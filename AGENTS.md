@@ -26,9 +26,10 @@ OpenCode and reports its state. There are no accounts, no sources and no actions
 | Command | Does |
 |---|---|
 | `npm ci` | installs dev tooling only; there are no runtime dependencies |
-| `npm run check` | typecheck, build, unit, pack, then `npx plugin-kit check` (conformance T0/T1, docs drift, forbidden patterns, no bundled kit) |
+| `npm run check` | typecheck, build, unit, pack, `npx plugin-kit check` (conformance T0/T1, docs drift, forbidden patterns, no bundled kit), then `npm run docs:check` |
 | `npm run docs` | regenerates the generated doc sections from the manifest |
-| `npm run test:host` | the plugin's own host suite against `@opencode/sdk` 2.4.1 |
+| `npm run docs:check` | fails when a generated section does not match the manifest |
+| `npm run test:host` | the plugin's own host suite against `@opencode/sdk` 2.4.1, after `npm run bin:ensure` |
 | `npm run test:managed` | managed mode's download and pairing checks (network, slow) |
 | `npm run drift` | compares the manifest's pass-through tools with the pinned fixture |
 | `npm run bin:ensure` | fetches and verifies the pinned binary into `.cache/bin` |

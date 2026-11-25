@@ -146,15 +146,19 @@ describe("the released binary", () => {
     await expect(resolveBinary({ packageRoot, cacheRoot: join(packageRoot, "cache") })).rejects.toMatchObject({ code: "BINARY_UNVERIFIED" })
   })
 
-  test("the pinned cache, when it is present, matches manifest/browse.json", () => {
+  test("the pin records this platform's digest and size, and the cached bytes match it", () => {
     const pin = JSON.parse(readFileSync(join(root, "manifest", "browse.json"), "utf8"))
+    const target = pin.targets[key] as { sha256: string; bytes: number } | undefined
+    expect(target).toBeDefined()
+    expect(target!.sha256).toMatch(/^[0-9a-f]{64}$/)
+    expect(target!.bytes).toBeGreaterThan(0)
     const platform = join(root, ".cache", "bin", key, "browse")
     if (!existsSync(platform)) {
-      console.log("the pinned binary is not cached here; run npm run bin:ensure to check the real bytes")
+      console.log("the pinned binary is not cached here; run npm run bin:ensure to compare the cached bytes")
       return
     }
-    expect(createHash("sha256").update(readFileSync(platform)).digest("hex")).toBe(pin.targets[key].sha256)
-    expect(statSync(platform).size).toBe(pin.targets[key].bytes)
+    expect(createHash("sha256").update(readFileSync(platform)).digest("hex")).toBe(target!.sha256)
+    expect(statSync(platform).size).toBe(target!.bytes)
     // Hashes the whole pinned binary (about 115 MB) in the test body; a loaded runner needs more than the default 5 seconds.
   }, 120_000)
 })

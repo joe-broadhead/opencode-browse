@@ -6,10 +6,10 @@ import { join } from "node:path"
 
 const xdg = (variable: string, fallback: readonly string[]) => process.env[variable] ?? join(homedir(), ...fallback)
 
-/** This plugin's data folder: `$XDG_DATA_HOME/opencode-browse`, or `~/.local/share/opencode-browse`. */
-export const dataRoot = () => join(xdg("XDG_DATA_HOME", [".local", "share"]), "opencode-browse")
-/** This plugin's cache: `$XDG_CACHE_HOME/opencode-browse`, or `~/.cache/opencode-browse`. */
-export const cacheRoot = () => join(xdg("XDG_CACHE_HOME", [".cache"]), "opencode-browse")
+/** This plugin's data folder: `$XDG_DATA_HOME/browse-plugin`, or `~/.local/share/browse-plugin`. */
+export const dataRoot = () => join(xdg("XDG_DATA_HOME", [".local", "share"]), "browse-plugin")
+/** This plugin's cache: `$XDG_CACHE_HOME/browse-plugin`, or `~/.cache/browse-plugin`. */
+export const cacheRoot = () => join(xdg("XDG_CACHE_HOME", [".cache"]), "browse-plugin")
 
 export const managedRoot = () => join(dataRoot(), "managed")
 /** The managed browser's own profile. Its logins are separate from the user's browser. */
