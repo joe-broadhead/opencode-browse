@@ -1,6 +1,6 @@
 ---
 name: browse-capture
-description: Record, capture or replay a browser session with browse: screen recordings, a rolling flight recorder, a redacted HAR of an authenticated flow, or a reusable secret profile. Use when the deliverable is a video, a HAR, or an API flow captured from the person's own browser.
+description: "Record, capture or replay a browser session with browse: screen recordings, a rolling flight recorder, a redacted HAR of an authenticated flow, or a reusable secret profile. Use when the deliverable is a video, a HAR, or an API flow captured from the person's own browser."
 ---
 
 # Captures: recordings, network, secret profiles

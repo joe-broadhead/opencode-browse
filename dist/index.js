@@ -13093,6 +13093,7 @@ function parseSkill(name, path, text3) {
   if (fields.get("name") !== name) throw fail2(`must be named "${name}" in its frontmatter`);
   const description = fields.get("description");
   if (!description) throw fail2("has no description");
+  if (description.startsWith(">") || description.startsWith("|")) throw fail2("uses a YAML block scalar; write the description on one line");
   const content = match[2].trim();
   if (content === "") throw fail2("has an empty body");
   return { id: Skill.ID.make(name), name: Skill.Name.make(name), description, path: Skill.Info.fields.path.make(path), content };

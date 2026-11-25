@@ -26,6 +26,9 @@ export function parseSkill(name: string, path: string, text: string): Skill.Info
   if (fields.get("name") !== name) throw fail(`must be named "${name}" in its frontmatter`)
   const description = fields.get("description")
   if (!description) throw fail("has no description")
+  // The front matter is read line by line, so a YAML block scalar would reach the host as ">" or "|" and make the
+  // skill invisible to agents. Every shipped description is one line; a block scalar is refused with a next step.
+  if (description.startsWith(">") || description.startsWith("|")) throw fail("uses a YAML block scalar; write the description on one line")
   const content = match[2]!.trim()
   if (content === "") throw fail("has an empty body")
   return { id: Skill.ID.make(name), name: Skill.Name.make(name), description, path: Skill.Info.fields.path.make(path), content }

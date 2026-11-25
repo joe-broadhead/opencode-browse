@@ -37,6 +37,13 @@ describe("parseSkill", () => {
     expect(() => parseSkill("browse", path, "---\nname: browse\n---\n")).toThrow("no description")
     expect(() => parseSkill("browse", path, "---\nname: browse\ndescription: x\n---\n\n   \n")).toThrow("empty body")
   })
+
+  test("refuses an empty or YAML block scalar description, which would reach the host as > or |", () => {
+    expect(() => parseSkill("browse", path, "---\nname: browse\ndescription:\n---\n\nBody.\n")).toThrow("no description")
+    for (const description of [">", "|", "> folded text", "| folded text"]) {
+      expect(() => parseSkill("browse", path, `---\nname: browse\ndescription: ${description}\n---\n\nBody.\n`)).toThrow("block scalar")
+    }
+  })
 })
 
 describe("loading a directory", () => {
