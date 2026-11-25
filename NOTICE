@@ -89,6 +89,27 @@ The local bundle fingerprints and the upstream `v0.0.15` lock identify the Solid
 This NOTICE does not claim to enumerate every module in the vendor build. The same lock names `@opencode/ui` 2.2.5;
 this checkout does not prove which of its modules are bundled, so it is not attributed separately here.
 
+## yaml 2.9.1 (ISC), in dist/index.js
+
+`dist/index.js` bundles **yaml** (https://github.com/eemeli/yaml), the parser that reads each skill's YAML
+frontmatter, ISC, Copyright Eemeli Aro <eemeli@gmail.com>. Its licence:
+
+```
+Copyright Eemeli Aro <eemeli@gmail.com>
+
+Permission to use, copy, modify, and/or distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright notice
+and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+THIS SOFTWARE.
+```
+
 ## @we-the-rebel-alliance/source-contract 0.3.0
 
 `dist/index.js` bundles **source-contract** (https://github.com/we-the-rebel-alliance/source-contract), the plugin
