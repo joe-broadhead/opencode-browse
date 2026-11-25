@@ -109,7 +109,7 @@ describe("renderDoctor", () => {
   })
 
   test("a problem setup recorded is shown with the next step", () => {
-    const shown = renderDoctor({ binary, host, live, problems: ["SKILLS_INVALID: The \"browse\" skill was not loaded."] })
-    expect(shown).toContain('Problems: SKILLS_INVALID: The "browse" skill was not loaded.')
+    const shown = renderDoctor({ binary, host, live, problems: ["SCHEMA_VIOLATION: The \"browse\" skill frontmatter is not valid YAML."] })
+    expect(shown).toContain('Problems: SCHEMA_VIOLATION: The "browse" skill frontmatter is not valid YAML.')
   })
 })

@@ -1,7 +1,7 @@
-// The skills on the real embedded OpenCode 2.4.1 host: the built bundle registers every directory under `skills/`
-// through `ctx.skill.transform`, with its description and content, and a malformed (empty-body or block-scalar
-// description) skill is skipped and reported instead of failing setup. The expected ids come from the directories at
-// test time, never a fixed list, and each expected description is read with a real YAML parser.
+// The skills on the real embedded OpenCode 2.4.1 host: the built bundle reads every directory under `skills/`, parses
+// each SKILL.md frontmatter as YAML and registers its text through `ctx.skill.transform`, so a folded or literal
+// description arrives as its text, never as the `>` or `|` marker. The expected ids come from the directories at test
+// time, never a fixed list.
 //
 // HOME, the XDG variables and TMPDIR point at an isolated root before anything under `@opencode/*` is imported; the
 // package copy lives under this repository so the bundle resolves the host modules from `node_modules` upward.
@@ -24,19 +24,17 @@ afterAll(() => rmSync(root, { recursive: true, force: true }))
 const shippedNames = (): string[] =>
   readdirSync(join(repo, "skills"), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort()
 
-/** A shipped skill's frontmatter description and body, with a real YAML parser (not a first-line reader). */
-function shippedSkill(name: string): { description: string; content: string } {
-  const text = readFileSync(join(repo, "skills", name, "SKILL.md"), "utf8").replace(/\r\n/g, "\n")
-  const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(text)
-  if (!match) throw new Error(`${name} has no frontmatter`)
+/** A SKILL.md's YAML description and body, read with a real YAML parser (not a first-line reader). */
+function frontmatter(text: string): { description: string; content: string } {
+  const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(text.replace(/\r\n/g, "\n"))
+  if (!match) throw new Error("the skill has no frontmatter")
   const front = parse(match[1]!) as { description?: unknown }
-  if (typeof front.description !== "string" || front.description.trim() === "") throw new Error(`${name} has no description`)
-  if (front.description.trim() === ">" || front.description.trim() === "|" || front.description.trim().startsWith(">") || front.description.trim().startsWith("|")) throw new Error(`${name} has a block-scalar description`)
+  if (typeof front.description !== "string") throw new Error("the skill has no YAML description")
   return { description: front.description, content: match[2]!.trim() }
 }
 
-/** A copy of the package as installed: the built bundle, package.json and every skill, one of them broken if named. */
-function packageCopy(name: string, broken?: string): string {
+/** A copy of the package as installed: the built bundle, package.json and every shipped skill. */
+function packageCopy(name: string): string {
   const directory = join(root, name)
   mkdirSync(join(directory, "dist"), { recursive: true })
   cpSync(bundle, join(directory, "dist", "index.js"))
@@ -44,19 +42,18 @@ function packageCopy(name: string, broken?: string): string {
   for (const skill of shippedNames()) {
     const to = join(directory, "skills", skill, "SKILL.md")
     mkdirSync(dirname(to), { recursive: true })
-    if (skill === broken) writeFileSync(to, `---\nname: ${skill}\ndescription: A broken skill.\n---\n\n`)
-    else cpSync(join(repo, "skills", skill, "SKILL.md"), to)
+    cpSync(join(repo, "skills", skill, "SKILL.md"), to)
   }
   return directory
 }
 
-/** A package copy whose named skill has a YAML folded-block description (the text on the following lines). */
-function packageCopyFolded(name: string, broken: string): string {
+/** A package copy with four extra skills whose descriptions are YAML block scalars. */
+function packageCopyWithBlockScalars(name: string, variants: readonly { readonly id: string; readonly marker: string }[]): string {
   const directory = packageCopy(name)
-  for (const skill of shippedNames()) {
-    if (skill !== broken) continue
-    const to = join(directory, "skills", skill, "SKILL.md")
-    writeFileSync(to, `---\nname: ${skill}\ndescription: >\n  A folded description the first-line reader would see as a block marker.\n---\n\nBody text.\n`)
+  for (const variant of variants) {
+    const to = join(directory, "skills", variant.id, "SKILL.md")
+    mkdirSync(dirname(to), { recursive: true })
+    writeFileSync(to, `---\nname: ${variant.id}\ndescription: ${variant.marker}\n  first line\n  second line\n---\n\n# ${variant.id}\n`)
   }
   return directory
 }
@@ -88,8 +85,8 @@ async function skillsOf(entry: string, directory: string) {
       if (active || Date.now() > until) break
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
-    const skills = (await host.skill.list({ location: { directory } })) as { data: { id: string; description?: string; content?: string }[] }
-    return { host, sessionID: session.id, skills: skills.data }
+    const skills = (await host.skill.list({ location: { directory } })) as { data: { id: string; name: string; description?: string; path: string; content: string }[] }
+    return { host, skills: skills.data }
   } catch (error) {
     await host.close().catch(() => undefined)
     throw error
@@ -104,7 +101,7 @@ const project = (name: string) => {
 }
 
 describe("the skills on the real host", () => {
-  test("the built plugin registers every skills/*/SKILL.md id, with its description and content", async () => {
+  test("every skills/*/SKILL.md registers with its YAML description, name, path and content", async () => {
     const expected = shippedNames()
     const packageRoot = packageCopy("package")
     const { host, skills } = await skillsOf(join(packageRoot, "dist", "index.js"), project("project"))
@@ -112,64 +109,37 @@ describe("the skills on the real host", () => {
       const found = skills.filter((skill) => expected.includes(skill.id)).sort((left, right) => left.id.localeCompare(right.id))
       expect(found.map((skill) => skill.id)).toEqual(expected)
       for (const skill of found) {
-        const shipped = shippedSkill(skill.id)
-        expect({ id: skill.id, description: skill.description }).toEqual({ id: skill.id, description: shipped.description })
+        const path = join(packageRoot, "skills", skill.id, "SKILL.md")
+        const shipped = frontmatter(readFileSync(path, "utf8"))
+        expect({ id: skill.id, name: skill.name }).toEqual({ id: skill.id, name: skill.id })
+        expect({ id: skill.id, path: skill.path }).toEqual({ id: skill.id, path })
         expect({ id: skill.id, content: skill.content }).toEqual({ id: skill.id, content: shipped.content })
-        expect(["", ">", "|"]).not.toContain(String(skill.description).trim())
-        expect(/^[>|]/.test(String(skill.description).trim())).toBe(false)
+        expect({ id: skill.id, description: skill.description }).toEqual({ id: skill.id, description: shipped.description })
+        expect(shipped.description.trim()).not.toBe("")
+        for (const marker of [">", "|", ">-", "|-", ">+", "|+"]) expect(shipped.description.trim()).not.toBe(marker)
       }
     } finally {
       await host.close()
     }
   }, 120_000)
 
-  test("an empty-body skill is skipped, the others load, and the report records the problem", async () => {
-    const expected = shippedNames()
-    const broken = expected[expected.length - 1]!
-    const brokenPackage = packageCopy("broken-package", broken)
-    const { host, sessionID, skills } = await skillsOf(join(brokenPackage, "dist", "index.js"), project("broken-project"))
+  test("a folded or literal description registers its text, never the block marker", async () => {
+    const variants = [
+      { id: "folded", marker: ">", expected: "first line second line\n" },
+      { id: "literal", marker: "|", expected: "first line\nsecond line\n" },
+      { id: "folded-strip", marker: ">-", expected: "first line second line" },
+      { id: "literal-strip", marker: "|-", expected: "first line\nsecond line" },
+    ] as const
+    const packageRoot = packageCopyWithBlockScalars("block-scalar-package", variants)
+    const { host, skills } = await skillsOf(join(packageRoot, "dist", "index.js"), project("block-scalar-project"))
     try {
-      const ids = skills.map((skill) => skill.id)
-      expect(ids).not.toContain(broken)
-      for (const name of expected.filter((name) => name !== broken)) expect(ids).toContain(name)
-      const answer = (await host.rpc.call({
-        rpcID: "browse",
-        method: "report",
-        input: { sessionID, input: {} },
-        location: { directory: join(root, "broken-project") },
-      })) as { output?: { problems?: string[]; state?: string } }
-      const problems = answer.output?.problems ?? []
-      expect(problems.some((problem) => problem.includes("SKILLS_INVALID") && problem.includes(broken) && problem.includes("empty body"))).toBe(true)
-      const status = (await host.rpc.call({
-        rpcID: "browse",
-        method: "status",
-        input: { sessionID, input: {} },
-        location: { directory: join(root, "broken-project") },
-      })) as { output?: { state?: string } }
-      expect(status.output?.state).toBe("error")
-    } finally {
-      await host.close()
-    }
-  }, 120_000)
-
-  test("a folded-block description is not registered as >", async () => {
-    const expected = shippedNames()
-    const folded = expected[expected.length - 1]!
-    const packageRoot = packageCopyFolded("folded-package", folded)
-    const { host, sessionID, skills } = await skillsOf(join(packageRoot, "dist", "index.js"), project("folded-project"))
-    try {
-      const ids = skills.map((skill) => skill.id)
-      expect(ids).not.toContain(folded)
-      expect(skills.some((skill) => String(skill.description).trim() === ">")).toBe(false)
-      for (const name of expected.filter((name) => name !== folded)) expect(ids).toContain(name)
-      const answer = (await host.rpc.call({
-        rpcID: "browse",
-        method: "report",
-        input: { sessionID, input: {} },
-        location: { directory: join(root, "folded-project") },
-      })) as { output?: { problems?: string[] } }
-      const problems = answer.output?.problems ?? []
-      expect(problems.some((problem) => problem.includes("SKILLS_INVALID") && problem.includes(folded) && problem.includes("block scalar"))).toBe(true)
+      for (const variant of variants) {
+        const skill = skills.find((candidate) => candidate.id === variant.id)
+        expect({ id: variant.id, registered: skill !== undefined }).toEqual({ id: variant.id, registered: true })
+        expect({ id: variant.id, description: skill?.description }).toEqual({ id: variant.id, description: variant.expected })
+        expect(skill?.description).not.toBe(variant.marker)
+      }
+      for (const id of shippedNames()) expect(skills.some((skill) => skill.id === id)).toBe(true)
     } finally {
       await host.close()
     }

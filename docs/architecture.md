@@ -9,7 +9,7 @@ src/
   report.ts         the report's types, its formatting, and the dialog's RPC definition
   report-build.ts   the report's builder and the manifest's access counts (server half only)
   scope.ts          the `scope` option's narrowing of the contract's rules
-  skills.ts         the two shipped skills, registered through ctx.skill
+  skills.ts         the two shipped skills: YAML frontmatter parsed, then registered through ctx.skill
   commands.ts       /browse-status, /browse-doctor, /browse-install, /browse-install-browser, /browse-stop-relay
   tui.ts            the status dialog
   handlers/
@@ -40,7 +40,8 @@ src/
 - **The provider is the only place a URL, a binary or a file path is named.** It runs the pinned binary with an argument
   list, never a shell; it starts the managed Chromium; it reads the relay's `/version`.
 - **Commands and skills are host surfaces, not methods.** They are registered once in setup and add no method to the
-  manifest.
+  manifest. Skills are checked before anything registers: the frontmatter is parsed as YAML, so a folded or literal
+  description keeps its text, and a malformed file fails setup with `SCHEMA_VIOLATION`.
 
 ## OpenCode APIs used
 

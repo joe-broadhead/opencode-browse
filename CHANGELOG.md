@@ -17,7 +17,8 @@ The first release on plugin-contract v0.
 - Managed mode: a separate Chromium (pinned Chrome for Testing) with its own profile, the extension loaded unpacked and
   paired through browse's own protocol, started and stopped with the plugin.
 - Five commands (`/browse-status`, `/browse-doctor`, `/browse-install`, `/browse-install-browser`,
-  `/browse-stop-relay`), two skills (`browse`, `browse-capture`), a status dialog, and freshly written docs.
+  `/browse-stop-relay`), two skills (`browse`, `browse-capture`, read from their YAML frontmatter, so a folded or
+  literal description registers its text), a status dialog, and freshly written docs.
 - Tests: unit, the plugin's own suite against the real `@opencode/sdk` 2.4.1 host, managed mode against the real
   Chrome for Testing, the packed tarball, and the contract's conformance kit (T0 and T1).
 

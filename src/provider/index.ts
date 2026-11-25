@@ -1,7 +1,7 @@
 // The browse provider: the pinned binary, the MCP server it serves, the managed browser, the pinned session and the
 // live reads status and the doctor use. Everything here talks to browse, Chromium or the host's public APIs; the
 // contract's doors are wired by `register` in ../index.ts.
-import type { Plugin, Skill } from "@opencode/plugin"
+import type { Plugin } from "@opencode/plugin"
 import type { Manifest } from "@we-the-rebel-alliance/plugin-contract/manifest"
 import { errorText, isPluginCode } from "../constants.js"
 import type { Options, ParseResult, ScopeOptions } from "../options.js"
@@ -9,7 +9,6 @@ import { packageRoot } from "../package.js"
 import { hostOf, type HostCheck, type Report } from "../report.js"
 import { buildReport, readReport } from "../report-build.js"
 import { shortReason } from "../redact.js"
-import { loadSkills } from "../skills.js"
 import { ensureScope, probeVersion, readStatus, resolveBinary, verifyBinaryNow, type BinaryInfo, type BrowseStatus, type Probe, type ScopeResult } from "./binary.js"
 import { ManagedBrowser } from "./managed.js"
 import { detectRecording, type RecordingReadiness } from "./recording.js"
@@ -35,7 +34,6 @@ export interface BrowseProvider {
   readonly scope: ScopeOptions | undefined
   readonly managed: ManagedBrowser | undefined
   readonly recording: RecordingReadiness | undefined
-  readonly skills: readonly Skill.Info[]
   /** The diagnostic report, with the agents the caller read from its own call. */
   readonly report: (unguardedAgents: readonly string[], extraProblems?: readonly string[]) => Promise<Report>
   readonly live: (force?: boolean) => Promise<{ status?: BrowseStatus; reason?: string }>
@@ -59,9 +57,6 @@ export async function createProvider(ctx: Plugin.Context, manifest: Manifest, pa
   const late: string[] = []
   if (!parsed.ok) problems.set("options", parsed.problem)
   const report = (area: string) => (problem: string | undefined) => void (problem ? problems.set(area, problem) : problems.delete(area))
-
-  const { skills, problems: skillProblems } = await loadSkills()
-  for (const [index, problem] of skillProblems.entries()) problems.set(`skill:${index}`, problem)
 
   let binary: BinaryInfo | undefined
   let binaryProblem: string | undefined
@@ -186,7 +181,6 @@ export async function createProvider(ctx: Plugin.Context, manifest: Manifest, pa
     scope: options?.scope,
     managed,
     recording,
-    skills,
     report: reportOf,
     live: (force = false) => live(force),
     applyScope,

@@ -9,12 +9,14 @@ import { manifest, packageVersion } from "./manifest.js"
 import { parseOptions } from "./options.js"
 import { createProvider } from "./provider/index.js"
 import { applyScopeNarrowing } from "./scope.js"
-import { registerSkills } from "./skills.js"
+import { readSkills, registerSkills } from "./skills.js"
 
 export default Plugin.define({
   id: manifest.plugin.name,
   async setup(ctx) {
     assertHost(ctx, manifest)
+    // Check every skill before anything registers, so a malformed file fails setup with one clear error.
+    const skills = readSkills()
 
     const parsed = parseOptions(ctx.options)
     const provider = await createProvider(ctx, manifest, parsed)
@@ -24,13 +26,14 @@ export default Plugin.define({
 
       // The scoped profile narrows the contract's rules; it runs after `register` so its rules come after them.
       if (provider.options !== undefined) await applyScopeNarrowing(ctx, manifest, provider.options, (problem) => provider.note(problem))
-      await registerSkills(ctx.skill, provider.skills)
+      const skillRegistration = await registerSkills(ctx, skills)
       await registerStatusCommand(ctx, manifest, provider)
       await registerDoctorCommand(ctx, provider)
       if (provider.options !== undefined) await registerInstallCommands(ctx, provider)
       await registerStopRelayCommand(ctx, { binary: () => provider.binary })
 
       return async () => {
+        await skillRegistration.dispose()
         await registration.dispose()
         await provider.dispose()
       }

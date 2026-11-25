@@ -170,7 +170,6 @@ Browse's own codes:
 | `STATUS_UNAVAILABLE` | the status report could not be read; restart OpenCode |
 | `DOCTOR_FAILED` | the vendor doctor exited non-zero; fix its first failing check |
 | `NOT_INSTALLED` | there is no pinned binary to identify the relay; reinstall the plugin |
-| `SKILLS_INVALID` | a shipped skill file is missing or malformed; reinstall the plugin |
 | `CHROMIUM_MISSING` | managed mode's Chrome for Testing is not installed; run `/browse-install-browser` |
 | `CHROMIUM_INVALID` | the Chrome for Testing download is not the pinned file; reinstall it |
 | `CHROMIUM_BRANDED` | the named Chromium is a branded build managed mode does not run; set `chromiumPath` to a Chromium build |

@@ -1,3 +1,6 @@
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+
 // src/tui.ts
 import { Plugin } from "@opencode/plugin/tui";
 
