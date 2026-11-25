@@ -1,0 +1,42 @@
+name: Feature request
+description: A capability, a browser tool classification or a change the plugin should make.
+title: "feat: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Browse's methods are the browse MCP server's own tools plus `status` and `report`; the manifest classifies
+        every one. Read AGENTS.md before you open the pull request.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of change
+      options:
+        - A browser tool classification or access rule
+        - The pinned binary or its verification
+        - Managed mode, Chromium or the extension
+        - The relay, the pinned session or status and diagnostics
+        - Documentation, layout or tests
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What a person cannot do today, and why this plugin is the right owner rather than another tool.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: The proposal
+      description: The method, option or behaviour, its class where it is a tool, and what its answer looks like.
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Risk and confirmation
+      description: For a change that reaches a page or a credential, say what it reaches and how it is confirmed (an ask, or an action grant). For a read, say what it reads.
+    validations:
+      required: false

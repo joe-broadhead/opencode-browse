@@ -1,0 +1,47 @@
+name: Bug report
+description: Something the browse plugin does wrong.
+title: "bug: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not put a credential, a token, a page's content or a person's data in an issue. Report a vulnerability
+        through the process in SECURITY.md.
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      description: The version in package.json, or the release tag you installed.
+      placeholder: "0.0.0"
+    validations:
+      required: true
+  - type: input
+    id: opencode-version
+    attributes:
+      label: OpenCode version
+      description: The release `status` reports, such as 2.4.1.
+      placeholder: "2.4.1"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: 'What you did, what you expected, and what the plugin answered. Paste the error''s `CODE: … Next step: …` line, and the relevant `/browse-status` or `/browse-doctor` lines with any path or URL query removed.'
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup
+      description: Real or managed mode, the pinned binary or your own `path`, and whether the extension is paired.
+    validations:
+      required: false
+  - type: textarea
+    id: check
+    attributes:
+      label: The check result
+      description: Paste `plugin-kit check` or `npm run check` if you can run it.
+      render: shell
+    validations:
+      required: false
