@@ -1,63 +1,75 @@
+// The plugin options: every option is optional, the defaults are narrow, and a bad value becomes a status problem
+// instead of throwing the plugin away.
 import { describe, expect, test } from "bun:test"
 import { parseOptions } from "../../src/options.js"
 
-describe("parseOptions", () => {
-  test("defaults: the pinned binary, verify, no scope", () => {
-    expect(parseOptions(undefined)).toEqual({ browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false, access: "all" })
-    expect(parseOptions(null)).toEqual({ browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false, access: "all" })
-    expect(parseOptions({})).toEqual({ browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false, access: "all" })
-  })
+const optionsOf = (raw: unknown) => {
+  const parsed = parseOptions(raw)
+  if (!parsed.ok) throw new Error(parsed.problem)
+  return parsed.options
+}
 
-  test("a path, and the two booleans", () => {
-    expect(parseOptions({ path: " /opt/browse ", verifyBinary: false, allowUntestedHost: true })).toEqual({
+describe("the defaults", () => {
+  test("are the real browser, headed, verified, untested-host off and access all", () => {
+    expect(optionsOf(undefined)).toEqual({ browser: "real", headless: false, verifyBinary: true, allowUntestedHost: false, access: "all" })
+    expect(optionsOf(null)).toEqual(optionsOf(undefined))
+    expect(optionsOf({})).toEqual(optionsOf(undefined))
+  })
+})
+
+describe("the plugin's own options", () => {
+  test("reads a binary path, managed mode and a chromium path", () => {
+    expect(optionsOf({ path: " /opt/browse ", browser: "managed", chromiumPath: "/opt/chromium", headless: true, verifyBinary: false })).toMatchObject({
       path: "/opt/browse",
-      browser: "real",
-      headless: false,
+      browser: "managed",
+      chromiumPath: "/opt/chromium",
+      headless: true,
       verifyBinary: false,
-      allowUntestedHost: true,
-      access: "all",
     })
   })
 
-  test("a scope, normalised", () => {
-    expect(parseOptions({ scope: { allowedOrigins: [" GitHub.com ", "*.example.com"] } })).toEqual({
-      access: "all",
-      browser: "real",
-      headless: false,
-      verifyBinary: true,
-      allowUntestedHost: false,
-      scope: { session: "opencode", allowedOrigins: ["github.com", "*.example.com"], readOnly: false },
+  test("reads a scope with a session, an allowlist and read-only", () => {
+    expect(optionsOf({ scope: { session: "task-1", allowedOrigins: ["GitHub.com", "https://app.example.com"], readOnly: true } })).toMatchObject({
+      scope: { session: "task-1", allowedOrigins: ["github.com", "https://app.example.com"], readOnly: true },
     })
-    expect(parseOptions({ scope: { session: "work", readOnly: true } })).toMatchObject({ scope: { session: "work", readOnly: true, allowedOrigins: [] } })
+    expect(optionsOf({ scope: {} })).toMatchObject({ scope: { session: "opencode", allowedOrigins: [], readOnly: false } })
   })
 
-  test("refuses unknown keys, wrong types and unsafe names", () => {
+  test("reads the three access levels", () => {
+    for (const access of ["all", "ask-changes", "read-only"] as const) expect(optionsOf({ access }).access).toBe(access)
+  })
+})
+
+describe("a bad option", () => {
+  const problem = (raw: unknown) => {
+    const parsed = parseOptions(raw)
+    expect(parsed.ok).toBe(false)
+    return parsed.ok ? "" : parsed.problem
+  }
+
+  test("is OPTIONS_INVALID with a next step, never a throw", () => {
     for (const raw of [
       { nope: 1 },
+      { browser: "brave" },
+      { headless: "yes" },
+      { verifyBinary: "no" },
+      { allowUntestedHost: 1 },
+      { access: "everything" },
       { path: "" },
-      { path: 3 },
-      { verifyBinary: "yes" },
-      { scope: [] },
       { scope: { session: "Bad Name" } },
-      { scope: { session: "../x" } },
-      { scope: { allowedOrigins: "github.com" } },
       { scope: { allowedOrigins: [""] } },
-      { scope: { allowedOrigins: ["https://github.com/path"] } },
-      { scope: { allowedOrigins: ["a b"] } },
-      { scope: { readOnly: "true" } },
-      { scope: { other: 1 } },
-      { scope: { allowedOrigins: Array.from({ length: 101 }, (_, index) => `h${index}.example.com`) } },
+      { scope: { readOnly: "no" } },
+      { scope: { nope: true } },
+      { scope: [] },
+      "options",
     ]) {
-      expect(() => parseOptions(raw), JSON.stringify(raw)).toThrow(/^OPTIONS_INVALID: /)
+      const text = problem(raw)
+      expect(text.startsWith("OPTIONS_INVALID: ")).toBe(true)
+      expect(text).toContain("Next step: ")
     }
   })
 
-  test("the error names the next step exactly once", () => {
-    try {
-      parseOptions({ scope: { allowedOrigins: ["*"] } })
-    } catch (error) {
-      expect((error as Error).message).toContain("Next step: Fix the plugin options in opencode.json")
-      expect((error as Error).message.match(/Next step:/g)).toHaveLength(1)
-    }
+  test("names the accepted options for an unknown key", () => {
+    expect(problem({ nope: 1 })).toContain('Unknown option "nope"')
   })
 })

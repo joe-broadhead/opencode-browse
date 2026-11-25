@@ -5,9 +5,9 @@ import { join } from "node:path"
 import { PINNED_VERSION } from "../../src/constants.js"
 import { tmpdir } from "node:os"
 import { fileURLToPath } from "node:url"
-import { executableIn, installRoot, installedChromium, managedPlatform, parseChromiumVersion, readPin, resolveChromium } from "../../src/managed/chromium.js"
-import { clearPairingCode, extensionIdOf, extensionVersion, prepareExtension, readExtensionPin, UNPACKED_EXTENSION_ID, verifyExtension, writePairingCode } from "../../src/managed/extension.js"
-import { extensionDir } from "../../src/managed/paths.js"
+import { executableIn, installRoot, installedChromium, managedPlatform, parseChromiumVersion, readPin, resolveChromium } from "../../src/provider/chromium.js"
+import { clearPairingCode, extensionIdOf, extensionVersion, prepareExtension, readExtensionPin, UNPACKED_EXTENSION_ID, verifyExtension, writePairingCode } from "../../src/provider/extension.js"
+import { extensionDir } from "../../src/provider/paths.js"
 
 const root = fileURLToPath(new URL("../..", import.meta.url))
 const work = mkdtempSync(join(tmpdir(), "browse-managed-"))

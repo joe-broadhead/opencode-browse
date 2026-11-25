@@ -1,144 +1,78 @@
 # Configuration
 
-## Options
+The plugin's options live under its entry in `opencode.json`. Every option is optional; the defaults are the narrowest
+that work.
 
-| Option | Type | Default | What it does |
-| --- | --- | --- | --- |
-| `path` | string | unset | Use your own browse binary instead of the pinned one. Reported unverified, and untested unless it is the pinned version. |
-| `browser` | `"real"` or `"managed"` | `"real"` | `real` uses your browser with the Web Store extension; `managed` runs a separate Chromium with its own profile and the extension loaded unpacked. |
-| `chromiumPath` | string | unset | managed mode: a Chromium or Chrome for Testing binary to use instead of the pinned download. Branded Google Chrome is refused. |
-| `headless` | boolean | `false` | managed mode: run the browser without a window. |
-| `scope` | object | unset | Pin the MCP server to one browse session. See below. |
-| `scope.session` | string | `opencode` | The session's id: lowercase letters, digits, `.`, `_`, `-`. |
-| `scope.allowedOrigins` | string[] | `[]` | Hosts or origins the session's tabs may load: `example.com`, `*.example.com`, `https://app.example.com`, `http://localhost:3000`. Empty means no allowlist, browse's own default. |
-| `scope.readOnly` | boolean | `false` | Pin a read-only session, whose input the relay refuses. `execute` then runs without asking. |
-| `verifyBinary` | boolean | `true` | Check the pinned binary's SHA-256 against the pin before running it. |
-| `allowUntestedHost` | boolean | `false` | Run on an OpenCode version outside `>=2.4.1 <2.5.0`, with a warning in status. |
+<!-- generated:configuration -->
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `access` | `all` \| `ask-changes` \| `read-only` | `"all"` | How much browse's tools may do without asking: everything, ask before changes, or reads only. |
+| `allowUntestedHost` | boolean | `false` | Start on an OpenCode release outside the supported range. |
+| `path` | string | — | A browse binary to run instead of the pinned release. It is reported unverified and untested. |
+| `browser` | `real` \| `managed` | `"real"` | "real" drives the browser the person is signed in to; "managed" runs a separate Chromium with its own profile. |
+| `chromiumPath` | string | — | A Chromium or Chrome for Testing binary for managed mode, instead of the pinned download. |
+| `headless` | boolean | `false` | Run the managed browser headless. Headed by default, so the person can watch. |
+| `verifyBinary` | boolean | `true` | Check the pinned binary's SHA-256 before running it. |
+| `scope` | object | — | Pin the browse server to one session, so it cannot reach another. |
+<!-- /generated:configuration -->
 
-An unknown option, a wrong type or an unsafe session name is `OPTIONS_INVALID`: the plugin sets nothing up and status
-shows the problem and the fix.
+## Examples
 
-## Managed mode
-
-`"browser": "managed"` starts Chrome for Testing with `--user-data-dir` in this plugin's data folder
-(`$XDG_DATA_HOME/opencode-browse/managed/profile`), the pinned browse extension copied out and loaded unpacked
-(`--load-extension`), and a one-time pairing code written into that copy's `relay-pairing.json`. browse's own
-unpacked build reads that file and exchanges the code for its own key; the plugin never mints, guesses or bypasses a
-code, and removes the file once the attempt ends.
-
-- **Its logins are separate.** The profile starts signed out of every site; tasks that need your accounts belong in
-  the real browser.
-- The browser starts with the plugin, headed by default, and stops on dispose (reload or exit). A browser a crashed
-  run left behind is stopped on the next start only when its command line names the executable this plugin launched.
-- Setup downloads the pinned browse binary on first use only at `access: "all"` (the default), and checks it against the pin. At `"ask-changes"` or `"read-only"` setup does not download it, and registers no browse tools until `/browse-install` has run.
-- `/browse-install` downloads the pinned browse binary from this repository's release (about 115-135 MB), checks it against the pin, and asks you to restart OpenCode so the server registers. It downloads at any `access` value, since you typed it. Without it, a missing binary registers no browse tools.
-- `/browse-install-browser` downloads the pinned Chrome for Testing from Google, verifies its size and SHA-256 against
-  `manifest/chromium.json`, extracts it into `$XDG_CACHE_HOME/opencode-browse/chromium/<version>`, and records the
-  executable's digest; a later change is refused (`CHROMIUM_UNVERIFIED`). Nothing downloads on its own.
-- `chromiumPath` skips the download. The plugin runs `<path> --version`, requires Chromium or "for Testing", and
-  records the version; branded Google Chrome is refused because it will not load a preloaded unpacked extension.
-- Permissions and the scoped profile are unchanged. The managed session starts with no allowlist, like any browse
-  session; set `scope` to pin one.
-
-## Scoped mode
-
-With `scope` set, at setup the plugin runs the vendor CLI with an argument list:
-
-1. `session list --json`;
-2. `session new <id> [--read-only] [--allow-origin <host>…]` when it does not exist;
-3. `session delete <id>` then `session new` when only the read-only flag differs, because browse cannot change it in
-   place;
-4. `session allow --session <id> <hosts…>`, or `--clear`, when the origins differ.
-
-Then the MCP entry carries `OPENCODE_BROWSER_SESSION=<id>`, and the rule block becomes the strict one:
-
-| Tool | Default profile | Scoped profile |
-| --- | --- | --- |
-| `session_new`, `session_use`, `session_adopt`, `session_delete` | the `access` option's effect | **deny** |
-| `session_allowlist` | the `access` option's effect | **deny** |
-| `execute` | the `access` option's effect | **allow** when `scope.readOnly`, else ask |
-| everything else | the `access` option's effect | unchanged |
-
-`/browse-status` compares the live session with the option and says `drifted` when they differ; `/browse-doctor`
-re-applies the scope.
-
-A deleted session is recreated by the next `execute` without a scope. In the scoped profile `session_delete` is denied,
-so that needs you; the next status read reports `SCOPE_LOST` and the doctor repairs it.
-
-## Permissions
-
-Every tool is allowed by default. The block, as `/browse-status` prints it, is `src/permissions.ts` evaluated: a
-`browse_*` allow first, so a tool browse adds later runs at once, then one `allow` per known tool.
-
-What that means in practice: `browse_execute` runs page actions with no prompt, the three captures record real page
-content to a path the agent chooses, and `browse_secrets_run` runs a local command with your stored credentials in its
-environment.
-
-`access` restricts it: `"all"` (the default) as above, `"ask-changes"` (the four reads run, everything else asks,
-tab cleanup included) and `"read-only"` (the reads run, everything else is denied). `/browse-status` prints the block in
-force. An agent's own rules and your top-level `permissions` still win, and the names are the 18 in `src/browse-tools.ts`.
-
-To turn a capture off for one agent:
+A signed-in browser, everything allowed:
 
 ```json
-{ "agents": { "build": { "permissions": [{ "action": "browse_recording", "resource": "*", "effect": "deny" }] } } }
+{ "plugins": [{ "package": "github:we-the-rebel-alliance/browse-plugin#v0.0.0" }] }
 ```
 
-A capture's `outputPath` is usually outside the project, so OpenCode asks for `external_directory` on that folder as
-well as for the capture's own action. Allow it once with
-`{ "action": "external_directory", "resource": "/path/to/captures/*", "effect": "allow" }`, or keep the folder inside
-the project. A refusal that names `external_directory` costs nothing, because nothing was written.
+Ask before every change:
 
-A tool browse adds later matches `browse_*`, so it runs at once under the default. Status lists it as unknown until
-this plugin classifies it: its class decides what `"ask-changes"` and `"read-only"` do with it, not whether it runs by
-default.
-
-## Errors
-
-Every error is `CODE: What happened. Next step: What to do.` One next step, ending with a full stop.
-
-| Code | When | Next step |
-| --- | --- | --- |
-| `BINARY_MISSING` | the release binary is not installed yet, or `path` names a missing file | run `/browse-install`, then restart OpenCode, or fix `path` |
-| `NOT_INSTALLED` | `/browse-stop-relay` has no pinned binary to identify the relay | reinstall the plugin |
-| `BINARY_UNVERIFIED` | the binary's SHA-256 differs from its manifest, at startup or at an MCP spawn | reinstall; set `verifyBinary: false` only if you trust the file |
-| `CHROMIUM_MISSING` | `chromiumPath` does not exist | fix it, or run `/browse-install-browser` |
-| `CHROMIUM_UNSUPPORTED` | no Chrome for Testing build for this platform | set `chromiumPath` |
-| `CHROMIUM_DOWNLOAD_FAILED` | the pinned download failed | check the network, then rerun `/browse-install-browser` |
-| `CHROMIUM_EXTRACT_FAILED` | `unzip` failed or the archive was wrong | install `unzip`, then rerun |
-| `CHROMIUM_UNVERIFIED` | the installed browser changed since its digest was recorded | rerun `/browse-install-browser` |
-| `CHROMIUM_INVALID` | `chromiumPath` is not a Chromium or Chrome for Testing binary | point it at one |
-| `CHROMIUM_BRANDED` | `chromiumPath` is branded Google Chrome | point it at Chrome for Testing or Chromium |
-| `CHROMIUM_INSTALL_FAILED` | `/browse-install-browser` failed before or during the install | run `/browse-doctor` and fix the first failed check |
-| `EXTENSION_UNVERIFIED` | the bundled extension does not match its pin | reinstall the plugin |
-| `UNSUPPORTED_PLATFORM` | no package ships for this OS or architecture | set `path` to your own browse binary |
-| `SERVER_LEGACY` | an `opencode-browser` entry remains | remove it, then restart |
-| `SERVER_NOT_REGISTERED` | the server transform failed | restart OpenCode |
-| `RULES_NOT_ADDED` | the rules could not be inserted | restart OpenCode |
-| `SCOPE_LOST` | the pinned session is missing or differs | run `/browse-doctor` |
-| `SCOPE_UNREACHABLE` | the session could not be created (relay down, CLI error) | pair the browser, then run `/browse-doctor` |
-| `STATUS_UNAVAILABLE` | `browse status` did not answer | run `browse status` in a terminal, then press `r` |
-| `RELAY_FAILED` | the relay answered with an error rather than a health report | run `/browse-doctor` |
-| `RELAY_NOT_OURS` | the relay on the port was not started by this plugin's binary | leave it, or stop it with the browse install that started it |
-| `RELAY_STOP_FAILED` | the relay accepted the shutdown request but did not stop | run `/browse-doctor` |
-| `DOCTOR_FAILED` | the vendor doctor exited non-zero | read its checks, fix the first failure |
-| `HOST_UNTESTED` | OpenCode is outside the supported range | use a supported OpenCode, or set `allowUntestedHost` |
-| `OPTIONS_INVALID` | an option failed validation | fix the option the message names |
-| `SKILLS_INVALID` | a bundled skill could not load | reinstall the plugin |
-
-## Status and RPC
-
-`browse/status` returns the model behind `/browse-status` and `/browse`:
-
-```
-{ version, host { version, range, tested }, state, unguardedAgents, nextStep,
-  binary { path, version, source, verified, tested, supported },
-  relay { running, version, stale },
-  extension { connected, version, pairingState, compatible, nextStep },
-  scope? { session, readOnly, allowedOrigins, matches },
-  tools, unknownCount, unknownTools, access { run, ask, off },
-  problems, updates { autoUpdate, available } }
+```json
+{ "plugins": [{ "package": "github:we-the-rebel-alliance/browse-plugin#v0.0.0", "options": { "access": "ask-changes" } }] }
 ```
 
-`state` is one of `connected`, `connecting`, `failed`, `disabled`, `not_configured`, `conflict`, `host_untested`.
-`sign_in_required` never applies: browse has no account, and the `Account` row is omitted.
+Pin the server to one session, read-only, on two sites:
+
+```json
+{
+  "plugins": [
+    {
+      "package": "github:we-the-rebel-alliance/browse-plugin#v0.0.0",
+      "options": { "scope": { "session": "research", "readOnly": true, "allowedOrigins": ["github.com", "*.wikipedia.org"] } }
+    }
+  ]
+}
+```
+
+Managed mode, headed, with a Chromium you built yourself:
+
+```json
+{
+  "plugins": [
+    {
+      "package": "github:we-the-rebel-alliance/browse-plugin#v0.0.0",
+      "options": { "browser": "managed", "chromiumPath": "/Applications/Chromium.app/Contents/MacOS/Chromium" }
+    }
+  ]
+}
+```
+
+## What the options do
+
+- **`access`** generates the default rules for every agent: `all` runs everything, `ask-changes` asks before a method
+  that is not a read, and `read-only` turns those methods off. See the README's table.
+- **`path`** runs a browse binary you name instead of the pinned release. It is reported unverified and untested; only
+  the pinned release is checked against a digest.
+- **`browser`** chooses the person's browser (through the extension) or a separate Chromium the plugin starts and stops.
+- **`chromiumPath`** uses your own Chromium build for managed mode; the pinned Chrome for Testing is used otherwise.
+- **`headless`** hides the managed browser's window. Headed is the default so the person can watch.
+- **`verifyBinary`** checks the pinned binary's SHA-256 at startup and at every use. Leave it on.
+- **`scope`** pins the server to one browse session. With `scope` set, `session_new`, `session_use`, `session_adopt`,
+  `session_delete` and `session_allowlist` are denied, and `execute` asks unless the session is read-only (the relay
+  then refuses all input) — so the plugin cannot leave the session you pinned. `allowedOrigins` narrows the session's
+  tabs further; empty means browse's own default.
+- **`allowUntestedHost`** starts on an OpenCode release outside `>=2.4.1 <2.5.0`. Status says the host is untested.
+  Leave it off.
+
+An unknown option, a wrong type or an unreadable value is refused with `OPTIONS_INVALID`, and the diagnostic report
+says which option it was; the plugin stays loaded so you can read the report and fix it. The one exception is `access`: an invalid level
+is refused at startup by the contract's access module, because a plugin may not fall back to a wider level.

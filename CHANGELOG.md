@@ -1,26 +1,36 @@
 # Changelog
 
-All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project uses [Semantic Versioning](https://semver.org/).
+## 0.0.0 (2026-11-25)
 
-## 0.0.0 (unreleased)
+The first release on plugin-contract v0.
 
-### Changed
+- A `capabilities` manifest: plugin identity and vendor, the host range `>=2.4.1 <2.5.0` with `2.4.1` tested, the
+  options schema, and a `methods` table of 20 entries — `status`, `report`, and the browse server's 18 pass-through
+  tools as `mcp:<tool>`, each with its class and `accounts: "none"`.
+- The pinned `browse` MCP server: its binary is resolved from the committed release manifest `manifest/native.json`,
+  checked against its SHA-256 at startup and at every use, and served through the verifying wrapper `bin/mcp.mjs`. The
+  binary's first-use download runs at `access: "all"`; `/browse-install` downloads it at any level.
+- `status` through the contract's `statusAnswer` (`NO_ACCOUNTS`), and `report`, the diagnostic answer the status dialog
+  and `/browse-status` read: binary, relay, extension, scope, managed browser, recording readiness and the next step.
+- One `register` call for the agent tool, Code Mode and the RPC id `browse`; access rules generated from `methods` and
+  the `access` option by the contract's `access` module, with `scope` narrowing them to a pinned session.
+- Managed mode: a separate Chromium (pinned Chrome for Testing) with its own profile, the extension loaded unpacked and
+  paired through browse's own protocol, started and stopped with the plugin.
+- Five commands (`/browse-status`, `/browse-doctor`, `/browse-install`, `/browse-install-browser`,
+  `/browse-stop-relay`), two skills (`browse`, `browse-capture`, read from their YAML frontmatter, so a folded or
+  literal description registers its text), a status dialog, and freshly written docs.
+- Tests: unit, the plugin's own suite against the real `@opencode/sdk` 2.4.1 host, managed mode against the real
+  Chrome for Testing, the packed tarball, and the contract's conformance kit (T0 and T1).
 
-- The plugin is rebuilt under the new name `@we-the-rebel-alliance/browse-plugin`, at version `0.0.0`, with every
-  repository link and install line pointing at `we-the-rebel-alliance/browse-plugin`.
-- OpenCode `>=2.4.1 <2.5.0`, tested on 2.4.1 only: `@opencode/client`, `@opencode/plugin` and `@opencode/sdk` are
-  exact `2.4.1` devDependencies, and the test matrix for older hosts is gone.
-- The `browse` namespace line is the short fixed-context text: the user's own signed-in browser, the browse skill
-  first, `tools.browse.execute({ code })`, a hand-back for logins and payments, and what browse is not for.
+### Removed since v0.0.5
 
-### Removed
-
-- The Jelly-only surface: the per-task personal-Chrome gate, the `browser.status` / `browser.ask` / `browser.inbox` RPC,
-  the `browser.connect` / `allow` / `decline` / `stop` actions, the `browser-native` view, `nativeData`, the inbox, the
-  notices and their tests and docs. The action-grant verifier stays in `src/grant/action-grant.ts`.
-- The Jelly-only error codes `CHROME_NOT_ALLOWED`, `CHROME_SCOPE`, `REQUEST_EXPIRED` and `NOT_YOUR_REQUEST`.
-
-### Added
-
-- The first release is `0.0.0`, unreleased.
+- **The `browse.tools` RPC.** Contract v0's `register` does not proxy a vendor MCP server's tools over RPC. The 18
+  pass-through tools remain agent tools and Code Mode entries, and the plugin's own `status` and `report` are on the
+  `browse` RPC. The old RPC's `describe` method goes with it.
+- **The old data and cache folders `opencode-browse`** are not migrated to `browse-plugin`. v0.0.0 is greenfield; a first
+  run recreates them, so a managed profile made by v0.0.5 is not carried over.
+- **The server's own `status` tool is not separately callable.** OpenCode 2.4.1 gives it and the plugin's required
+  `status` the same effective name (`browse_status`), so the plugin's `status` owns that name; the server's relay,
+  extension and connected-browser detail is in `report`.
+- **The old detailed status RPC response** is split into the contract's `status` (the short answer) and the plugin's
+  `report` (the binary, relay, extension, scope, managed browser, recording and next step).

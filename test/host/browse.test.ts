@@ -2,9 +2,9 @@ import { afterAll, describe, expect, setDefaultTimeout, test } from "bun:test"
 import { cleanup, attempt, effect, modelReady, modelSession, modelTurn, session, startHost, until } from "./harness.js"
 import { NEW_TOOL, REAL_TOOLS } from "./fake-browse.js"
 import { PINNED_VERSION } from "../../src/constants.js"
-import { resolveBinary } from "../../src/engine.js"
+import { resolveBinary } from "../../src/provider/binary.js"
 import { pinnedBinary } from "../support/pinned.js"
-import { relayVersion, stopRelaySafely } from "../../src/managed/relay.js"
+import { relayVersion, stopRelaySafely } from "../../src/provider/relay.js"
 import { assertNoRelayLeft, relayPidsForHome } from "../support/relays.js"
 
 // Each test starts a real host on a stock server; a busy machine needs more than Bun's default 5 s.
@@ -12,12 +12,25 @@ setDefaultTimeout(120_000)
 afterAll(cleanup)
 
 describe("registering the server", () => {
-  test("a fresh install: the pinned command runs, and the 18 tools arrive", async () => {
+  test("a fresh install: the pinned command runs, and the browser tools arrive beside status and report", async () => {
     const host = await startHost({ options: { verifyBinary: false } })
     try {
       const tools = await host.probe().tool.list()
-      const names = tools.filter((tool) => tool.options?.namespace === "browse").map((tool) => tool.name)
-      expect(names.sort()).toEqual(REAL_TOOLS.map((tool) => tool.name).sort())
+      const inNamespace = tools.filter((tool) => tool.options?.namespace === "browse")
+      // The server's own `status` tool shares its effective name with the contract's `status` method; the plugin's
+      // tool owns `browse_status`, and `report` carries the details. The other 17 server tools keep their names.
+      expect(inNamespace.find((tool) => tool.id === "browse_status")?.options?.permission).toBe("browse.status")
+      expect(inNamespace.find((tool) => tool.id === "browse_report")?.options?.permission).toBe("browse.report")
+      for (const tool of REAL_TOOLS.map((entry) => entry.name).filter((name) => name !== "status")) {
+        expect({ tool, found: inNamespace.some((entry) => entry.id === `browse_${tool}`) }).toEqual({ tool, found: true })
+      }
+      expect(inNamespace).toHaveLength(19)
+      // The project is empty and its config has no `mcp.servers` entry (the harness's isolated HOME and XDG keep any
+      // user config out), so the one `browse` server in the list is the plugin's own registration, and it is connected.
+      const { data: servers } = await host.client.mcp.list({ location: host.location })
+      const browseServers = servers.filter((server) => server.name === "browse")
+      expect(browseServers).toHaveLength(1)
+      expect(browseServers[0]?.status.status).toBe("connected")
       expect(host.fake.calls().some((call) => call.kind === "tool")).toBe(false)
     } finally {
       await host.close()
@@ -33,7 +46,7 @@ describe("registering the server", () => {
       const { data: servers } = await host.client.mcp.list({ location: host.location })
       expect(servers.filter((server) => server.name === "browse")).toHaveLength(1)
       const names = (await host.probe().tool.list()).filter((tool) => tool.options?.namespace === "browse")
-      expect(names).toHaveLength(18)
+      expect(names).toHaveLength(19)
     } finally {
       await host.close()
     }
@@ -47,7 +60,8 @@ describe("registering the server", () => {
     })
     try {
       const names = (await host.probe().tool.list()).filter((tool) => tool.options?.namespace === "browse")
-      expect(names).toHaveLength(0)
+      // The plugin's own methods stay: the conflict is about the server it will not register.
+      expect(names.map((tool) => tool.id).sort()).toEqual(["browse_report", "browse_status"])
     } finally {
       await host.close()
     }
@@ -68,17 +82,44 @@ describe("review findings, through the host", () => {
   })
 })
 
+describe("the contract's doors", () => {
+  test("status and report answer over RPC, and neither takes an account", async () => {
+    const host = await startHost({ options: { verifyBinary: false } })
+    try {
+      const status = await host.call("status", {})
+      expect(status.ok).toBe(true)
+      if (status.ok) {
+        expect(status.output).toMatchObject({ name: "browse", version: "0.0.0", accounts: [], state: "ready" })
+        expect(typeof (status.output as { nextStep?: unknown }).nextStep).toBe("string")
+      }
+      const report = await host.call("report", {})
+      expect(report.ok).toBe(true)
+      if (report.ok) expect(report.output).toMatchObject({ version: "0.0.0", mode: "real", unguardedAgents: [] })
+      // The manifest declares every method `accounts: none`. The RPC envelope validates the input against the method's
+      // schema before the register sees it, so an account field is refused as `rpc.invalid_input`; the register's own
+      // refusal for the same field is `INPUT_INVALID`. Either way the call does not run.
+      const withAccount = await host.call("status", { account: "work" })
+      expect(withAccount.ok).toBe(false)
+      if (!withAccount.ok) expect(["INPUT_INVALID", "rpc.invalid_input"]).toContain(withAccount.code)
+    } finally {
+      await host.close()
+    }
+  })
+})
+
 describe("the permission table, through the host", () => {
   test("the reads and the captures run with no prompt", async () => {
     const host = await startHost({ options: { verifyBinary: false } })
     try {
       const sessionID = await session(host)
-      for (const tool of ["status", "session_list", "secrets_list", "secrets_status", "tabs_cleanup", "network", "recording", "flight_recorder"]) {
+      // `browse_status` is the plugin's own status: the contract's `status` method owns the name and shadows the
+      // server's own `status` tool on OpenCode 2.4.1 (see docs/capabilities.md). `report` carries the details.
+      for (const tool of ["report", "session_list", "secrets_list", "secrets_status", "tabs_cleanup", "network", "recording", "flight_recorder"]) {
         const result = await attempt(host, sessionID, "build", tool, "reject")
         expect({ tool, asked: result.asked }).toEqual({ tool, asked: undefined })
         expect({ tool, ok: result.ok }).toEqual({ tool, ok: true })
       }
-      expect(host.fake.tools().sort()).toEqual(["flight_recorder", "network", "recording", "secrets_list", "secrets_status", "session_list", "status", "tabs_cleanup"].sort())
+      expect(host.fake.tools().sort()).toEqual(["flight_recorder", "network", "recording", "secrets_list", "secrets_status", "session_list", "tabs_cleanup"].sort())
     } finally {
       await host.close()
     }
@@ -120,8 +161,9 @@ describe("the permission table, through the host", () => {
   test("every known name resolves to allow, and an unknown name runs on the namespace rule", async () => {
     const host = await startHost({ options: { verifyBinary: false }, fake: { tools: [...REAL_TOOLS, NEW_TOOL] } })
     try {
-      const { TOOLS } = await import("../../src/browse-tools.js")
-      for (const tool of TOOLS) expect({ tool: tool.name, effect: await effect(host, "build", `browse_${tool.name}`) }, tool.name).toEqual({ tool: tool.name, effect: "allow" })
+      const { manifest } = await import("../../src/manifest.js")
+      const tools = Object.keys(manifest.methods).filter((method) => method.startsWith("mcp:")).map((method) => method.slice(4))
+      for (const tool of tools) expect({ tool, effect: await effect(host, "build", `browse_${tool}`) }, tool).toEqual({ tool, effect: "allow" })
       // The namespace pattern allows a tool the table does not know yet, so it is usable at once.
       expect(await effect(host, "build", "browse_shiny_new_tool")).toBe("allow")
       const sessionID = await session(host)
@@ -178,7 +220,7 @@ describe("Code Mode", () => {
           arguments: {
             code: [
               "const results = []",
-              "results.push(String((await tools.browse.status({})) !== undefined))",
+              "results.push(String((await tools.browse.report({})) !== undefined))",
               "try { await tools.browse.execute({ code: 'return 1' }); results.push('ran') } catch (error) { results.push('refused') }",
               "return results",
             ].join("\n"),
@@ -188,8 +230,8 @@ describe("Code Mode", () => {
       const sessionID = await modelSession(host)
       const answered = await modelTurn(host, sessionID, "Check the browser.")
       // Every tool is allowed by default, so the inner execute runs too. The turn is over when the model stops
-      // answering, which can be a moment before the program's last call lands, so wait for the calls themselves.
-      await until("the program's calls reach the server", async () => host.fake.tools().includes("status") && host.fake.tools().includes("execute"), 30_000)
+      // answering, which can be a moment before the program's last call lands, so wait for the call itself.
+      await until("the program's execute reaches the server", async () => host.fake.tools().includes("execute"), 30_000)
       expect(answered).toEqual([])
     } finally {
       await host.close()
@@ -213,13 +255,14 @@ describe("Code Mode", () => {
           },
         },
       ]
-      const asking = await modelSession(host, "build", [{ action: "browse_status", resource: "*", effect: "ask" }])
+      // The plugin's own status is permitted as `browse.status`; the server's tools keep `browse_<tool>`.
+      const asking = await modelSession(host, "build", [{ action: "browse.status", resource: "*", effect: "ask" }])
       const before = host.fake.tools().length
       const prompts = await modelTurn(host, asking, "Check the browser.")
-      expect(prompts).toContain("browse_status")
+      expect(prompts).toContain("browse.status")
       expect(host.fake.tools()).toHaveLength(before)
 
-      const denying = await modelSession(host, "build", [{ action: "browse_status", resource: "*", effect: "deny" }])
+      const denying = await modelSession(host, "build", [{ action: "browse.status", resource: "*", effect: "deny" }])
       const promptsDenied = await modelTurn(host, denying, "Check the browser.")
       expect(promptsDenied).toEqual([])
       expect(host.fake.tools()).toHaveLength(before)
@@ -231,15 +274,9 @@ describe("Code Mode", () => {
 
 describe("the relay a real-mode host starts", () => {
   test("is stopped by the plugin's own command, and another version is refused first", async () => {
-    // The pinned binary is fetched and verified into .cache/bin by `npm run bin:ensure`. Without it the host cannot start:
-    // say so out loud rather than fail a fresh clone (CI runs bin:ensure first, so there it fails instead of skipping).
+    // The pinned binary is fetched and verified into .cache/bin by `npm run bin:ensure`; the relay test requires it.
     const pinned = pinnedBinary()
-    if (pinned === undefined) {
-      const message = "skip: the pinned browse binary is not in .cache/bin; run npm run bin:ensure"
-      if (process.env.CI === "true" || process.env.CI === "1") throw new Error(message)
-      console.log(message)
-      return
-    }
+    if (pinned === undefined) throw new Error("the pinned browse binary is not in .cache/bin: run npm run bin:ensure")
     const host = await startHost({ packagedBinary: true })
     try {
       const sessionID = await session(host)
@@ -249,6 +286,10 @@ describe("the relay a real-mode host starts", () => {
       // paired extension; what this test is about is the relay the call starts.
       expect(started.asked).toBeUndefined()
       await until("the relay answers", async () => (await relayVersion()) !== undefined, 60_000)
+      // The cleanup helper's process pattern is real: the relay the call started is one of this HOME's `browse serve` pids.
+      const relay = await relayVersion()
+      expect(relay?.pid ?? 0).toBeGreaterThan(1)
+      expect(relayPidsForHome()).toContain(relay!.pid!)
 
       const binary = await resolveBinary({ optionPath: pinned })
       const refused = await stopRelaySafely({ expectedVersion: "0.0.0", binaryPath: binary.path })

@@ -66,7 +66,7 @@ const waitFor = (id, timeoutMs = 30_000) =>
   })
 
 try {
-  request(1, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "opencode-browse-capture", version: "0.0.0" } })
+  request(1, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "browse-plugin-capture", version: "0.0.0" } })
   const init = await waitFor(1)
   send({ jsonrpc: "2.0", method: "notifications/initialized" })
   request(2, "tools/list", {})

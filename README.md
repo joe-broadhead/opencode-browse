@@ -1,164 +1,211 @@
 # Browse plugin
 
-Drive the user's own signed-in Chromium browser from OpenCode, through the browse MCP server and its extension:
-their tabs, logins and 2FA, with a hand-back for logins, captchas and payments.
+Drive the person's real Chromium browser from OpenCode: their tabs, logins and extensions, with a hand-back for
+logins, 2FA and payments. The plugin registers the pinned `browse` MCP server, verifies its binary, and optionally runs
+a separate Chromium with its own profile (managed mode).
 
-**Unofficial; not affiliated with Anomaly or OpenCode.**
-
-browse is a trademark of Anomaly Innovations, Inc.; this unofficial plugin is not endorsed by them.
+An unofficial plugin. It is not affiliated with OpenCode or with the browse product's vendor.
 
 ## Requirements
 
-- OpenCode `>=2.4.1 <2.5.0` (tested on 2.4.1).
-- macOS (arm64 or x64) or Linux (x64 or arm64, glibc).
-- A Chromium-family browser (Chrome, Edge, Brave, Arc, Helium, Vivaldi, Opera or Chromium).
-- Node.js 22.19 or later, which OpenCode already needs.
-
-The plugin ships the pinned browse binary for your platform, so you do not install browse yourself. The browse
-browser extension is installed from the Chrome Web Store and paired once — or the plugin runs a **managed browser** of
-its own, with nothing installed in your browser.
+- OpenCode `>=2.4.1 <2.5.0` (tested on `2.4.1`).
+- macOS (arm64 or x64) or Linux (x64 or arm64) for the pinned binary.
+- The browse extension, paired once, for real mode. Managed mode pairs its own copy.
 
 ## Install
 
-Install from a release:
+This repository's first release on plugin-contract is `v0.0.0`. Once it is tagged:
 
 ```sh
-opencode plugin add github:we-the-rebel-alliance/browse-plugin#v<version>
+opencode plugin add github:we-the-rebel-alliance/browse-plugin#v0.0.0
 ```
 
-The first release on plugin-contract is v0.0.0 (phase 4b).
+The binary is downloaded and verified on first use at `access: "all"` (the default), or with `/browse-install` at any
+access level (about 115-135 MB). Managed mode's pinned Chrome for Testing is downloaded with `/browse-install-browser`
+(about 195-210 MB).
 
-The plugin is installed from Git, not npm, and a release install does not update itself: remove the entry and add the
-new release's tag.
+## Sign in
 
-The binary is downloaded on first use, at `access: "all"` (the default). Setup verifies it against its pinned SHA-256
-and then registers the server. At `"ask-changes"` or `"read-only"` setup downloads nothing: run `/browse-install`, which
-downloads and verifies the binary at any access value, then restart OpenCode.
-
-Restart OpenCode, then pair the extension:
-
-1. Install **browse** from the Chrome Web Store and open its options page.
-2. Run `/browse-doctor`; it prints the pairing command and the state of the relay, the extension and the session.
-3. Run the `Pair:` command it prints, enter the code on the extension's options page, and click **Pair**.
-
-There is nothing to sign in to: no account, no OAuth, no `/connect` entry.
+Browse is local: it signs in to nothing. There are no accounts, no OAuth and no `/connect` entry, and it never asks for
+the browser profile's own logins. In real mode, pair the browse extension once: `/browse-doctor` prints the `browse pair`
+command to run, and its next step says whether the extension is connected. Managed mode pairs its own copy.
 
 ## What it does
 
-The plugin registers the pinned browse binary as the local `browse` MCP server, so the model and Code Mode see
-browse's 18 tools under `tools.browse.*` (the direct tools are `browse_status`, `browse_execute` and the rest). It
-classifies every tool, adds its default permission rules to each agent, reports status, and ships two skills
-(`skills/browse` and `skills/browse-capture`):
+- **Real mode** (default) drives the browser the person already uses, through the browse extension: their tabs, their
+  logins, their extensions. They can watch or take over at any time.
+- **Managed mode** (`"browser": "managed"`) runs a separate Chromium with its own profile, started by the plugin and
+  stopped when it unloads. It starts signed out of every site.
+- **A pinned session** (`"scope"`) pins the server to one session, so its tools cannot reach another; the tools that
+  could leave it are off, and `execute` asks unless the pinned session is read-only.
+- **The pinned binary** is the only executable this plugin runs. It is checked against its release's SHA-256 at startup
+  and at every use; a person's own `path` is reported unverified and untested.
 
-- **browse** — when to use the user's browser, the session tools, the permission model, hand-back and credentials.
-- **browse-capture** — network captures, recordings and the flight recorder.
-
-Except in managed mode, the plugin never runs a browser itself, never edits a config file, and never runs `browse
-install` or `browse update`. Managed mode starts its own pinned Chromium in its own profile and pairs the extension with
-`browse pair`.
-
-## The pinned binary
-
-`manifest/browse.json` pins one browse release per platform: tarball URL, size, SHA-256 and the extracted binary's
-SHA-256. The release files are built by the `native` workflow and attached to the plugin release. A binary is
-resolved from the installed package's cache, verified against the pin at startup, and the MCP entry (`bin/mcp.mjs`)
-**re-checks the digest at every spawn**. A `path` option uses your own binary instead; it is reported unverified, and
-untested unless it is exactly the pinned version.
-
-## Managed browser (optional)
-
-Set `"browser": "managed"` and the plugin runs a separate Chromium — Chrome for Testing, downloaded on demand — with
-its own profile and browse's extension loaded unpacked and paired automatically. Nothing is installed in your own
-browser, and its logins are separate: the profile starts signed out of every site. Run `/browse-install-browser` to
-download and verify it (about 150–210 MB). `"chromiumPath"` uses a Chromium or Chrome for Testing you already have;
-branded Google Chrome is refused because it will not load a preloaded unpacked extension.
+The browse server's 18 tools do the work: `execute` runs Playwright code on a session's page, the `session_*` tools
+manage named sessions, `settings` reads or changes browse's own settings, and `network`, `recording`, `flight_recorder`,
+`secrets_list`, `secrets_status`, `secrets_run` and `secrets_refresh` capture traffic, record video and use stored
+credentials. The plugin adds two reads of its own: `status` (the contract's short answer) and `report` (the diagnostic
+report the status dialog shows). `browse_status` is the plugin's `status`: the server's own `status` tool has the same
+effective name on OpenCode 2.4.1, so `report` carries the relay, extension and browser details.
 
 ## Access
 
-**Every tool is allowed by default.** The plugin inserts, directly after each agent's base `* * allow`, a `browse_*`
-allow and one rule per known tool by exact name (`src/permissions.ts`). That means page actions, the three captures,
-the session tools and `browse_secrets_run` run without a prompt.
+`access` is `all` (the default), `ask-changes` or `read-only`:
 
-`access` restricts it:
+| Level | Reads | Everything else |
+|---|---|---|
+| `all` | runs | runs |
+| `ask-changes` | runs | asks first |
+| `read-only` | runs | off |
 
-- `"all"` (the default): everything runs;
-- `"ask-changes"`: the four reads run (`status`, `session_list`, `secrets_list`, `secrets_status`), everything else
-  asks, tab cleanup included;
-- `"read-only"`: the reads run, everything else is denied.
+The plugin's methods follow the same table: `status` and `report` are reads. The 18 browser tools are classified in the
+manifest — `execute`, `secrets_run` and `secrets_refresh` are admin, the captures are export, the session and settings
+changes are write, the deletions are delete, `session_allowlist` is share — so `ask-changes` asks before each of them
+and `read-only` turns them off. An agent's own rules and the person's rules still win. A tool the server adds later is
+not in this manifest until the plugin's next release; it follows the agent's own rules.
 
-An agent's own rules, your `permissions` in `opencode.json` and a saved approval still win. `/browse-status` prints the
-block in force and names agents that were created after the plugin added its rules. The scoped profile (`scope` in the
-options) denies the session tools that could leave the pinned session and runs `execute` only when the session is
-read-only.
+The generated rules are inserted after each agent's base allow. An agent that lacks them is named in `status`; the
+plugin never patches it behind the person's back.
 
-A capture's `outputPath` is usually outside the project, so OpenCode also asks for `external_directory` on that folder.
-Allow it once, or keep captures inside the project. A refusal costs nothing: nothing was written.
+## Options
 
-## Commands
+Every option is optional, and the generated table with titles and descriptions is in
+[Configuration](docs/configuration.md).
 
-| Command | Does |
-| --- | --- |
-| `/browse-status` | the binary, relay, extension, scope, tools and one next step |
-| `/browse-doctor` | the vendor doctor, the binary checks and scope repair |
-| `/browse-install` | download and verify the pinned browse binary |
-| `/browse-install-browser` | download and verify Chrome for Testing for managed mode |
-| `/browse-stop-relay` | stop the relay this plugin's binary started |
-| `/browse` | the status dialog |
+| Option | Default | Meaning |
+|---|---|---|
+| `access` | `all` | `all`, `ask-changes` or `read-only`, as above. |
+| `allowUntestedHost` | `false` | Start on an OpenCode release outside `>=2.4.1 <2.5.0`. |
+| `path` | none | A browse binary to run instead of the pinned release; reported unverified and untested. |
+| `browser` | `real` | `real` uses the person's browser through the extension; `managed` runs a separate Chromium. |
+| `chromiumPath` | none | A Chromium or Chrome for Testing binary for managed mode, instead of the pinned download. |
+| `headless` | `false` | Run the managed browser headless; headed by default so the person can watch. |
+| `verifyBinary` | `true` | Check the pinned binary's SHA-256 before running it. |
+| `scope` | none | Pin the server to one session (`session`, `allowedOrigins`, `readOnly`). |
+
+## Capabilities
+
+<!-- generated:capabilities -->
+### Methods
+
+| Method | Class | Accounts | Operations |
+|---|---|---|---|
+| `status` | read | none | — |
+| `report` | read | none | — |
+| `mcp:status` | read | none | — |
+| `mcp:session_list` | read | none | — |
+| `mcp:secrets_list` | read | none | — |
+| `mcp:secrets_status` | read | none | — |
+| `mcp:tabs_cleanup` | delete | none | — |
+| `mcp:execute` | admin | none | — |
+| `mcp:session_new` | write | none | — |
+| `mcp:session_use` | write | none | — |
+| `mcp:session_adopt` | write | none | — |
+| `mcp:session_reset` | delete | none | — |
+| `mcp:session_delete` | delete | none | — |
+| `mcp:settings` | write | none | — |
+| `mcp:network` | export | none | — |
+| `mcp:recording` | export | none | — |
+| `mcp:flight_recorder` | export | none | — |
+| `mcp:secrets_run` | admin | none | — |
+| `mcp:secrets_refresh` | admin | none | — |
+| `mcp:session_allowlist` | share | none | — |
+
+### Sources
+
+| Source | Kind | Reads or output | Method | Cost |
+|---|---|---|---|---|
+
+### Actions
+
+None.
+
+### Bus events
+
+None.
+<!-- /generated:capabilities -->
+
+## Errors
+
+<!-- generated:errors -->
+| Code | Meaning |
+|---|---|
+| `NEEDS_SIGN_IN` | the account is not signed in |
+| `SCOPE_MISSING` | the call needs a scope the person has not confirmed |
+| `ACCOUNT_REQUIRED` | the plugin serves several accounts and the call names none |
+| `ACCOUNT_UNKNOWN` | the call names an alias the plugin does not serve |
+| `ACCOUNT_MISMATCH` | the item belongs to another account |
+| `CURSOR_INVALID` | the cursor is malformed, or belongs to another source, account or scope |
+| `CURSOR_EXPIRED` | the provider no longer keeps the history the cursor names |
+| `RATE_LIMITED` | the provider asked the plugin to slow down |
+| `BUDGET_EXCEEDED` | the read would cost more than the person allows |
+| `SOURCE_DISABLED` | the person turned this source or action off |
+| `TOO_LARGE` | the answer is larger than the source's maxBytes |
+| `INPUT_INVALID` | the input does not match the method's schema |
+| `SOURCE_UNKNOWN` | the plugin declares no such source |
+| `SCHEMA_VIOLATION` | an answer does not keep the contract's shape |
+| `PERMISSION_DENIED` | the person's grant does not cover the call |
+| `PLAN_INVALID` | the plan is missing, or belongs to another method |
+| `PLAN_USED` | the plan was already used by an earlier commit |
+| `GRANT_INVALID` | the action grant did not verify, or was already spent |
+| `HOST_UNTESTED` | OpenCode is outside the plugin's tested range |
+| `OPTIONS_INVALID` | the plugin's options do not match their schema |
+| `UNAVAILABLE` | the provider could not be reached |
+<!-- /generated:errors -->
+
+Browse's own codes:
+
+| Code | Meaning |
+|---|---|
+| `SERVER_NOT_REGISTERED` | the `browse` MCP server could not be registered; restart OpenCode |
+| `SERVER_LEGACY` | an older `opencode-browser` server is still configured; remove that entry and restart |
+| `BINARY_MISSING` | the pinned binary is not installed; run `/browse-install` |
+| `BINARY_UNVERIFIED` | the binary does not match its pinned SHA-256 or its file mode; reinstall it |
+| `UNSUPPORTED_PLATFORM` | this platform has no pinned binary; set `path` to your own |
+| `SCOPE_LOST` | the pinned session is missing or no longer has the configured scope; run `/browse-doctor` |
+| `SCOPE_UNREACHABLE` | the pinned session could not be created or repaired; pair the browser, then run `/browse-doctor` |
+| `RELAY_FAILED` | the browse relay reported an error; run `/browse-doctor` |
+| `RELAY_NOT_OURS` | the relay on the port belongs to another installation, so it is left alone |
+| `RELAY_STOP_FAILED` | the relay could not be stopped; see `/browse-doctor` |
+| `STATUS_UNAVAILABLE` | the status report could not be read; restart OpenCode |
+| `DOCTOR_FAILED` | the vendor doctor exited non-zero; fix its first failing check |
+| `NOT_INSTALLED` | there is no pinned binary to identify the relay; reinstall the plugin |
+| `CHROMIUM_MISSING` | managed mode's Chrome for Testing is not installed; run `/browse-install-browser` |
+| `CHROMIUM_INVALID` | the Chrome for Testing download is not the pinned file; reinstall it |
+| `CHROMIUM_BRANDED` | the named Chromium is a branded build managed mode does not run; set `chromiumPath` to a Chromium build |
+| `CHROMIUM_UNSUPPORTED` | this platform has no pinned Chrome for Testing; set `chromiumPath` |
+| `CHROMIUM_DOWNLOAD_FAILED` | the Chrome for Testing download failed; try again |
+| `CHROMIUM_EXTRACT_FAILED` | the Chrome for Testing archive could not be extracted; try again |
+| `CHROMIUM_UNVERIFIED` | the Chrome for Testing download does not match its pin; reinstall it |
+| `CHROMIUM_INSTALL_FAILED` | managed mode's browser could not be installed; run `/browse-doctor` |
+| `EXTENSION_UNVERIFIED` | the managed extension copy does not match its pin; reinstall the plugin |
 
 ## Troubleshooting
 
-| State or code | What it means | What to do |
-| --- | --- | --- |
-| `not configured` | no binary yet, or no release build for this computer | run `/browse-install`, then restart OpenCode; on another platform set `path` |
-| `failed` | the binary does not match its digest, or a needed command failed | `/browse-doctor`, then reinstall |
-| `conflict` | `mcp.servers.browse` in your config is not a browse server | remove or rename that entry, then restart |
-| `disabled` | the `browse` server is disabled in `/mcps` | enable it, or remove `"disabled": true` |
-| `host untested` | OpenCode is outside the supported range | use `>=2.4.1 <2.5.0`, or set `allowUntestedHost` |
-| `BINARY_MISSING` | the release binary is not installed yet | run `/browse-install`, then restart OpenCode |
-| `NOT_INSTALLED` | `/browse-stop-relay` has no pinned binary to identify the relay | reinstall the plugin |
-| `BINARY_UNVERIFIED` | the binary does not match its pinned SHA-256 | reinstall; set `verifyBinary: false` only if you trust the file |
-| `UNSUPPORTED_PLATFORM` | no package ships for this OS or architecture | set `path` to a browse binary you built or installed |
-| `SERVER_LEGACY` | an older `opencode-browser` entry is in your config; its tools are denied | remove it; this plugin registers `browse` |
-| `SERVER_NOT_REGISTERED` | the server transform failed | restart OpenCode |
-| `RULES_NOT_ADDED` | the default rules could not be inserted | restart OpenCode |
-| `SCOPE_LOST` | the pinned session is gone or differs | run `/browse-doctor` |
-| `SCOPE_UNREACHABLE` | the session could not be created (relay down, CLI error) | pair the browser, then `/browse-doctor` |
-| `STATUS_UNAVAILABLE` | `browse status` did not answer | run `browse status` yourself, then press `r` |
-| `RELAY_FAILED` | the relay answered with an error rather than a health report | run `/browse-doctor` |
-| `RELAY_NOT_OURS` | the relay on the port was not started by this plugin's binary | leave it, or stop it with the browse install that started it |
-| `RELAY_STOP_FAILED` | the relay accepted the shutdown request but did not stop | run `/browse-doctor` |
-| `DOCTOR_FAILED` | the vendor doctor exited non-zero | read its checks, fix the first failure |
-| `HOST_UNTESTED` | as `host untested` above | use a supported OpenCode |
-| `OPTIONS_INVALID` | an option failed validation | fix the option the message names |
-| `SKILLS_INVALID` | a bundled skill could not load | reinstall the plugin |
-| `CHROMIUM_MISSING` | managed mode has no browser for this platform or path | run `/browse-install-browser`, or set `chromiumPath` |
-| `CHROMIUM_UNSUPPORTED` | managed mode has no Chrome for Testing build for this platform | set `chromiumPath`, or use the real browser |
-| `CHROMIUM_DOWNLOAD_FAILED` | the Chrome for Testing download failed | check the network, then run `/browse-install-browser` again |
-| `CHROMIUM_EXTRACT_FAILED` | the Chrome for Testing download did not unzip | check `unzip`, then run `/browse-install-browser` again |
-| `CHROMIUM_UNVERIFIED` | the managed browser changed since it was installed | run `/browse-install-browser` again |
-| `CHROMIUM_INVALID` | `chromiumPath` is not a Chromium or Chrome for Testing binary | point it at one |
-| `CHROMIUM_BRANDED` | `chromiumPath` is branded Google Chrome, which will not load the unpacked extension | point it at Chromium or Chrome for Testing |
-| `CHROMIUM_INSTALL_FAILED` | `/browse-install-browser` failed before or during the install | run `/browse-doctor` and fix the first failed check |
-| `EXTENSION_UNVERIFIED` | the bundled extension does not match its pin | reinstall the plugin |
-| Extension not paired | the browser has no key for this relay | run the `Pair:` command `/browse-doctor` prints |
-| Relay stopped | nothing has needed the browser yet | ask the agent to open a page, or run `browse status` |
-| Recording needs ffmpeg | an agent-opened tab records through CDP, which needs `ffmpeg` on PATH | install `ffmpeg`, or lend a tab and record that |
+- **Start here.** `/browse-status` shows the binary, relay, extension, scope and the one next step; `/browse-doctor`
+  runs the vendor doctor, repairs the pinned session and prints the pairing command.
+- **`browse_status` is the plugin's `status`.** The server's own `status` tool has the same effective name on OpenCode
+  2.4.1; read `browse_report` for the relay, extension and connected-browser detail.
+- **The binary is missing or unverified.** Run `/browse-install`, then restart OpenCode. On a platform with no pinned
+  build, set `path` to a browse binary you built or trust (reported unverified).
+- **The relay is stopped.** The first browser call starts it. If the extension is not connected, pair it with the
+  `Pair:` command `/browse-doctor` prints; an extension that is out of date says so in `status`.
+- **A `browse` MCP entry is a conflict.** If `mcp.servers.browse` in your config is not this plugin's command, its tools
+  are denied: remove or rename the entry, then restart OpenCode. An older `opencode-browser` entry is denied for the same
+  reason.
+- **Managed mode will not start.** `/browse-install-browser` downloads and verifies the pinned Chrome for Testing;
+  `chromiumPath` uses your own Chromium (branded Google Chrome is refused). The managed profile starts signed out.
+- **Recording needs ffmpeg.** An agent-opened tab records through CDP and needs `ffmpeg` on `PATH`; a tab the person
+  lends records through the toolbar button and needs nothing.
 
-## Uninstall
+## Docs
 
-```sh
-opencode plugin remove github:we-the-rebel-alliance/browse-plugin
-```
-
-That removes the plugin, its cached binary and its rules; it does not touch your browser. The extension is
-uninstalled from your browser's extensions page. Managed mode's profile and Chrome for Testing are in
-`~/.local/share/opencode-browse/managed` and `~/.cache/opencode-browse`; delete those folders to remove them.
-
-## Links
-
-- [Architecture](https://github.com/we-the-rebel-alliance/browse-plugin/blob/master/docs/architecture.md)
-- [Configuration](https://github.com/we-the-rebel-alliance/browse-plugin/blob/master/docs/configuration.md)
-- [Scripts](https://github.com/we-the-rebel-alliance/browse-plugin/blob/master/docs/scripting.md)
-- [Security](https://github.com/we-the-rebel-alliance/browse-plugin/blob/master/SECURITY.md)
-- [Changelog](https://github.com/we-the-rebel-alliance/browse-plugin/blob/master/CHANGELOG.md)
-- [browse](https://github.com/anomalyco/browse), the upstream project
+- [plugin-contract](https://github.com/we-the-rebel-alliance/plugin-contract): the manifest, doors, access, status and
+  bus semantics this plugin implements
+- [Capabilities](docs/capabilities.md)
+- [Configuration](docs/configuration.md)
+- [Accounts](docs/accounts.md): browse signs in to nothing
+- [Automations](docs/automations.md): browse has no events source
+- [Architecture](docs/architecture.md)
+- [Security](docs/security.md)
+- [CHANGELOG](CHANGELOG.md)

@@ -5,7 +5,7 @@
 import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { platformKey } from "../../src/engine.js"
+import { platformKey } from "../../src/provider/binary.js"
 
 export const projectRoot = fileURLToPath(new URL("../..", import.meta.url))
 

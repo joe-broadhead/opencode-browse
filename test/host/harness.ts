@@ -4,13 +4,12 @@
 // its context to the tests.
 import { RELAY_PORT, ROOT as root } from "./isolate.js"
 import { assertIsolatedBrowseEnv, assertNoRelayLeft, stopRelay } from "../support/relays.js"
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, rmSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import type { OpenCodeClient } from "@opencode/client"
 import { Plugin } from "@opencode/plugin"
-import { createBrowsePlugin } from "../../src/plugin.js"
-import { SKILL_NAMES } from "../../src/skills.js"
+import plugin from "../../src/index.js"
 import { startFakeBinary, type FakeScenario } from "./fake-browse.js"
 import { pinnedBinary } from "../support/pinned.js"
 import { MODEL_ID, startFakeModel } from "./fake-model.js"
@@ -42,12 +41,6 @@ globalThis.fetch = Object.assign(
 
 export const cleanup = () => rmSync(root, { recursive: true, force: true })
 
-const skillsDir = join(root, "skills")
-for (const name of SKILL_NAMES) {
-  mkdirSync(join(skillsDir, name), { recursive: true })
-  writeFileSync(join(skillsDir, name, "SKILL.md"), `---\nname: ${name}\ndescription: Host test ${name} skill.\n---\nBody.\n`)
-}
-
 export interface HostInput {
   /** Plugin options, as a user writes them in opencode.json. `path` is filled with the fake's own path. */
   readonly options?: Record<string, unknown>
@@ -78,10 +71,9 @@ export async function startHost(input: HostInput = {}) {
   mkdirSync(work, { recursive: true })
   const fake = startFakeBinary(input.fake)
   const model = input.model ? await startFakeModel() : undefined
-  const browse = createBrowsePlugin({ skillsDir, statusTimeoutMs: 5_000 })
   const withOptions = Plugin.define({
-    id: browse.id,
-    setup: (ctx) => browse.setup({ ...ctx, options: { ...(input.packagedBinary ? { path: requirePinned() } : { path: fake.path }), ...(input.options ?? {}) } }),
+    id: plugin.id,
+    setup: (ctx) => plugin.setup({ ...ctx, options: { ...(input.packagedBinary ? { path: requirePinned() } : { path: fake.path }), ...(input.options ?? {}) } } as never),
   })
   const probes = new Map<string, Plugin.Context>()
   const probe = Plugin.define({ id: "browse.host-test.probe", setup: (ctx) => void probes.set(ctx.location.directory, ctx) })
@@ -114,6 +106,17 @@ export async function startHost(input: HostInput = {}) {
       if (!ctx) throw new Error("the probe plugin has not loaded")
       return ctx
     },
+    /** One call through the contract's RPC id; a refusal is returned, not thrown. */
+    async call(method: string, input: Record<string, unknown>, options: { readonly sessionID?: string; readonly rules?: readonly Rule[] } = {}) {
+      const sessionID = options.sessionID ?? (await client.sessions.create({ agent: "build", location, ...(options.rules === undefined ? {} : { permissions: options.rules }) })).id
+      try {
+        const answer = (await client.rpc.call({ rpcID: "browse", method, input: { sessionID, input: input as never }, location })) as { output?: unknown } | undefined
+        return { ok: true as const, output: answer?.output }
+      } catch (cause) {
+        const error = cause as { type?: string; message?: string; data?: { code?: string } }
+        return { ok: false as const, code: error.data?.code ?? error.type ?? "UNAVAILABLE", message: error.message ?? String(cause) }
+      }
+    },
     async close() {
       await client.close()
       await model?.close()
@@ -128,15 +131,16 @@ export async function startHost(input: HostInput = {}) {
   try {
     await until("the Browse plugin and the browse server are ready", async () => {
       const { data: plugins } = await client.plugin.list({ location })
-      const state = plugins.find((plugin) => plugin.id === browse.id)?.state
+      const state = plugins.find((entry) => entry.id === plugin.id)?.state
       if (state?.status === "failed") throw new Error(`the Browse plugin failed: ${state.error}`)
       const { data: servers } = await client.mcp.list({ location })
       if (state?.status !== "active" || !probes.has(work)) return false
       if (input.expectTools === false) return true
       const connected = servers.some((server) => server.name === "browse" && server.status.status === "connected")
       if (!connected) return false
-      // A local server connects first and lists its tools a moment later.
-      return (await probes.get(work)!.tool.list()).some((tool) => tool.options?.namespace === "browse")
+      // A local server connects first and lists its tools a moment later. Wait for a tool only the server has: the
+      // plugin's own `status` is registered before the server connects.
+      return (await probes.get(work)!.tool.list()).some((tool) => tool.id === "browse_session_list")
     })
   } catch (error) {
     await host.close().catch(() => {})

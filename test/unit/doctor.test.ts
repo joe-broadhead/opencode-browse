@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { renderDoctor } from "../../src/doctor.js"
+import { renderDoctor } from "../../src/commands.js"
 
 const host = { version: "2.4.1", range: ">=2.4.1 <2.5.0", tested: true }
 const binary = { path: "/opt/browse", version: "0.0.15", source: "package" as const, verified: true, tested: true, supported: true, pinned: true, platform: "darwin-arm64" }
@@ -108,10 +108,8 @@ describe("renderDoctor", () => {
     expect(text).toContain("Next step: Run `/opt/browse status` in a terminal")
   })
 
-  test("a problem without a rule failure is shown, and a RULES_NOT_ADDED problem is left to status", () => {
-    const shown = renderDoctor({ binary, host, live, problems: ["SKILLS_INVALID: The \"browse\" skill was not loaded."] })
-    expect(shown).toContain('Problems: SKILLS_INVALID: The "browse" skill was not loaded.')
-    const hidden = renderDoctor({ binary, host, live, problems: ["RULES_NOT_ADDED: Browse's default permission rules could not be added."] })
-    expect(hidden).not.toContain("Problems:")
+  test("a problem setup recorded is shown with the next step", () => {
+    const shown = renderDoctor({ binary, host, live, problems: ["SCHEMA_VIOLATION: The \"browse\" skill frontmatter is not valid YAML."] })
+    expect(shown).toContain('Problems: SCHEMA_VIOLATION: The "browse" skill frontmatter is not valid YAML.')
   })
 })

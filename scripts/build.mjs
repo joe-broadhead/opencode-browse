@@ -5,12 +5,15 @@
 // Only the modules the host provides stay external. The build fails if an output imports anything else.
 import { build } from "esbuild"
 import { readdirSync, readFileSync, rmSync } from "node:fs"
+import { builtinModules } from "node:module"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = fileURLToPath(new URL("..", import.meta.url))
 const HOST = ["@opencode/plugin", "@opencode/plugin/*", "@opentui/*", "solid-js", "solid-js/*"]
-const provided = (path) => path.startsWith("node:") || HOST.some((name) => (name.endsWith("/*") ? path.startsWith(name.slice(0, -1)) : path === name))
+const builtins = new Set(builtinModules)
+const provided = (path) =>
+  path.startsWith("node:") || builtins.has(path) || HOST.some((name) => (name.endsWith("/*") ? path.startsWith(name.slice(0, -1)) : path === name))
 
 /** The plugin's version, from package.json, as one string: the bundles carry nothing else of package.json. */
 const version = {
@@ -34,6 +37,8 @@ const result = await build({
   platform: "node",
   target: "es2023",
   external: HOST,
+  // The YAML parser is CommonJS and reads `process` with require(); the bundle is ESM, so give it a real require.
+  banner: { js: `import { createRequire } from "node:module";\nconst require = createRequire(import.meta.url);` },
   legalComments: "none",
   metafile: true,
   logLevel: "warning",

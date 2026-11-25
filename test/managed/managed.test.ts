@@ -10,13 +10,13 @@ import { createHash } from "node:crypto"
 import { join } from "node:path"
 import type { AddressInfo } from "node:net"
 import { ROOT } from "../host/isolate.js"
-import { installChromium, installRoot, managedPlatform, readPin } from "../../src/managed/chromium.js"
-import { ManagedBrowser } from "../../src/managed/browser.js"
-import { platformKey, runBinary, resolveBinary } from "../../src/engine.js"
+import { installChromium, installRoot, managedPlatform, readPin } from "../../src/provider/chromium.js"
+import { ManagedBrowser } from "../../src/provider/managed.js"
+import { platformKey, runBinary, resolveBinary } from "../../src/provider/binary.js"
 import { pinnedBinary } from "../support/pinned.js"
 import { cleanup, startHost, until } from "../host/harness.js"
 import { assertNoRelayLeft, relayPidsForHome, stopRelay } from "../support/relays.js"
-import { relayVersion } from "../../src/managed/relay.js"
+import { relayVersion } from "../../src/provider/relay.js"
 
 // The one host this test may reach: Google's Chrome for Testing downloads. The harness blocks every other egress.
 process.env.HOST_TEST_EGRESS = "storage.googleapis.com"
@@ -90,7 +90,7 @@ test(
       expect(status.chromium.verified).toBe(true)
       expect(status.extension.version).toBe("0.0.15")
       expect(status.pid).toBeGreaterThan(1)
-      expect(status.profile).toBe(join(process.env.XDG_DATA_HOME!, "opencode-browse", "managed", "profile"))
+      expect(status.profile).toBe(join(process.env.XDG_DATA_HOME!, "browse-plugin", "managed", "profile"))
 
       // Drive the managed browser through the pinned CLI, which uses the relay the pairing started.
       const title = await runBinary(binary.path, ["execute", `await page.goto(${JSON.stringify(url)}); return await page.title()`], { timeoutMs: 90_000 })
@@ -103,8 +103,9 @@ test(
       expect(readFileSync(shot).subarray(1, 4).toString("latin1")).toBe("PNG")
 
       // The state file names the browser this plugin launched, in its own profile.
-      const state = JSON.parse(readFileSync(join(process.env.XDG_DATA_HOME!, "opencode-browse", "managed", "browser.json"), "utf8")) as { pid: number; executable: string }
-      expect(state.executable).toContain("Chrome for Testing")
+      const state = JSON.parse(readFileSync(join(process.env.XDG_DATA_HOME!, "browse-plugin", "managed", "browser.json"), "utf8")) as { pid: number; executable: string }
+      expect(status.chromium.path).not.toBeNull()
+      expect(state.executable).toBe(status.chromium.path!)
       expect(state.pid).toBe(status.pid as number)
 
       await browser.stop()
@@ -120,7 +121,7 @@ test(
         }
       }
       expect(alive).toBe(false)
-      expect(existsSync(join(process.env.XDG_DATA_HOME!, "opencode-browse", "managed", "browser.json"))).toBe(false)
+      expect(existsSync(join(process.env.XDG_DATA_HOME!, "browse-plugin", "managed", "browser.json"))).toBe(false)
       expect(existsSync(join(status.profile, "SingletonLock"))).toBe(false)
       // The relay the pairing started is stopped with the browser: browse's own shutdown, then nothing left at all.
       expect(await relayVersion()).toBeUndefined()
@@ -143,7 +144,10 @@ test(
         const response = await fetch(`http://127.0.0.1:${process.env.OPENCODE_BROWSER_PORT}/version`).catch(() => undefined)
         return response?.ok === true
       }, 120_000)
-      expect(relayPidsForHome().length).toBe(1)
+      // The relay the pairing started is this run's: its own pid, and the managed mode it reports.
+      const running = await relayVersion()
+      expect(running?.pid).toBeGreaterThan(1)
+      expect(running?.managed).toBe(true)
     } finally {
       await host.close()
     }

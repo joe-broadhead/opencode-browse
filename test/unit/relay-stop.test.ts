@@ -1,8 +1,8 @@
 // `/browse-stop-relay`: it stops only the relay this installation's binary started, through browse's own shutdown,
 // and says why when the relay on the port is someone else's. No token appears in any message.
 import { describe, expect, test } from "bun:test"
-import { formatRelayStop, relayOwnership, type RelayVersion, type RelayStop } from "../../src/managed/relay.js"
-import { registerStopRelayCommand } from "../../src/plugin.js"
+import { formatRelayStop, relayOwnership, type RelayVersion, type RelayStop } from "../../src/provider/relay.js"
+import { registerStopRelayCommand } from "../../src/commands.js"
 
 const version: RelayVersion = { version: "0.0.14", instanceId: "inst-1", pid: 42, managed: true, buildId: "build-1", shutdownProtocol: 2 }
 const binary = "/cache/native/v0.0.0/browse/darwin-arm64/browse"

@@ -35,7 +35,7 @@ const EXTENSION_KEY =
 
 const sha256 = (data) => createHash("sha256").update(data).digest("hex")
 const fetchBytes = async (url) => {
-  const response = await fetch(url, { redirect: "follow", headers: { "user-agent": "opencode-browse-pin/0.0.0" } })
+  const response = await fetch(url, { redirect: "follow", headers: { "user-agent": "browse-plugin-pin/0.0.0" } })
   if (!response.ok) throw new Error(`${url} answered HTTP ${response.status}`)
   return Buffer.from(await response.arrayBuffer())
 }

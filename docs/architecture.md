@@ -1,109 +1,68 @@
 # Architecture
 
-The plugin is a thin layer over the pinned browse binary. OpenCode owns the MCP transport, the tool list, permission
-prompts and Code Mode; browse owns the relay, the extension and the browser. This plugin registers the server at
-runtime, ships the binary, classifies its 18 tools, sets default permission rules, reports status, ships two skills and
-lets scripts call the known tools. It adds no tool of its own, makes no browser call of its own, and never edits a
-config file.
+```
+src/
+  index.ts          one `Plugin.define`, `assertHost`, one `register`, and setup's disposal
+  manifest.ts       the installed `capabilities` manifest, read from package.json
+  package.ts        the package root, one level up from `src/` and from `dist/`
+  options.ts        the options schema's runtime checks; a bad value is a status problem
+  report.ts         the report's types, its formatting, and the dialog's RPC definition
+  report-build.ts   the report's builder and the manifest's access counts (server half only)
+  scope.ts          the `scope` option's narrowing of the contract's rules
+  skills.ts         the two shipped skills: YAML frontmatter parsed, then registered through ctx.skill
+  commands.ts       /browse-status, /browse-doctor, /browse-install, /browse-install-browser, /browse-stop-relay
+  tui.ts            the status dialog
+  handlers/
+    index.ts        the handler table register takes: status and report
+    status.ts       the contract's short status answer
+    report.ts       the diagnostic report handler
+    unguarded.ts    the one place a handler reads the agents that lack the rules
+  provider/
+    index.ts        setup: binary, MCP server, managed browser, pinned session, live reads
+    binary.ts       the pin, resolution, verification, `browse status --json`, the pinned session
+    native.ts       the native release installer (gzip + SHA-256 + size, from manifest/native.json)
+    server.ts       the `browse` MCP server registration and adoption
+    managed.ts      managed mode's Chromium, profile and pairing
+    chromium.ts     the pinned Chrome for Testing download and verification
+    extension.ts    the unpacked extension copy and its pairing file
+    relay.ts        the relay's identity, ownership and shutdown
+    paths.ts        the plugin's data and cache folders
+    recording.ts    ffmpeg readiness for recording
+```
 
-## Layout
+## The layers
 
-| Path | Role |
-| --- | --- |
-| `src/index.ts` | the server entry: `Plugin.define({ id: "browse", setup })` |
-| `src/plugin.ts` | setup, server registration or adoption, the scoped session, cleanup |
-| `src/constants.ts` | ids, server name, pinned version, namespace text, host range, error shape |
-| `src/browse-tools.ts` | one table: all 18 tools, their MCP annotations, class and default effect. No runtime imports, so the drift script loads it |
-| `src/permissions.ts` | the rule block, insertion after the base allow, guarded detection |
-| `src/engine.ts` | the binary: resolution, digest verification, `--version`, `status --json`, the scoped session |
-| `bin/mcp.mjs` | the MCP entry: re-verifies the pinned binary at every spawn, then serves it with supervision and auto-update off |
-| `src/managed/` | managed mode: Chrome for Testing (`chromium.ts`), the pinned extension (`extension.ts`), and the browser's lifecycle and pairing (`browser.ts`) |
-| `manifest/chromium.json`, `manifest/extension.json` | the CfT pin and the extension's per-file digests |
-| `src/options.ts` | options, `OPTIONS_INVALID` |
-| `src/status.ts` | the one status model, `/browse-status`, the status RPC |
-| `src/doctor.ts` | `/browse-doctor`: the vendor doctor, the binary checks, scope repair |
-| `src/skills.ts` | loading and registering `skills/` |
-| `src/tui.ts` | `/browse` and the palette command "Browse: Status" |
-| `src/grant/action-grant.ts` | the action-grant verifier: a signed, single-use grant bound to one action and its exact input |
-| `src/tools-rpc.ts` | Browse's part of the tools RPC; the transport is the source contract package, bundled into `dist/index.js` |
-| `manifest/browse.json` | the pin: version, channel, and each target's tarball URL, SHA-256, size, binary SHA-256 and size |
-| `scripts/pin.mjs` | downloads and verifies the pinned targets into `.cache/bin` |
-| `scripts/build-native.mjs` | `--ensure` fetches and verifies this computer's pinned binary into `.cache/bin`; `--release` writes the release files and the candidate manifest |
-| `scripts/check-browse-tools.mjs` | the drift check against the fixture or a binary |
+- **`index.ts` is the only place the contract is wired.** `assertHost` refuses an untested release; `register` adds the
+  tools, the one RPC registration and the access rules from the handler table; the provider is built before it and
+  disposed with it.
+- **Handlers are pure where possible.** `status` and `report` read values setup already resolved and the agents their
+  own call returns. They never touch tools, RPC or permissions.
+- **The provider is the only place a URL, a binary or a file path is named.** It runs the pinned binary with an argument
+  list, never a shell; it starts the managed Chromium; it reads the relay's `/version`.
+- **Commands and skills are host surfaces, not methods.** They are registered once in setup and add no method to the
+  manifest. Skills are checked before anything registers: the frontmatter is parsed as YAML, so a folded or literal
+  description keeps its text, and a malformed file fails setup with `SCHEMA_VIOLATION`.
 
-## Setup
+## OpenCode APIs used
 
-1. `parseOptions` validates the options; a bad one is kept for status, never thrown.
-2. `checkHost` compares `ctx.app.version` with `>=2.4.1 <2.5.0`; outside it nothing is set up unless
-   `allowUntestedHost` is true.
-3. The skills are read from `../skills/`.
-4. `resolveBinary` finds the released binary in the cache (a first-use download runs only at access `all`), verifies its SHA-256 against the pin, and returns it. No
-   PATH lookup: a project dependency named `browse` never gets the browser, and the `OPENCODE_BROWSE_BIN` seam is
-   ignored unless `OPENCODE_BROWSE_TEST=1`. A missing or tampered binary registers nothing and becomes a status
-   problem.
-5. `ctx.mcp.transform` sets `mcp.servers.browse = { type: "local", command: [<package>/bin/mcp.mjs, "mcp"], environment: { OPENCODE_BROWSER_MCP_DIRECT: "1", OPENCODE_BROWSER_AUTO_UPDATE: "off", session? } }`, or
-   adopts the user's own browse entry from the vendor's installer by replacing only its command. Any other entry under
-   the name is a conflict. A legacy `opencode-browser` entry is reported.
-6. `ctx.tool.transform` names the Code Mode namespace, unless the name is in conflict.
-7. `ctx.agent.transform` inserts the default rules after each agent's base `* * allow`; the scoped profile applies
-   when `scope` is set.
-8. With `scope`, `ensureScope` lists, creates or repairs the pinned session with the vendor CLI.
-9. `ctx.skill.transform`, `/browse-status`, `/browse-doctor`, `/browse-install-browser`, the status RPC and the tools
-   RPC are registered.
-10. With `"browser": "managed"`, a `ManagedBrowser` prepares the extension copy, mints a code through `browse pair`,
-    writes it for the unpacked extension, launches Chrome for Testing and waits for the relay to report the extension
-    connected. It is stopped on dispose. With invalid options or an untested host the plugin still loads: status only,
-    with the deny nets in place.
+Only the public `@opencode/plugin` 2.4.1 context: `ctx.app.version`, `ctx.options`, `ctx.agent`, `ctx.tool`, `ctx.rpc`,
+`ctx.session`, `ctx.command`, `ctx.skill` and `ctx.mcp`. The contract's `register` uses `ctx.permission` for the
+call gate. The status dialog (`src/tui.ts`) uses `@opencode/plugin/tui`: the dialog, the keymap layer and the
+data events it subscribes to while open.
 
-## The relay's lifetime
+## What is cached
 
-The relay is a **daemon**: `browse pair`, an MCP tool call or `browse execute` starts `browse serve`, which detaches
-(its parent becomes pid 1) and keeps the browser paired after the process that started it exits. It listens on
-`127.0.0.1:19988` unless `OPENCODE_BROWSER_PORT` says otherwise.
+- The resolved binary, once per plugin instance; `verifyBinary` re-checks the file at each use.
+- The `browse status --json` answer for three seconds, so `/browse-status` and `/browse-doctor` close together do not
+  start the binary twice.
+- The recording check is run once at setup and kept for the report.
+- Nothing about a person, a page or a credential is cached by this plugin; the browse server owns its sessions.
 
-- **Real mode leaves it running.** That is browse's design: the extension stays paired, and the next OpenCode session
-  reuses the relay. **`/browse-stop-relay`** stops it: it reads `/version`, refuses a relay that is not this plugin's
-  own (`managed` false, another browse version, or a pid whose command line is not the pinned binary), and then calls
-  browse's own `/shutdown` with the relay token. Never a kill by name, and no token in the output.
-- **Managed mode stops the relay it started**, together with the managed browser, on dispose. It never stops a relay
-  that was already running, and only a relay that reports `managed: true` is shut down, through browse's own
-  `/shutdown` with the relay token. The next start pairs again with a fresh one-time code.
+## Doors
 
-## Managed mode's pairing
-
-browse's unpacked build reads `relay-pairing.json` from its own folder (`chrome.runtime.getURL`) and exchanges that
-one-time code for a per-browser key. The plugin uses exactly that: `browse pair --wait-seconds 120` starts the relay
-and mints a code, the plugin writes `{ code }` to the managed extension copy (mode 0600) and launches Chrome for
-Testing with `--load-extension` and `--disable-extensions-except`; the extension redeems the code, and the pair
-command's own confirmation ends the attempt. The file is removed afterwards. Nothing is minted, guessed or bypassed by
-the plugin, and the code never reaches status, a log or a transcript.
-
-The store zip carries no manifest `key`, so Chrome would derive an extension id from the folder path and the relay
-would reject its WebSocket origin. The pinned copy adds browse's public manifest key, which derives the id
-`afeafocngkodbmaipcngoamamfmekgfo` — the one browse's relay accepts — and `verifyExtension` refuses a copy whose key does
-not.
-
-Transforms are synchronous and never throw: a failure is kept for status and cleared when the next replay succeeds.
-
-## Platform facts
-
-| Fact | Value |
-| --- | --- |
-| Host plugin API | `@opencode/plugin` 2.4.1 (the SDK the lockfile pins) |
-| Local MCP server | `Mcp.LocalConfig { type: "local", command, cwd?, environment?, disabled?, codemode?, timeout?, protocol? }` |
-| Tool name | `<server>_<tool>`, so `browse_execute`; Code Mode groups them as `tools.browse.execute(...)` |
-| Permission evaluation | the last matching rule wins, resource `*` for MCP calls; no match asks |
-| Denied MCP tool | hidden from `ctx.tool.list()`, so Code Mode's catalog does not show it |
-| Server instructions | the `initialize` instructions reach the system prompt; browse sends a short usage guide |
-| Bundle reload | an in-place plugin reload reuses unchanged module records, so each entry is one self-contained file |
-| Status RPC | `browse/status`, one method; the TUI part cannot see the server's findings, so it asks |
-
-The pinned binary reports `browse <version>` for `--version`, and `browse status --json` prints a pretty JSON envelope
-whose `sessions` carry `readOnly` and `allowedOrigins`. Exit code 4 means the relay is stopped, which is a state, not
-a failure.
-
-## The tools RPC
-
-`browse.tools` is the shared `tools-rpc` module from `@we-the-rebel-alliance/source-contract`, with this plugin's block: all 18 tools as MCP methods, each with
-its class, so a script gets the reads and is refused the rest unless a config rule allows them. `docs/scripting.md`
-lists the methods.
+The contract's `register` wires the plugin's two methods through the agent tool, Code Mode and RPC id `browse`. The 18
+browser tools are the MCP server's own: OpenCode lists them under the `browse` namespace and checks `browse_<tool>` for
+each call. One of them, `status`, has the same effective name as the plugin's own `status` method; the plugin's tool is
+the one registered, and `report` carries the details (docs/capabilities.md). Browse has no accounts, so there is one
+server, named `browse`, and no per-alias rule. The plugin's own methods are permitted as `browse.<method>`; the server's
+tools keep `browse_<tool>`.

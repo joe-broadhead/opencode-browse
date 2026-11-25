@@ -1,5 +1,5 @@
 node_modules/
-dist/
+release/
 *.tgz
 .env
 .env.*
@@ -7,4 +7,5 @@ dist/
 .DS_Store
 
 .cache/
+test/.skills-host-*/
 dist-packages/

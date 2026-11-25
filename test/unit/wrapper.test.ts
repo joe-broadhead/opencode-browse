@@ -92,7 +92,7 @@ describe("bin/mcp.mjs", () => {
   test("caches the verified digest by file identity, and neither hashes nor rewrites it on a hit", () => {
     const fake = tree("#!/bin/sh\necho SERVED\n")
     try {
-      const cacheFile = join(fake.home, ".local", "share", "opencode-browse", "cache", "binary-integrity.json")
+      const cacheFile = join(fake.home, ".local", "share", "browse-plugin", "cache", "binary-integrity.json")
       expect(run(fake.dir, fake.home, fake.pinned, fake.binary).status).toBe(0)
       expect(existsSync(cacheFile)).toBe(true)
       expect(statSync(cacheFile).mode & 0o777).toBe(0o600)
@@ -114,7 +114,7 @@ describe("bin/mcp.mjs", () => {
   test("a metadata change alone is a miss: it re-hashes, rewrites the cache, and still runs", () => {
     const fake = tree("#!/bin/sh\necho SERVED\n")
     try {
-      const cacheFile = join(fake.home, ".local", "share", "opencode-browse", "cache", "binary-integrity.json")
+      const cacheFile = join(fake.home, ".local", "share", "browse-plugin", "cache", "binary-integrity.json")
       expect(run(fake.dir, fake.home, fake.pinned, fake.binary).status).toBe(0)
       const before = statSync(cacheFile)
       chmodSync(fake.binary, 0o777)
