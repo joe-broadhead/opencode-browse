@@ -25,6 +25,12 @@ describe("registering the server", () => {
         expect({ tool, found: inNamespace.some((entry) => entry.id === `browse_${tool}`) }).toEqual({ tool, found: true })
       }
       expect(inNamespace).toHaveLength(19)
+      // The project is empty and its config has no `mcp.servers` entry (the harness's isolated HOME and XDG keep any
+      // user config out), so the one `browse` server in the list is the plugin's own registration, and it is connected.
+      const { data: servers } = await host.client.mcp.list({ location: host.location })
+      const browseServers = servers.filter((server) => server.name === "browse")
+      expect(browseServers).toHaveLength(1)
+      expect(browseServers[0]?.status.status).toBe("connected")
       expect(host.fake.calls().some((call) => call.kind === "tool")).toBe(false)
     } finally {
       await host.close()
