@@ -34,6 +34,13 @@ the gzips and licence, and `publish` attaches all six native files by exact name
 `check` job runs `npm run check`, which starts with `bin:ensure`, so the pinned binary is present for the pack and host
 checks.
 
+## Binary pin mirror
+
+`manifest/browse.json` points at the organization's mirror release, `we-the-rebel-alliance/browse-binaries` release
+`v<version>`. After `npm run bin:pin`, upload the four renamed `browse-<platform>-<version>.tgz` files to that mirror
+release; `npm run bin:ensure` downloads from the manifest and verifies each tarball's size and SHA-256 before extracting
+the binary. `BROWSE_BINARY_MIRROR` overrides the mirror base for a rehearsal.
+
 ## A pull request
 
 - One change per pull request, with the manifest's declaration and its code and tests.

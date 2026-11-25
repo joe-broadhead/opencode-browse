@@ -27,7 +27,7 @@ The first release on plugin-contract v0.
 - **The `browse.tools` RPC.** Contract v0's `register` does not proxy a vendor MCP server's tools over RPC. The 18
   pass-through tools remain agent tools and Code Mode entries, and the plugin's own `status` and `report` are on the
   `browse` RPC. The old RPC's `describe` method goes with it.
-- **The old data and cache folders `opencode-browse`** are not migrated to `browse-plugin`. v0.0.0 is greenfield; a first
+- **The old data and cache folders are not migrated to `browse-plugin`.** v0.0.0 is greenfield; a first
   run recreates them, so a managed profile made by v0.0.5 is not carried over.
 - **The server's own `status` tool is not separately callable.** OpenCode 2.4.1 gives it and the plugin's required
   `status` the same effective name (`browse_status`), so the plugin's `status` owns that name; the server's relay,

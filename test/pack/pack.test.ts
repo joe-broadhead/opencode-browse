@@ -119,6 +119,18 @@ describe("the tarball", () => {
     }
   })
 
+  test("every pinned asset is the org mirror's renamed tarball", () => {
+    const pin = JSON.parse(execFileSync("tar", ["-xzOf", tarball, "package/manifest/browse.json"], { encoding: "utf8" }))
+    for (const [platform, target] of Object.entries(pin.targets) as [string, { asset: string; url: string }][]) {
+      const asset = `browse-${platform}-${pin.version}.tgz`
+      expect({ platform, asset: target.asset, url: target.url }).toEqual({
+        platform,
+        asset,
+        url: `https://github.com/we-the-rebel-alliance/browse-binaries/releases/download/v${pin.version}/${asset}`,
+      })
+    }
+  })
+
   test("the release manifest covers every platform and pins the upstream binaries", () => {
     const native = JSON.parse(execFileSync("tar", ["-xzOf", tarball, "package/manifest/native.json"], { encoding: "utf8" }))
     const pin = JSON.parse(execFileSync("tar", ["-xzOf", tarball, "package/manifest/browse.json"], { encoding: "utf8" }))

@@ -3,13 +3,17 @@
 // package/bin/browse, checks the binary's own SHA-256 and byte size, and writes manifest/browse.json. The binaries
 // stay in .cache/bin (git-ignored); scripts/build-native.mjs turns them into the release files.
 //
+// The written URLs point at the organization's mirror release (`we-the-rebel-alliance/browse-binaries`, `v<version>`),
+// not the upstream service. After a pin, upload the four renamed `browse-<platform>-<version>.tgz` files to that mirror
+// release before committing the manifest; `BROWSE_BINARY_MIRROR` overrides the mirror base.
+//
 //   node scripts/pin.mjs            pin the current version on the stable channel (refuses a change without --refresh)
 //   node scripts/pin.mjs --refresh  re-pin whatever the channel serves now, after a drift check
 //
 // Never runs the installer, never pairs an extension, never writes a config file.
 import { createHash } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { basename, join } from "node:path"
+import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { execFileSync } from "node:child_process"
 
@@ -18,6 +22,7 @@ const MANIFEST = join(root, "manifest", "browse.json")
 const CACHE = join(root, ".cache", "bin")
 const SERVICE = process.env.BROWSE_RELEASE_SERVICE ?? "https://anoma.ly/release"
 const CHANNEL = process.env.BROWSE_CHANNEL ?? "stable"
+const MIRROR = (process.env.BROWSE_BINARY_MIRROR ?? "https://github.com/we-the-rebel-alliance/browse-binaries/releases/download").replace(/\/+$/, "")
 
 /** The channel manifest's target names, and the platform key each becomes. */
 export const TARGETS = {
@@ -74,10 +79,11 @@ async function pin({ refresh }) {
     execFileSync("rm", ["-rf", join(dir, "package"), join(dir, "asset.tgz")])
     execFileSync("chmod", ["755", file])
     const binary = read(file)
+    const assetName = `browse-${platform}-${version}.tgz`
     targets[platform] = {
       target,
-      asset: basename(tgzUrl),
-      url: tgzUrl,
+      asset: assetName,
+      url: `${MIRROR}/v${version}/${assetName}`,
       tgzSha256: asset.sha256,
       tgzBytes: asset.size,
       sha256: sha256(binary),
