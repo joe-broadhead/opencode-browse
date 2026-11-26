@@ -36,8 +36,8 @@ function licenceFile(directory: string): string | undefined {
   return files.find((file) => /^licen[cs]e$/i.test(file)) ?? files.find((file) => /^(licen[cs]e|copying|notice)([._-].*)?$/i.test(file))
 }
 
-/** Every package esbuild actually inlines into either bundle. */
-async function bundledPackages(): Promise<string[]> {
+/** Every package esbuild actually inlines into either bundle, plus the two the metafile does not name. */
+async function bundledPackages(): Promise<{ packages: string[]; code: string }> {
   const result = await build({
     absWorkingDir: root,
     entryPoints: { index: "src/index.ts", tui: "src/tui.ts" },
@@ -70,7 +70,12 @@ async function bundledPackages(): Promise<string[]> {
       if (keep(match[1])) found.add(match[1])
     }
   }
-  return [...found].sort()
+  const code = (result.outputFiles ?? []).map((file) => file.text).join("\n")
+  // RD-106: zod is inlined by plugin-contract's pre-bundled dist, not listed as its own input, so detect its code.
+  if (/\$ZodType|ZodError/.test(code)) found.add("zod")
+  // plugin-contract is inlined by every plugin; accept either its input path or its register code.
+  if (found.has("@we-the-rebel-alliance/plugin-contract") || code.includes("SCHEMA_VIOLATION")) found.add("@we-the-rebel-alliance/plugin-contract")
+  return { packages: [...found].sort(), code }
 }
 
 function heading(name: string, version: string, licence: string): RegExp {
@@ -80,7 +85,8 @@ function heading(name: string, version: string, licence: string): RegExp {
 
 describe("the bundled third-party notices", () => {
   test("every bundled package has its heading and verbatim licence text", async () => {
-    const packages = await bundledPackages()
+    const { packages, code } = await bundledPackages()
+    expect(code, "zod's code is in the bundle").toMatch(/\$ZodType|ZodError/)
     expect(packages).toEqual(expect.arrayContaining(["@we-the-rebel-alliance/plugin-contract", "yaml", "zod"]))
     const notice = readFileSync(join(root, "NOTICE"), "utf8")
     for (const name of packages) {
