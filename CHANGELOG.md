@@ -34,3 +34,5 @@ The first release on plugin-contract v0.
   extension and connected-browser detail is in `report`.
 - **The old detailed status RPC response** is split into the contract's `status` (the short answer) and the plugin's
   `report` (the binary, relay, extension, scope, managed browser, recording and next step).
+- **`NOTICE` carries every package inlined into `dist/`** — `@we-the-rebel-alliance/plugin-contract` 0.0.0, `yaml`
+  2.9.1 and `zod` 4.6.7 — with each package's licence text verbatim.
