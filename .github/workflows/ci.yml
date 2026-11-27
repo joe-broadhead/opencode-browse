@@ -16,9 +16,9 @@ concurrency:
 jobs:
   ci:
     name: ci
-    # The 4a runner rule: the org's public self-hosted runner when `CI_RUNNER_PUBLIC` is set, otherwise GitHub's.
+    # The org's public self-hosted runner, named directly.
     # Every step is user-space (`npm ci`, the pinned binary download, `chmod`, the check), so the job runs there unchanged.
-    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (vars.CI_RUNNER_PUBLIC || 'ubuntu-24.04') || 'ubuntu-24.04' }}
+    runs-on: boxd-public
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

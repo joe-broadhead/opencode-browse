@@ -15,7 +15,7 @@ permissions: {}
 jobs:
   check:
     name: check the tag
-    runs-on: ubuntu-24.04
+    runs-on: boxd-public
     timeout-minutes: 40
     permissions:
       contents: read
@@ -62,7 +62,7 @@ jobs:
 
   native:
     name: build and verify the native files
-    runs-on: ubuntu-24.04
+    runs-on: boxd-public
     timeout-minutes: 40
     permissions:
       contents: read
@@ -95,7 +95,7 @@ jobs:
   publish:
     name: publish the release
     needs: [check, native]
-    runs-on: ubuntu-24.04
+    runs-on: boxd-public
     timeout-minutes: 10
     permissions:
       contents: write

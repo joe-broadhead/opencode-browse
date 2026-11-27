@@ -1,5 +1,7 @@
-# Kept so an actionlint older than 1.7.12, which does not know GitHub's macOS 26 runner labels, still accepts the workflows.
+# Kept so actionlint accepts the workflows: older versions (before 1.7.12) do not know GitHub's macOS 26 runner labels,
+# and none knows the org runner label `boxd-public`.
 self-hosted-runner:
   labels:
+    - boxd-public
     - macos-26
     - macos-26-intel
